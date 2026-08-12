@@ -42,8 +42,6 @@ data class PromptTemplateDto(
 
 @Schema(description = "BRANCH ref 생성 요청")
 data class CreatePromptTemplateBranchRequest(
-    @field:Schema(description = "소속 템플릿 식별자", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
-    val promptTemplateId: Long,
     @field:NotBlank
     @field:Size(max = 200)
     @field:Schema(description = "BRANCH 이름", example = "main", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -54,8 +52,6 @@ data class CreatePromptTemplateBranchRequest(
 
 @Schema(description = "VERSION ref 생성 요청")
 data class CreatePromptTemplateVersionRefRequest(
-    @field:Schema(description = "소속 템플릿 식별자", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
-    val promptTemplateId: Long,
     @field:Schema(description = "발행할 동일 템플릿의 BRANCH ref 식별자", example = "10", requiredMode = Schema.RequiredMode.REQUIRED)
     val fromRefId: Long,
 )

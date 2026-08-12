@@ -124,8 +124,8 @@ class L0ReferenceDataInitializer(
         // 이미 VERSION이 발급된 템플릿은 서버 재시작 시 새 버전을 만들지 않는다.
         if (template.lastVersion == 0L) {
             promptTemplateRefService.createVersion(
+                template.id,
                 CreatePromptTemplateVersionRefRequest(
-                    promptTemplateId = template.id,
                     fromRefId = branch.id,
                 ),
             )

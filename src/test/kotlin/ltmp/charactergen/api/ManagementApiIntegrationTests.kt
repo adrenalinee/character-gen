@@ -52,15 +52,18 @@ class ManagementApiIntegrationTests(
         mockMvc.get("/v3/api-docs").andExpect {
             status { isOk() }
             jsonPath("$.paths['/api/v1/prompt-templates'].get") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs'].get") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs'].get.parameters[?(@.name == 'page')]") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs'].get.parameters[?(@.name == 'size')]") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs'].get.parameters[?(@.name == 'sort')]") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs/branches'].post") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs/versions'].post") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs/{refId}'].get") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs/{refId}'].delete") { exists() }
-            jsonPath("$.paths['/api/v1/prompt-template-refs/{refId}/branch'].put") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs'].get") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs'].get.parameters[?(@.name == 'page')]") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs'].get.parameters[?(@.name == 'size')]") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs'].get.parameters[?(@.name == 'sort')]") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs/branches'].post") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs/versions'].post") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}'].get") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}'].put") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}'].delete") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}'].get") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}'].delete") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-template-refs']") { doesNotExist() }
             jsonPath("$.paths['/api/v1/prompt-template-versions']") { doesNotExist() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].post") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].post.responses['429']") { exists() }
@@ -77,9 +80,9 @@ class ManagementApiIntegrationTests(
         val templateId = createTemplate("L0 Character")
         val otherTemplateId = createTemplate("Other Character")
 
-        val emptyBranch = mockMvc.post("/api/v1/prompt-template-refs/branches") {
+        val emptyBranch = mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/branches", templateId) {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$templateId,"name":"main","fromRefId":null}"""
+            content = """{"name":"main","fromRefId":null}"""
         }.andExpect {
             status { isCreated() }
             jsonPath("$.type") { value("BRANCH") }
@@ -89,11 +92,12 @@ class ManagementApiIntegrationTests(
             jsonPath("$.inputs.length()") { value(0) }
             jsonPath("$.revision") { value(0) }
         }.andReturn()
-        val branchId = locationId(emptyBranch.response.getHeader("Location"))
+        val branchId = responseId(emptyBranch.response.contentAsString)
+        assertEquals("http://localhost/api/v1/prompt-templates/$templateId/refs/main", emptyBranch.response.getHeader("Location"))
 
-        mockMvc.post("/api/v1/prompt-template-refs/versions") {
+        mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/versions", templateId) {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$templateId,"fromRefId":$branchId}"""
+            content = """{"fromRefId":$branchId}"""
         }.andExpect {
             status { isBadRequest() }
             jsonPath("$.code") { value("INVALID_REQUEST") }
@@ -110,7 +114,7 @@ class ManagementApiIntegrationTests(
               "revision":0
             }
         """.trimIndent()
-        val updatedBranch = mockMvc.put("/api/v1/prompt-template-refs/{refId}/branch", branchId) {
+        val updatedBranch = mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
             content = updateBody
         }.andExpect {
@@ -121,7 +125,7 @@ class ManagementApiIntegrationTests(
             jsonPath("$.revision") { value(1) }
         }.andReturn()
 
-        mockMvc.put("/api/v1/prompt-template-refs/{refId}/branch", branchId) {
+        mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
             content = updateBody
         }.andExpect {
@@ -129,9 +133,9 @@ class ManagementApiIntegrationTests(
             jsonPath("$.code") { value("RESOURCE_CONFLICT") }
         }
 
-        val versionOne = mockMvc.post("/api/v1/prompt-template-refs/versions") {
+        val versionOne = mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/versions", templateId) {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$templateId,"fromRefId":$branchId}"""
+            content = """{"fromRefId":$branchId}"""
         }.andExpect {
             status { isCreated() }
             jsonPath("$.type") { value("VERSION") }
@@ -141,36 +145,34 @@ class ManagementApiIntegrationTests(
             jsonPath("$.fromRefRevision") { value(1) }
             jsonPath("$.inputs[0].inputText") { value("Create an L0 character") }
         }.andReturn()
-        val versionOneId = locationId(versionOne.response.getHeader("Location"))
+        val versionOneId = responseId(versionOne.response.contentAsString)
+        assertEquals(
+            "http://localhost/api/v1/prompt-templates/$templateId/refs/versions/1",
+            versionOne.response.getHeader("Location"),
+        )
 
-        mockMvc.put("/api/v1/prompt-template-refs/{refId}/branch", versionOneId) {
+        mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/versions", templateId) {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"name":"invalid","instructions":"x","inputs":[],"revision":0}"""
-        }.andExpect { status { isConflict() } }
-
-        mockMvc.post("/api/v1/prompt-template-refs/versions") {
-            contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$templateId,"fromRefId":$versionOneId}"""
+            content = """{"fromRefId":$versionOneId}"""
         }.andExpect { status { isBadRequest() } }
 
-        val copiedBranch = mockMvc.post("/api/v1/prompt-template-refs/branches") {
+        val copiedBranch = mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/branches", templateId) {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$templateId,"name":"experiment","fromRefId":$versionOneId}"""
+            content = """{"name":"experiment","fromRefId":$versionOneId}"""
         }.andExpect {
             status { isCreated() }
             jsonPath("$.fromRefId") { value(versionOneId) }
             jsonPath("$.instructions") { value("Generate character") }
             jsonPath("$.inputs[1].inputText") { value("Return JSON only") }
         }.andReturn()
-        val copiedBranchId = locationId(copiedBranch.response.getHeader("Location"))
+        val copiedBranchId = responseId(copiedBranch.response.contentAsString)
 
-        mockMvc.post("/api/v1/prompt-template-refs/branches") {
+        mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/branches", otherTemplateId) {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$otherTemplateId,"name":"cross-copy","fromRefId":$branchId}"""
+            content = """{"name":"cross-copy","fromRefId":$branchId}"""
         }.andExpect { status { isBadRequest() } }
 
-        mockMvc.get("/api/v1/prompt-template-refs") {
-            param("promptTemplateId", templateId.toString())
+        mockMvc.get("/api/v1/prompt-templates/{promptTemplateId}/refs", templateId) {
             param("type", "BRANCH")
             param("name", "experiment")
             param("page", "0")
@@ -181,15 +183,26 @@ class ManagementApiIntegrationTests(
             jsonPath("$.page.totalElements") { value(1) }
         }
 
-        mockMvc.delete("/api/v1/prompt-template-refs/{refId}", versionOneId).andExpect {
+        mockMvc.get("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "experiment").andExpect {
+            status { isOk() }
+            jsonPath("$.id") { value(copiedBranchId) }
+            jsonPath("$.name") { value("experiment") }
+        }
+        mockMvc.get("/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}", templateId, 1).andExpect {
+            status { isOk() }
+            jsonPath("$.id") { value(versionOneId) }
+            jsonPath("$.version") { value(1) }
+        }
+
+        mockMvc.delete("/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}", templateId, 1).andExpect {
             status { isConflict() }
         }
-        mockMvc.delete("/api/v1/prompt-template-refs/{refId}", branchId).andExpect {
+        mockMvc.delete("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main").andExpect {
             status { isConflict() }
         }
 
-        val deletableBranchId = createBranch(templateId, "deletable")
-        mockMvc.delete("/api/v1/prompt-template-refs/{refId}", deletableBranchId).andExpect {
+        createBranch(templateId, "deletable")
+        mockMvc.delete("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "deletable").andExpect {
             status { isNoContent() }
         }
         mockMvc.delete("/api/v1/prompt-templates/{id}", templateId).andExpect {
@@ -203,7 +216,7 @@ class ManagementApiIntegrationTests(
     fun `BRANCH 실행에는 원본 스냅샷을 저장하고 VERSION 실행에는 저장하지 않는다`() {
         val templateId = createTemplate("Generation Template")
         val branchId = createBranch(templateId, "main")
-        mockMvc.put("/api/v1/prompt-template-refs/{refId}/branch", branchId) {
+        mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
             content = """
                 {"name":"main","instructions":"System instruction","inputs":[{"role":"user","inputText":"Hello {{DOMAIN}}"}],"revision":0}
@@ -222,12 +235,11 @@ class ManagementApiIntegrationTests(
             jsonPath("$.promptRefSnapshotJson") { value(org.hamcrest.Matchers.containsString("Hello {{DOMAIN}}")) }
         }
 
-        val versionId = locationId(
-            mockMvc.post("/api/v1/prompt-template-refs/versions") {
-                contentType = MediaType.APPLICATION_JSON
-                content = """{"promptTemplateId":$templateId,"fromRefId":$branchId}"""
-            }.andExpect { status { isCreated() } }.andReturn().response.getHeader("Location"),
-        )
+        val versionResponse = mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/versions", templateId) {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"fromRefId":$branchId}"""
+        }.andExpect { status { isCreated() } }.andReturn()
+        val versionId = responseId(versionResponse.response.contentAsString)
         mockMvc.post("/api/v1/l0-characters/generations") {
             contentType = MediaType.APPLICATION_JSON
             content = generationRequest(versionId)
@@ -236,7 +248,7 @@ class ManagementApiIntegrationTests(
             jsonPath("$.refType") { value("VERSION") }
             jsonPath("$.promptRefSnapshotJson") { doesNotExist() }
         }
-        mockMvc.delete("/api/v1/prompt-template-refs/{refId}", versionId).andExpect {
+        mockMvc.delete("/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}", templateId, 1).andExpect {
             status { isConflict() }
         }
     }
@@ -245,7 +257,7 @@ class ManagementApiIntegrationTests(
     fun `생성 실행 이력을 페이징 검색하고 단일 상세 조회한다`() {
         val templateId = createTemplate("Generation History Template")
         val branchId = createBranch(templateId, "main")
-        mockMvc.put("/api/v1/prompt-template-refs/{refId}/branch", branchId) {
+        mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"main","instructions":"instruction","inputs":[{"role":"user","inputText":"input"}],"revision":0}"""
         }.andExpect { status { isOk() } }
@@ -294,26 +306,24 @@ class ManagementApiIntegrationTests(
     fun `삭제한 VERSION 번호를 재사용하지 않는다`() {
         val templateId = createTemplate("Version Sequence Template")
         val branchId = createBranch(templateId, "main")
-        mockMvc.put("/api/v1/prompt-template-refs/{refId}/branch", branchId) {
+        mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"name":"main","instructions":"instruction","inputs":[{"role":"user","inputText":"input"}],"revision":0}"""
         }.andExpect { status { isOk() } }
 
-        val versionOneId = locationId(
-            mockMvc.post("/api/v1/prompt-template-refs/versions") {
-                contentType = MediaType.APPLICATION_JSON
-                content = """{"promptTemplateId":$templateId,"fromRefId":$branchId}"""
-            }.andExpect {
-                status { isCreated() }
-                jsonPath("$.version") { value(1) }
-            }.andReturn().response.getHeader("Location"),
-        )
-        mockMvc.delete("/api/v1/prompt-template-refs/{refId}", versionOneId).andExpect {
+        mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/versions", templateId) {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"fromRefId":$branchId}"""
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.version") { value(1) }
+        }
+        mockMvc.delete("/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}", templateId, 1).andExpect {
             status { isNoContent() }
         }
-        mockMvc.post("/api/v1/prompt-template-refs/versions") {
+        mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/versions", templateId) {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$templateId,"fromRefId":$branchId}"""
+            content = """{"fromRefId":$branchId}"""
         }.andExpect {
             status { isCreated() }
             jsonPath("$.version") { value(2) }
@@ -386,14 +396,17 @@ class ManagementApiIntegrationTests(
         }.andExpect { status { isCreated() } }.andReturn().response.getHeader("Location"),
     )
 
-    private fun createBranch(templateId: Long, name: String): Long = locationId(
-        mockMvc.post("/api/v1/prompt-template-refs/branches") {
+    private fun createBranch(templateId: Long, name: String): Long = responseId(
+        mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/branches", templateId) {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$templateId,"name":"$name"}"""
-        }.andExpect { status { isCreated() } }.andReturn().response.getHeader("Location"),
+            content = """{"name":"$name"}"""
+        }.andExpect { status { isCreated() } }.andReturn().response.contentAsString,
     )
 
     private fun locationId(location: String?): Long = assertNotNull(location).substringAfterLast('/').toLong()
+
+    private fun responseId(responseBody: String): Long =
+        assertNotNull(Regex(""""id":(\d+)""").find(responseBody)).groupValues[1].toLong()
 
     private fun generationId(responseBody: String): Long =
         assertNotNull(Regex(""""id":(\d+)""").find(responseBody)).groupValues[1].toLong()

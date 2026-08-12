@@ -13,7 +13,7 @@ interface PromptTemplateRefRepository : JpaRepository<PromptTemplateRef, Long> {
     @Query(
         """
         select ref from PromptTemplateRef ref
-        where (:promptTemplateId is null or ref.promptTemplate.id = :promptTemplateId)
+        where ref.promptTemplate.id = :promptTemplateId
           and (:type is null or ref.type = :type)
           and (:name is null or lower(ref.name) like lower(concat('%', :name, '%')))
           and (:version is null or ref.version = :version)
@@ -21,7 +21,7 @@ interface PromptTemplateRefRepository : JpaRepository<PromptTemplateRef, Long> {
     )
     @EntityGraph(attributePaths = ["promptTemplate"])
     fun search(
-        @Param("promptTemplateId") promptTemplateId: Long?,
+        @Param("promptTemplateId") promptTemplateId: Long,
         @Param("type") type: PromptTemplateRefType?,
         @Param("name") name: String?,
         @Param("version") version: Long?,
@@ -33,6 +33,9 @@ interface PromptTemplateRefRepository : JpaRepository<PromptTemplateRef, Long> {
 
     @EntityGraph(attributePaths = ["promptTemplate", "inputs", "fromRef"])
     fun findOneWithDetailsByPromptTemplateIdAndName(promptTemplateId: Long, name: String): PromptTemplateRef?
+
+    @EntityGraph(attributePaths = ["promptTemplate", "inputs", "fromRef"])
+    fun findOneWithDetailsByPromptTemplateIdAndVersion(promptTemplateId: Long, version: Long): PromptTemplateRef?
 
     fun existsByPromptTemplateId(promptTemplateId: Long): Boolean
 

@@ -24,13 +24,13 @@ class PromptTemplateRefService(
 ) {
     @Transactional(readOnly = true)
     fun search(
-        promptTemplateId: Long?,
+        promptTemplateId: Long,
         type: PromptTemplateRefType?,
         name: String?,
         version: Long?,
         pageable: Pageable,
     ): Page<PromptTemplateRefDto> {
-        if (promptTemplateId != null && !promptTemplateRepository.existsById(promptTemplateId)) {
+        if (!promptTemplateRepository.existsById(promptTemplateId)) {
             throw ResourceNotFoundException("PromptTemplate not found: $promptTemplateId")
         }
         return promptTemplateRefRepository.search(promptTemplateId, type, name, version, pageable)
@@ -38,11 +38,16 @@ class PromptTemplateRefService(
     }
 
     @Transactional(readOnly = true)
-    fun get(id: Long): PromptTemplateRefDto = findRef(id).toDto()
+    fun getBranch(promptTemplateId: Long, refName: String): PromptTemplateRefDto =
+        findBranch(promptTemplateId, refName).toDto()
+
+    @Transactional(readOnly = true)
+    fun getVersion(promptTemplateId: Long, version: Long): PromptTemplateRefDto =
+        findVersion(promptTemplateId, version).toDto()
 
     @Transactional
-    fun createBranch(request: CreatePromptTemplateBranchRequest): PromptTemplateRefDto {
-        val template = findTemplate(request.promptTemplateId)
+    fun createBranch(promptTemplateId: Long, request: CreatePromptTemplateBranchRequest): PromptTemplateRefDto {
+        val template = findTemplate(promptTemplateId)
         ensureUniqueBranchName(template.id, request.name, null)
         val source = request.fromRefId?.let { findSource(template.id, it) }
         val branch = PromptTemplateRef(
@@ -58,9 +63,9 @@ class PromptTemplateRefService(
     }
 
     @Transactional
-    fun createVersion(request: CreatePromptTemplateVersionRefRequest): PromptTemplateRefDto {
-        val template = promptTemplateRepository.findLockedById(request.promptTemplateId)
-            ?: throw ResourceNotFoundException("PromptTemplate not found: ${request.promptTemplateId}")
+    fun createVersion(promptTemplateId: Long, request: CreatePromptTemplateVersionRefRequest): PromptTemplateRefDto {
+        val template = promptTemplateRepository.findLockedById(promptTemplateId)
+            ?: throw ResourceNotFoundException("PromptTemplate not found: $promptTemplateId")
         val source = findSource(template.id, request.fromRefId)
         if (source.type != PromptTemplateRefType.BRANCH) {
             throw InvalidRequestException("VERSION can only be created from a BRANCH ref: ${source.id}")
@@ -81,11 +86,12 @@ class PromptTemplateRefService(
     }
 
     @Transactional
-    fun updateBranch(id: Long, request: UpdatePromptTemplateBranchRequest): PromptTemplateRefDto {
-        val branch = findRef(id)
-        if (branch.type != PromptTemplateRefType.BRANCH) {
-            throw ResourceConflictException("VERSION ref cannot be modified: $id")
-        }
+    fun updateBranch(
+        promptTemplateId: Long,
+        refName: String,
+        request: UpdatePromptTemplateBranchRequest,
+    ): PromptTemplateRefDto {
+        val branch = findBranch(promptTemplateId, refName)
         if (branch.revision != request.revision) {
             throw ResourceConflictException(
                 "PromptTemplateRef revision conflict. expected=${branch.revision}, actual=${request.revision}",
@@ -100,13 +106,21 @@ class PromptTemplateRefService(
     }
 
     @Transactional
-    fun delete(id: Long) {
-        val ref = findRef(id)
-        if (promptTemplateRefRepository.existsByFromRefId(id)) {
-            throw ResourceConflictException("PromptTemplateRef is referenced by another ref: $id")
+    fun deleteBranch(promptTemplateId: Long, refName: String) {
+        delete(findBranch(promptTemplateId, refName))
+    }
+
+    @Transactional
+    fun deleteVersion(promptTemplateId: Long, version: Long) {
+        delete(findVersion(promptTemplateId, version))
+    }
+
+    private fun delete(ref: PromptTemplateRef) {
+        if (promptTemplateRefRepository.existsByFromRefId(ref.id)) {
+            throw ResourceConflictException("PromptTemplateRef is referenced by another ref: ${ref.id}")
         }
-        if (generationExecuteRepository.existsByPromptTemplateRefId(id)) {
-            throw ResourceConflictException("PromptTemplateRef is referenced by a generation execute: $id")
+        if (generationExecuteRepository.existsByPromptTemplateRefId(ref.id)) {
+            throw ResourceConflictException("PromptTemplateRef is referenced by a generation execute: ${ref.id}")
         }
         promptTemplateRefRepository.delete(ref)
         promptTemplateRefRepository.flush()
@@ -151,4 +165,16 @@ class PromptTemplateRefService(
     private fun findRef(id: Long): PromptTemplateRef =
         promptTemplateRefRepository.findOneWithDetailsById(id)
             ?: throw ResourceNotFoundException("PromptTemplateRef not found: $id")
+
+    private fun findBranch(promptTemplateId: Long, refName: String): PromptTemplateRef =
+        promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndName(promptTemplateId, refName)
+            ?: throw ResourceNotFoundException(
+                "PromptTemplate BRANCH ref not found: templateId=$promptTemplateId, refName=$refName",
+            )
+
+    private fun findVersion(promptTemplateId: Long, version: Long): PromptTemplateRef =
+        promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndVersion(promptTemplateId, version)
+            ?: throw ResourceNotFoundException(
+                "PromptTemplate VERSION ref not found: templateId=$promptTemplateId, version=$version",
+            )
 }
