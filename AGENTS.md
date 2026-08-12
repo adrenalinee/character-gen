@@ -3,7 +3,8 @@
 ## 프로젝트 기본 원칙
 
 - Kotlin과 Spring Boot의 기존 코드 스타일과 패키지 구조를 따른다.
-- API 계층은 `ltmp.charactergen.api`, 설정은 `ltmp.charactergen.config`, JPA 모델은 `ltmp.charactergen.data` 아래에 둔다.
+- API 계층은 `ltmp.charactergen.api`, 설정은 `ltmp.charactergen.config` 아래에 둔다.
+- JPA 엔티티는 `ltmp.charactergen.data.entity`, Spring Data repository는 `ltmp.charactergen.data.repo` 아래에 둔다. enum과 base entity 같은 공통 데이터 타입은 `ltmp.charactergen.data` 바로 아래에 둔다.
 - 컨트롤러에는 요청 조정만 두고 프롬프트 생성, LLM 호출, 상태 전이 같은 비즈니스 로직은 서비스 계층에 둔다.
 - JPA 엔티티는 기존 base entity를 재사용하고 테이블명, 컬럼명, nullable 여부와 enum 저장 방식을 명시한다.
 - 변경 후 최소한 `./gradlew test`를 실행한다.

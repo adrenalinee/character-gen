@@ -1,7 +1,7 @@
 package ltmp.charactergen.api
 
 import io.swagger.v3.oas.annotations.media.Schema
-import ltmp.charactergen.data.generation.L0GenerationExecuteStatus
+import ltmp.charactergen.data.L0GenerationExecuteStatus
 import java.time.OffsetDateTime
 
 @Schema(description = "L0 캐릭터 생성 실행 정보")

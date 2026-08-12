@@ -1,5 +1,6 @@
-package ltmp.charactergen.data.prompt
+package ltmp.charactergen.data.repo
 
+import ltmp.charactergen.data.entity.PromptTemplateVersion
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 

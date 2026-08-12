@@ -1,5 +1,12 @@
-package ltmp.charactergen.data.axis
+package ltmp.charactergen.data.repo
 
+import ltmp.charactergen.data.entity.AttachmentStyleEntity
+import ltmp.charactergen.data.entity.AvoidanceStyleEntity
+import ltmp.charactergen.data.entity.DomainEntity
+import ltmp.charactergen.data.entity.EmotionalExpressionEntity
+import ltmp.charactergen.data.entity.LieEntity
+import ltmp.charactergen.data.entity.PersonalityTraitStageEntity
+import ltmp.charactergen.data.entity.SpeechArchetypeEntity
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface DomainRepository : JpaRepository<DomainEntity, Long> {

@@ -1,4 +1,4 @@
-package ltmp.charactergen.data.axis
+package ltmp.charactergen.data.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -8,12 +8,12 @@ import ltmp.charactergen.data.LongBaseEntity
 
 @Entity
 @Table(
-    name = "speech_archetypes",
-    uniqueConstraints = [UniqueConstraint(name = "uk_speech_archetypes_name", columnNames = ["name"])],
+    name = "avoidance_styles",
+    uniqueConstraints = [UniqueConstraint(name = "uk_avoidance_styles_type", columnNames = ["type"])],
 )
-class SpeechArchetypeEntity(
+class AvoidanceStyleEntity(
     @Column(nullable = false, length = 100)
-    var name: String,
+    var type: String,
 
     @Column(nullable = false, length = 1000)
     var description: String,

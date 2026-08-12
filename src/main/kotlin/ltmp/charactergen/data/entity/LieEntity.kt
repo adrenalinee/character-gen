@@ -1,4 +1,4 @@
-package ltmp.charactergen.data.axis
+package ltmp.charactergen.data.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -8,13 +8,13 @@ import ltmp.charactergen.data.LongBaseEntity
 
 @Entity
 @Table(
-    name = "avoidance_styles",
-    uniqueConstraints = [UniqueConstraint(name = "uk_avoidance_styles_type", columnNames = ["type"])],
+    name = "character_lies",
+    uniqueConstraints = [UniqueConstraint(name = "uk_character_lies_type", columnNames = ["type"])],
 )
-class AvoidanceStyleEntity(
+class LieEntity(
     @Column(nullable = false, length = 100)
     var type: String,
 
-    @Column(nullable = false, length = 1000)
-    var description: String,
+    @Column(name = "core_statement", nullable = false, length = 1000)
+    var coreStatement: String,
 ) : LongBaseEntity()

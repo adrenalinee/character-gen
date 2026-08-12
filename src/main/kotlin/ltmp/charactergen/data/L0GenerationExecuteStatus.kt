@@ -1,4 +1,4 @@
-package ltmp.charactergen.data.generation
+package ltmp.charactergen.data
 
 enum class L0GenerationExecuteStatus {
     PREPARING,

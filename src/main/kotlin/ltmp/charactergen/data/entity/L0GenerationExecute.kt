@@ -1,4 +1,4 @@
-package ltmp.charactergen.data.generation
+package ltmp.charactergen.data.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -10,8 +10,8 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.Lob
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.data.LongBaseEntity
-import ltmp.charactergen.data.prompt.PromptTemplateVersion
 import java.time.OffsetDateTime
 
 @Entity

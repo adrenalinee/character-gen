@@ -1,4 +1,4 @@
-package ltmp.charactergen.data.axis
+package ltmp.charactergen.data.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -8,12 +8,12 @@ import ltmp.charactergen.data.LongBaseEntity
 
 @Entity
 @Table(
-    name = "character_domains",
-    uniqueConstraints = [UniqueConstraint(name = "uk_character_domains_name", columnNames = ["name"])],
+    name = "emotional_expressions",
+    uniqueConstraints = [UniqueConstraint(name = "uk_emotional_expressions_type", columnNames = ["type"])],
 )
-class DomainEntity(
+class EmotionalExpressionEntity(
     @Column(nullable = false, length = 100)
-    var name: String,
+    var type: String,
 
     @Column(nullable = false, length = 1000)
     var description: String,

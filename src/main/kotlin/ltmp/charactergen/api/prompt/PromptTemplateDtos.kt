@@ -3,8 +3,8 @@ package ltmp.charactergen.api.prompt
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
-import ltmp.charactergen.data.prompt.PromptTemplate
-import ltmp.charactergen.data.prompt.PromptTemplateVersion
+import ltmp.charactergen.data.entity.PromptTemplate
+import ltmp.charactergen.data.entity.PromptTemplateVersion
 import java.time.OffsetDateTime
 
 @Schema(description = "프롬프트 템플릿 생성 요청")

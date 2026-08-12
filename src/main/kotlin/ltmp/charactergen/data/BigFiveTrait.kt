@@ -1,4 +1,4 @@
-package ltmp.charactergen.data.axis
+package ltmp.charactergen.data
 
 enum class BigFiveTrait {
     OPENNESS,

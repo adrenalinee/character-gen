@@ -6,10 +6,10 @@ import ltmp.charactergen.api.prompt.PromptTemplateDto
 import ltmp.charactergen.api.prompt.PromptTemplateVersionDto
 import ltmp.charactergen.api.prompt.UpdatePromptTemplateRequest
 import ltmp.charactergen.api.prompt.toDto
-import ltmp.charactergen.data.prompt.PromptTemplate
-import ltmp.charactergen.data.prompt.PromptTemplateRepository
-import ltmp.charactergen.data.prompt.PromptTemplateVersion
-import ltmp.charactergen.data.prompt.PromptTemplateVersionRepository
+import ltmp.charactergen.data.entity.PromptTemplate
+import ltmp.charactergen.data.entity.PromptTemplateVersion
+import ltmp.charactergen.data.repo.PromptTemplateRepository
+import ltmp.charactergen.data.repo.PromptTemplateVersionRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

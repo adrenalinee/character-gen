@@ -6,13 +6,13 @@ import ltmp.charactergen.api.axis.LieOptionDto
 import ltmp.charactergen.api.axis.PersonalityTraitStageOptionDto
 import ltmp.charactergen.api.axis.SpeechArchetypeOptionDto
 import ltmp.charactergen.api.axis.TypeDescriptionOptionDto
-import ltmp.charactergen.data.axis.AttachmentStyleRepository
-import ltmp.charactergen.data.axis.AvoidanceStyleRepository
-import ltmp.charactergen.data.axis.DomainRepository
-import ltmp.charactergen.data.axis.EmotionalExpressionRepository
-import ltmp.charactergen.data.axis.LieRepository
-import ltmp.charactergen.data.axis.PersonalityTraitStageRepository
-import ltmp.charactergen.data.axis.SpeechArchetypeRepository
+import ltmp.charactergen.data.repo.AttachmentStyleRepository
+import ltmp.charactergen.data.repo.AvoidanceStyleRepository
+import ltmp.charactergen.data.repo.DomainRepository
+import ltmp.charactergen.data.repo.EmotionalExpressionRepository
+import ltmp.charactergen.data.repo.LieRepository
+import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
+import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

@@ -1,5 +1,6 @@
-package ltmp.charactergen.data.prompt
+package ltmp.charactergen.data.repo
 
+import ltmp.charactergen.data.entity.PromptTemplate
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface PromptTemplateRepository : JpaRepository<PromptTemplate, Long> {

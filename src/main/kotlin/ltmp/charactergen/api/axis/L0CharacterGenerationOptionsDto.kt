@@ -1,7 +1,7 @@
 package ltmp.charactergen.api.axis
 
 import io.swagger.v3.oas.annotations.media.Schema
-import ltmp.charactergen.data.axis.BigFiveTrait
+import ltmp.charactergen.data.BigFiveTrait
 
 @Schema(description = "L0 캐릭터 생성 화면에서 선택할 수 있는 전체 축 정보")
 data class L0CharacterGenerationOptionsDto(
