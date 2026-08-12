@@ -1,13 +1,7 @@
 package ltmp.charactergen.api
 
+import ltmp.charactergen.config.L0ReferenceDataInitializer
 import ltmp.charactergen.data.BigFiveTrait
-import ltmp.charactergen.data.entity.AttachmentStyleEntity
-import ltmp.charactergen.data.entity.AvoidanceStyleEntity
-import ltmp.charactergen.data.entity.DomainEntity
-import ltmp.charactergen.data.entity.EmotionalExpressionEntity
-import ltmp.charactergen.data.entity.LieEntity
-import ltmp.charactergen.data.entity.PersonalityTraitStageEntity
-import ltmp.charactergen.data.entity.SpeechArchetypeEntity
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
 import ltmp.charactergen.data.repo.DomainRepository
@@ -17,6 +11,7 @@ import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.DefaultApplicationArguments
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -26,6 +21,7 @@ import org.springframework.test.web.servlet.put
 import org.springframework.test.web.servlet.delete
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.transaction.annotation.Transactional
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 @SpringBootTest
@@ -33,6 +29,7 @@ import kotlin.test.assertNotNull
 @Transactional
 class ManagementApiIntegrationTests(
     @Autowired private val mockMvc: MockMvc,
+    @Autowired private val referenceDataInitializer: L0ReferenceDataInitializer,
     @Autowired private val domainRepository: DomainRepository,
     @Autowired private val lieRepository: LieRepository,
     @Autowired private val personalityTraitStageRepository: PersonalityTraitStageRepository,
@@ -134,26 +131,33 @@ class ManagementApiIntegrationTests(
 
     @Test
     fun `캐릭터 생성에 필요한 모든 축 정보를 한 번에 조회한다`() {
-        domainRepository.save(DomainEntity(name = "웹툰", description = "웹툰 분야"))
-        lieRepository.save(LieEntity(type = "대체 가능성 공포형", coreStatement = "나는 언제든 대체될 수 있다"))
-        personalityTraitStageRepository.save(
-            PersonalityTraitStageEntity(trait = BigFiveTrait.OPENNESS, stage = 3, description = "균형 잡힌 개방성"),
+        referenceDataInitializer.run(DefaultApplicationArguments())
+
+        assertEquals(2, domainRepository.count())
+        assertEquals(12, lieRepository.count())
+        assertEquals(25, personalityTraitStageRepository.count())
+        assertEquals(6, attachmentStyleRepository.count())
+        assertEquals(6, emotionalExpressionRepository.count())
+        assertEquals(6, avoidanceStyleRepository.count())
+        assertEquals(8, speechArchetypeRepository.count())
+
+        val opennessStageThree = personalityTraitStageRepository.findAll().single {
+            it.trait == BigFiveTrait.OPENNESS && it.stage == 3
+        }
+        assertEquals(
+            "이 축은 이 인물을 설명하는 특징이 아니다. 여기서 파생되는 행동을 만들지 마라.",
+            opennessStageThree.description,
         )
-        attachmentStyleRepository.save(AttachmentStyleEntity(type = "일정 거리 유지", description = "관계에서 거리를 둔다"))
-        emotionalExpressionRepository.save(EmotionalExpressionEntity(type = "사실 치환", description = "감정을 사실로 표현한다"))
-        avoidanceStyleRepository.save(AvoidanceStyleEntity(type = "침묵", description = "대답을 멈춘다"))
-        speechArchetypeRepository.save(SpeechArchetypeEntity(name = "비유형", description = "비유를 사용한다"))
 
         mockMvc.get("/api/v1/l0-characters/generation-options").andExpect {
             status { isOk() }
-            jsonPath("$.domains[0].name") { value("웹툰") }
-            jsonPath("$.lies[0].type") { value("대체 가능성 공포형") }
-            jsonPath("$.personalityTraitStages[0].trait") { value("OPENNESS") }
-            jsonPath("$.personalityTraitStages[0].stage") { value(3) }
-            jsonPath("$.attachments[0].type") { value("일정 거리 유지") }
-            jsonPath("$.emotionalExpressions[0].type") { value("사실 치환") }
-            jsonPath("$.avoidanceStyles[0].type") { value("침묵") }
-            jsonPath("$.speechArchetypes[0].name") { value("비유형") }
+            jsonPath("$.domains.length()") { value(2) }
+            jsonPath("$.lies.length()") { value(12) }
+            jsonPath("$.personalityTraitStages.length()") { value(25) }
+            jsonPath("$.attachments.length()") { value(6) }
+            jsonPath("$.emotionalExpressions.length()") { value(6) }
+            jsonPath("$.avoidanceStyles.length()") { value(6) }
+            jsonPath("$.speechArchetypes.length()") { value(8) }
         }
     }
 }
