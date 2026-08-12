@@ -23,7 +23,7 @@ interface PromptTemplateVersionRepository : JpaRepository<PromptTemplateVersion,
         pageable: Pageable,
     ): Page<PromptTemplateVersion>
 
-    @EntityGraph(attributePaths = ["promptTemplate"])
+    @EntityGraph(attributePaths = ["promptTemplate", "inputs"])
     fun findOneWithPromptTemplateById(id: Long): PromptTemplateVersion?
 
     fun existsByPromptTemplateId(promptTemplateId: Long): Boolean

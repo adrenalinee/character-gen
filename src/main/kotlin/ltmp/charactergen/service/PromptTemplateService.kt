@@ -96,8 +96,9 @@ class PromptTemplateService(
         val version = PromptTemplateVersion(
             promptTemplate = template,
             name = request.name,
-            prompt = request.prompt,
+            instructions = request.instructions,
         )
+        request.inputs.forEach { version.addInput(role = it.role, inputText = it.inputText) }
         return promptTemplateVersionRepository.saveAndFlush(version).toDto()
     }
 

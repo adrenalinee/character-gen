@@ -96,12 +96,26 @@ class ManagementApiIntegrationTests(
 
         val createVersionResult = mockMvc.post("/api/v1/prompt-template-versions") {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"promptTemplateId":$templateId,"name":"v1","prompt":"Generate character"}"""
+            content = """
+                {
+                  "promptTemplateId": $templateId,
+                  "name": "v1",
+                  "instructions": "Generate character",
+                  "inputs": [
+                    {"role": "user", "inputText": "Create an L0 character"},
+                    {"role": "assistant", "inputText": "Return JSON only"}
+                  ]
+                }
+            """.trimIndent()
         }.andExpect {
             status { isCreated() }
             jsonPath("$.promptTemplateId") { value(templateId) }
             jsonPath("$.promptTemplateName") { value("L0 Character Updated") }
-            jsonPath("$.prompt") { value("Generate character") }
+            jsonPath("$.instructions") { value("Generate character") }
+            jsonPath("$.inputs[0].role") { value("user") }
+            jsonPath("$.inputs[0].inputText") { value("Create an L0 character") }
+            jsonPath("$.inputs[1].role") { value("assistant") }
+            jsonPath("$.inputs[1].inputText") { value("Return JSON only") }
         }.andReturn()
 
         val versionLocation = assertNotNull(createVersionResult.response.getHeader("Location"))
@@ -110,6 +124,8 @@ class ManagementApiIntegrationTests(
         mockMvc.get("/api/v1/prompt-template-versions/{id}", versionId).andExpect {
             status { isOk() }
             jsonPath("$.name") { value("v1") }
+            jsonPath("$.instructions") { value("Generate character") }
+            jsonPath("$.inputs.length()") { value(2) }
         }
         mockMvc.get("/api/v1/prompt-template-versions") {
             param("promptTemplateId", templateId.toString())
