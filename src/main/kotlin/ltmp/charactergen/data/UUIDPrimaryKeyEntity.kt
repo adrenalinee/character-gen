@@ -12,12 +12,13 @@ import kotlin.jvm.Transient
  */
 @MappedSuperclass
 abstract class UUIDPrimaryKeyEntity(
-    id: UUID? = null
+    id: UUID?,
 ) : Persistable<UUID> {
     @Id
     @Column(columnDefinition = "uuid")
-    private val id: UUID = id?: Generators.timeBasedGenerator().generate()  //UlidCreator.getMonotonicUlid().toUuid()
+    private val id: UUID = id ?: Generators.timeBasedGenerator().generate()
 
+    // Spring Data Persistable의 저장 생명주기를 추적하기 위한 내부 상태다.
     @Transient
     private var _isNew = true
 

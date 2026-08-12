@@ -13,8 +13,8 @@ import ltmp.charactergen.data.LongBaseEntity
 )
 class DomainEntity(
     @Column(nullable = false, length = 100)
-    var name: String = "",
+    var name: String,
 
     @Column(nullable = false, length = 1000)
-    var description: String = "",
+    var description: String,
 ) : LongBaseEntity()

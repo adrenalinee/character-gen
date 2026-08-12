@@ -13,8 +13,8 @@ import ltmp.charactergen.data.LongBaseEntity
 )
 class EmotionalExpressionEntity(
     @Column(nullable = false, length = 100)
-    var type: String = "",
+    var type: String,
 
     @Column(nullable = false, length = 1000)
-    var description: String = "",
+    var description: String,
 ) : LongBaseEntity()

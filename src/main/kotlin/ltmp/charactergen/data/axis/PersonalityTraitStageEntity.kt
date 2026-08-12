@@ -21,13 +21,13 @@ import ltmp.charactergen.data.LongBaseEntity
 class PersonalityTraitStageEntity(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    var trait: BigFiveTrait = BigFiveTrait.OPENNESS,
+    var trait: BigFiveTrait,
 
     @Column(nullable = false)
-    var stage: Int = 3,
+    var stage: Int,
 
     @Column(nullable = false, length = 1000)
-    var description: String = "",
+    var description: String,
 ) : LongBaseEntity() {
     init {
         require(stage in 1..5) { "Big Five stage must be between 1 and 5: $stage" }

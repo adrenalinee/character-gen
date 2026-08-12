@@ -13,8 +13,8 @@ import ltmp.charactergen.data.LongBaseEntity
 )
 class LieEntity(
     @Column(nullable = false, length = 100)
-    var type: String = "",
+    var type: String,
 
     @Column(name = "core_statement", nullable = false, length = 1000)
-    var coreStatement: String = "",
+    var coreStatement: String,
 ) : LongBaseEntity()

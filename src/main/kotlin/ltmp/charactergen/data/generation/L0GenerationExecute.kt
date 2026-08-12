@@ -4,10 +4,14 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
 import jakarta.persistence.Index
+import jakarta.persistence.JoinColumn
 import jakarta.persistence.Lob
+import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import ltmp.charactergen.data.LongBaseEntity
+import ltmp.charactergen.data.prompt.PromptTemplateVersion
 import java.time.OffsetDateTime
 
 @Entity
@@ -16,33 +20,41 @@ import java.time.OffsetDateTime
     indexes = [
         Index(name = "idx_l0_generation_executes_status", columnList = "status"),
         Index(name = "idx_l0_generation_executes_created_at", columnList = "created_at"),
+        Index(
+            name = "idx_l0_generation_executes_prompt_template_version_id",
+            columnList = "prompt_template_version_id",
+        ),
     ],
 )
 class L0GenerationExecute(
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "prompt_template_version_id", nullable = false)
+    var promptTemplateVersion: PromptTemplateVersion,
+
     @Lob
     @Column(name = "user_input_json", nullable = false)
-    var userInputJson: String = "",
+    var userInputJson: String,
 
     @Lob
     @Column(name = "llm_output")
-    var llmOutput: String? = null,
+    var llmOutput: String?,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    var status: L0GenerationExecuteStatus = L0GenerationExecuteStatus.PREPARING,
+    var status: L0GenerationExecuteStatus,
 
     @Lob
     @Column(name = "error_trace")
-    var errorTrace: String? = null,
+    var errorTrace: String?,
 
     @Lob
     @Column
-    var message: String? = null,
+    var message: String?,
 
     /** LLM 호출에 걸린 시간(밀리초). */
     @Column
-    var elapsed: Long? = null,
+    var elapsed: Long?,
 
     @Column(name = "completed_at")
-    var completedAt: OffsetDateTime? = null,
+    var completedAt: OffsetDateTime?,
 ) : LongBaseEntity()
