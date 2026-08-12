@@ -12,7 +12,7 @@ data class L0CharacterGenerationRequest(
         description = "캐릭터에 관한 운영자 설명. 비어 있으면 서버가 '없음'을 주입한다.",
         nullable = true,
     )
-    val description: String?,
+    val description: String? = null,
 
     @field:NotBlank
     @field:Schema(description = "활동 분야 카테고리", example = "웹툰", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -121,5 +121,5 @@ data class L0CharacterGenerationRequest(
         description = "추가 생성 제약. 비어 있으면 서버가 '없음'을 주입한다.",
         nullable = true,
     )
-    val extraConstraints: String?,
+    val extraConstraints: String? = null,
 )

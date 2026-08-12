@@ -13,22 +13,22 @@ data class L0GenerationExecuteDto(
     val userInputJson: String,
 
     @field:Schema(description = "LLM 원본 출력. 실행 완료 전에는 null이다.", nullable = true)
-    val llmOutput: String?,
+    val llmOutput: String? = null,
 
     @field:Schema(description = "현재 실행 상태", requiredMode = Schema.RequiredMode.REQUIRED)
     val status: L0GenerationExecuteStatus,
 
     @field:Schema(description = "실패 시 오류 추적 정보", nullable = true)
-    val errorTrace: String?,
+    val errorTrace: String? = null,
 
     @field:Schema(description = "실행 상태에 관한 부가 메시지", nullable = true)
-    val message: String?,
+    val message: String? = null,
 
     @field:Schema(description = "LLM 호출에 걸린 시간(밀리초)", example = "1523", nullable = true)
-    val elapsed: Long?,
+    val elapsed: Long? = null,
 
     @field:Schema(description = "COMPLETED 상태가 된 시각", nullable = true)
-    val completedAt: OffsetDateTime?,
+    val completedAt: OffsetDateTime? = null,
 
     @field:Schema(description = "실행 레코드 생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
     val createdAt: OffsetDateTime,

@@ -37,7 +37,7 @@ class L0GenerationExecute(
 
     @Lob
     @Column(name = "llm_output")
-    var llmOutput: String?,
+    var llmOutput: String? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -45,16 +45,16 @@ class L0GenerationExecute(
 
     @Lob
     @Column(name = "error_trace")
-    var errorTrace: String?,
+    var errorTrace: String? = null,
 
     @Lob
     @Column
-    var message: String?,
+    var message: String? = null,
 
     /** LLM 호출에 걸린 시간(밀리초). */
     @Column
-    var elapsed: Long?,
+    var elapsed: Long? = null,
 
     @Column(name = "completed_at")
-    var completedAt: OffsetDateTime?,
+    var completedAt: OffsetDateTime? = null,
 ) : LongBaseEntity()
