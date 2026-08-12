@@ -16,7 +16,7 @@ data class L0CharacterGenerationRequest(
     val refId: Long,
 
     @field:Schema(
-        description = "캐릭터에 관한 운영자 설명. 비어 있으면 서버가 '없음'을 주입한다.",
+        description = "캐릭터에 관한 운영자 설명. 비어 있으면 프롬프트에 빈 문자열을 주입한다.",
         nullable = true,
     )
     val description: String? = null,
@@ -125,7 +125,7 @@ data class L0CharacterGenerationRequest(
     val emotion: Int,
 
     @field:Schema(
-        description = "추가 생성 제약. 비어 있으면 서버가 '없음'을 주입한다.",
+        description = "추가 생성 제약. 비어 있으면 프롬프트에 빈 문자열을 주입한다.",
         nullable = true,
     )
     val extraConstraints: String? = null,

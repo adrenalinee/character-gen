@@ -82,7 +82,7 @@ class L0CharacterGenerationController(
 
     @Operation(
         summary = "L0 캐릭터 생성",
-        description = "입력 축으로 L0 캐릭터 생성 프롬프트를 실행한다.",
+        description = "실행 레코드를 PREPARING 상태로 생성하고 즉시 반환한다. 실제 프롬프트와 OpenAI Responses API 호출은 스케줄러가 비동기로 수행한다.",
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponses(
         value = [

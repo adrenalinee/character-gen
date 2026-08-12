@@ -8,6 +8,8 @@ import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.L0GenerationExecute
 import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
+import ltmp.charactergen.service.generation.PromptRefInputSnapshot
+import ltmp.charactergen.service.generation.PromptRefSnapshot
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -58,14 +60,4 @@ class L0CharacterGenerationService(
         )
         return generationExecuteRepository.saveAndFlush(execute).toDto()
     }
-
-    private data class PromptRefSnapshot(
-        val instructions: String,
-        val inputs: List<PromptRefInputSnapshot>,
-    )
-
-    private data class PromptRefInputSnapshot(
-        val role: String,
-        val inputText: String,
-    )
 }

@@ -15,24 +15,36 @@ interface DomainRepository : JpaRepository<DomainEntity, Long> {
 
 interface LieRepository : JpaRepository<LieEntity, Long> {
     fun findAllByOrderByTypeAsc(): List<LieEntity>
+
+    fun findByType(type: String): LieEntity?
 }
 
 interface PersonalityTraitStageRepository : JpaRepository<PersonalityTraitStageEntity, Long> {
     fun findAllByOrderByTraitAscStageAsc(): List<PersonalityTraitStageEntity>
+
+    fun findByTraitAndStage(trait: ltmp.charactergen.data.BigFiveTrait, stage: Int): PersonalityTraitStageEntity?
 }
 
 interface AttachmentStyleRepository : JpaRepository<AttachmentStyleEntity, Long> {
     fun findAllByOrderByTypeAsc(): List<AttachmentStyleEntity>
+
+    fun findByType(type: String): AttachmentStyleEntity?
 }
 
 interface EmotionalExpressionRepository : JpaRepository<EmotionalExpressionEntity, Long> {
     fun findAllByOrderByTypeAsc(): List<EmotionalExpressionEntity>
+
+    fun findByType(type: String): EmotionalExpressionEntity?
 }
 
 interface AvoidanceStyleRepository : JpaRepository<AvoidanceStyleEntity, Long> {
     fun findAllByOrderByTypeAsc(): List<AvoidanceStyleEntity>
+
+    fun findByType(type: String): AvoidanceStyleEntity?
 }
 
 interface SpeechArchetypeRepository : JpaRepository<SpeechArchetypeEntity, Long> {
     fun findAllByOrderByNameAsc(): List<SpeechArchetypeEntity>
+
+    fun findByName(name: String): SpeechArchetypeEntity?
 }

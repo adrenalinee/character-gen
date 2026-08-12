@@ -26,6 +26,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("com.openai:openai-java:4.50.0") {
+        // springdoc의 swagger-annotations-jakarta와 같은 패키지를 제공하는 구버전 non-jakarta jar를 제외한다.
+        exclude(group = "io.swagger.core.v3", module = "swagger-annotations")
+    }
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
     implementation("com.fasterxml.uuid:java-uuid-generator:5.1.1")

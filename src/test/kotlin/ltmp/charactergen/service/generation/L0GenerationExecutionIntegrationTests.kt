@@ -1,0 +1,175 @@
+package ltmp.charactergen.service.generation
+
+import ltmp.charactergen.api.L0CharacterGenerationRequest
+import ltmp.charactergen.client.openai.L0CharacterLlmClient
+import ltmp.charactergen.client.openai.L0CharacterLlmResult
+import ltmp.charactergen.data.L0GenerationExecuteStatus
+import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.entity.PromptTemplate
+import ltmp.charactergen.data.entity.PromptTemplateRef
+import ltmp.charactergen.data.repo.CharacterRepository
+import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
+import ltmp.charactergen.data.repo.PromptTemplateRefRepository
+import ltmp.charactergen.data.repo.PromptTemplateRepository
+import ltmp.charactergen.model.L0CharacterResponse
+import ltmp.charactergen.service.L0CharacterGenerationService
+import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Primary
+import org.springframework.test.context.TestConstructor
+import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.ObjectMapper
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+@SpringBootTest(properties = ["openai.generation.scheduler-enabled=false"])
+@Import(L0GenerationExecutionIntegrationTests.FakeLlmConfiguration::class)
+@TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
+@Transactional
+class L0GenerationExecutionIntegrationTests(
+    private val promptTemplateRepository: PromptTemplateRepository,
+    private val promptTemplateRefRepository: PromptTemplateRefRepository,
+    private val generationService: L0CharacterGenerationService,
+    private val executor: L0GenerationExecutor,
+    private val generationExecuteRepository: L0GenerationExecuteRepository,
+    private val characterRepository: CharacterRepository,
+    private val fakeLlmClient: FakeL0CharacterLlmClient,
+    private val objectMapper: ObjectMapper,
+) {
+    @Test
+    fun `PREPARING 실행을 스케줄러 작업 단위로 처리하고 캐릭터를 저장한다`() {
+        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 execution test"))
+        val ref = PromptTemplateRef(
+            promptTemplate = template,
+            type = PromptTemplateRefType.BRANCH,
+            name = "main",
+            instructions = "system {{UNKNOWN_SYSTEM_VALUE}}",
+        ).also {
+            it.addInput(
+                "user",
+                "{{DOMAIN}}|{{LIE_STATEMENT}}|{{O_DESC}}|{{ATTACHMENT_DESC}}|" +
+                    "{{TIC_SITUATIONS}}|{{EXTRA_CONSTRAINTS}}",
+            )
+        }
+        promptTemplateRefRepository.saveAndFlush(ref)
+        fakeLlmClient.failure = null
+        fakeLlmClient.response = objectMapper.readValue(RESPONSE_JSON, L0CharacterResponse::class.java)
+
+        val generation = generationService.requestGeneration(generationRequest(ref.id))
+        assertEquals(L0GenerationExecuteStatus.PREPARING, generation.status)
+
+        assertTrue(executor.executeNext())
+
+        val completed = generationExecuteRepository.findById(generation.id).orElseThrow()
+        assertEquals(L0GenerationExecuteStatus.COMPLETED, completed.status)
+        assertEquals(RESPONSE_JSON, completed.llmOutput)
+        assertNotNull(completed.completedAt)
+        assertNotNull(completed.elapsed)
+        assertEquals("캐릭터 생성 완료", completed.message)
+
+        val character = characterRepository.findAll().single { it.generationExecute.id == generation.id }
+        assertEquals("서윤", character.name)
+        assertEquals(2, character.concreteDetails.size)
+        assertEquals(3, character.nonNegotiables.size)
+        assertEquals(2, character.forbiddenBehaviors.size)
+        assertEquals(1, character.verbalTics.size)
+        assertEquals(2, character.bannedWords.size)
+        assertEquals(1, character.relations.size)
+        assertEquals(4, character.disclosureItems.size)
+        assertEquals(1, character.voiceSamples.size)
+
+        assertEquals("system ", fakeLlmClient.lastPrompt.instructions)
+        val renderedInput = fakeLlmClient.lastPrompt.inputs.single().inputText
+        assertTrue(renderedInput.contains("웹툰"))
+        assertTrue(renderedInput.contains("나는 언제든 다른 사람으로 대체된다"))
+        assertTrue(renderedInput.contains("이 축은 이 인물을 설명하는 특징이 아니다"))
+        assertTrue(renderedInput.contains("누구와도 비슷한 거리를 두고"))
+        assertFalse(renderedInput.contains("{{"))
+        assertFalse(executor.executeNext())
+    }
+
+    @Test
+    fun `LLM 호출 실패를 FAILED 상태와 추적 정보로 저장한다`() {
+        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 failure test"))
+        val ref = PromptTemplateRef(
+            promptTemplate = template,
+            type = PromptTemplateRefType.BRANCH,
+            name = "main",
+            instructions = "system",
+        ).also { it.addInput("user", "{{DOMAIN}}") }
+        promptTemplateRefRepository.saveAndFlush(ref)
+        fakeLlmClient.failure = IllegalStateException("OpenAI unavailable")
+
+        val generation = generationService.requestGeneration(generationRequest(ref.id))
+        assertTrue(executor.executeNext())
+
+        val failed = generationExecuteRepository.findById(generation.id).orElseThrow()
+        assertEquals(L0GenerationExecuteStatus.FAILED, failed.status)
+        assertEquals("OpenAI unavailable", failed.message)
+        assertTrue(assertNotNull(failed.errorTrace).contains("IllegalStateException"))
+        assertNotNull(failed.elapsed)
+        assertEquals(null, failed.completedAt)
+        assertFalse(characterRepository.existsByGenerationExecuteId(generation.id))
+    }
+
+    private fun generationRequest(refId: Long) = L0CharacterGenerationRequest(
+        refId = refId,
+        domain = "웹툰",
+        lieType = "대체 가능성 공포형",
+        opennessStage = 3,
+        conscientiousnessStage = 3,
+        extraversionStage = 3,
+        agreeablenessStage = 3,
+        neuroticismStage = 3,
+        attachment = "일정 거리 유지",
+        emotionalExpression = "사실 치환",
+        avoidanceStyle = "짧게 답하고 침묵",
+        speechArchetype = "비유형",
+        age = 29,
+        gender = "여성",
+        speechRegister = "기본적으로 존댓말",
+        scale = 2,
+        emotion = 4,
+    )
+
+    @TestConfiguration
+    class FakeLlmConfiguration {
+        @Bean
+        @Primary
+        fun fakeLlmClient(): FakeL0CharacterLlmClient = FakeL0CharacterLlmClient()
+    }
+
+    class FakeL0CharacterLlmClient : L0CharacterLlmClient {
+        lateinit var response: L0CharacterResponse
+        lateinit var lastPrompt: GenerationPrompt
+        var failure: RuntimeException? = null
+
+        override fun generate(prompt: GenerationPrompt): L0CharacterLlmResult {
+            lastPrompt = prompt
+            failure?.let { throw it }
+            return L0CharacterLlmResult(character = response, rawJson = RESPONSE_JSON)
+        }
+    }
+
+    private companion object {
+        val RESPONSE_JSON =
+            """
+            {
+              "identity":{"name":"서윤","age":29,"gender":"여성","occupation":"웹툰 작가","daily_life":"작업한다","one_line":"선을 지킨다","concrete_details":["왼손잡이","밤에 작업"]},
+              "core":{"lie":{"type":"대체 가능성 공포형","statement":"나는 대체된다","wound":"첫 연재에서 교체됐다"},"want":"자기 방식의 작품을 남긴다","need":"교체와 가치가 무관함을 안다","want_need_conflict":"인정을 좇을수록 자기 방식을 버린다","contradiction":{"trait_a":"먼저 선을 긋는다","trait_b":"떠나면 붙잡는다","shared_root":"대체될 두려움"},"non_negotiables":[{"domain":"관계를 다루는 방식","statement":"비교하지 않는다","tie_to_lie":"교체 공포","user_facing":true},{"domain":"세계를 보는 눈","statement":"결과를 과장하지 않는다","tie_to_lie":"교체 공포","user_facing":false},{"domain":"일을 대하는 기준","statement":"남의 선을 베끼지 않는다","tie_to_lie":"교체 공포","user_facing":false}],"forbidden_behaviors":[{"behavior":"상대를 시험하지 않는다","tie_to_lie":"교체 공포"},{"behavior":"성과로 애정을 사지 않는다","tie_to_lie":"교체 공포"}]},
+              "traits":{"expression_note":"필요한 말만 한다","identity_note":"낯선 방식에서 행동을 만들지 않는다"},
+              "behavior":{"attachment_note":"같은 거리를 둔다","emotional_expression_note":"감정을 사실로 바꾼다","avoidance_note":"한 문장 뒤 침묵한다"},
+              "voice":{"speech_archetype_note":"작화 도구에 빗댄다","sentence_pattern":"짧은 결론 뒤 비유","verbal_tics":[{"situation":"거절할 때","description":"선을 다시 긋는다고 말한다"}],"banned_words":["무조건","당연히"],"under_stress":"문장이 더 짧아진다","address_style":"기본적으로 존댓말"},
+              "relations":[{"slot":"과거","name":"민호","relation":"전 편집자","description":"첫 연재에서 교체를 알렸다","presence":"부재","tie_to_lie":"대체 공포의 기원"}],
+              "disclosure_ladder":{"surface":["마감 습관"],"mid":["편집자 이야기"],"deep":["교체 경험"],"deepest":["자기 가치에 대한 공포"]},
+              "voice_samples":[{"situation":"의견에 반대했을 때","line":"그 선은 제가 정할게요.","demonstrates":"거리 유지"}],
+              "design_note":{"recognizability":"작화 도구 비유","long_term_viability":"여러 관계에서 교체 공포가 반복된다","imbalance_note":""}
+            }
+            """.trimIndent()
+    }
+}

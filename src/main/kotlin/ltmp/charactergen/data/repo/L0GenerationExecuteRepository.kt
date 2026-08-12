@@ -7,6 +7,9 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import jakarta.persistence.LockModeType
+import org.springframework.data.jpa.repository.EntityGraph
+import org.springframework.data.jpa.repository.Lock
 
 interface L0GenerationExecuteRepository : JpaRepository<L0GenerationExecute, Long> {
     @Query(
@@ -24,4 +27,10 @@ interface L0GenerationExecuteRepository : JpaRepository<L0GenerationExecute, Lon
     ): Page<L0GenerationExecute>
 
     fun existsByPromptTemplateRefId(promptTemplateRefId: Long): Boolean
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findFirstByStatusOrderByCreatedAtAsc(status: L0GenerationExecuteStatus): L0GenerationExecute?
+
+    @EntityGraph(attributePaths = ["promptTemplateRef", "promptTemplateRef.inputs"])
+    fun findOneWithPromptById(id: Long): L0GenerationExecute?
 }
