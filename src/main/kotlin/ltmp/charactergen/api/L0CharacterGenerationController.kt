@@ -1,6 +1,8 @@
 package ltmp.charactergen.api
 
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
@@ -16,9 +18,13 @@ class L0CharacterGenerationController {
         summary = "L0 캐릭터 생성",
         description = "입력 축으로 L0 캐릭터 생성 프롬프트를 실행한다.",
     )
-    @ApiResponse(responseCode = "202", description = "생성 요청을 수락함")
+    @ApiResponse(
+        responseCode = "202",
+        description = "생성 요청을 수락함",
+        content = [Content(schema = Schema(implementation = L0GenerationExecuteDto::class))],
+    )
     @PostMapping("/generations")
     fun generate(
         @Valid @RequestBody request: L0CharacterGenerationRequest,
-    ): ResponseEntity<Void> = ResponseEntity.accepted().build()
+    ): ResponseEntity<L0GenerationExecuteDto> = ResponseEntity.accepted().build()
 }
