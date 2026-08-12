@@ -9,6 +9,13 @@ import jakarta.validation.constraints.Positive
 @Schema(description = "L0 캐릭터 생성 프롬프트에 사용할 사용자 입력")
 data class L0CharacterGenerationRequest(
     @field:Schema(
+        description = "실행할 BRANCH 또는 VERSION 프롬프트 ref 식별자",
+        example = "10",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val refId: Long,
+
+    @field:Schema(
         description = "캐릭터에 관한 운영자 설명. 비어 있으면 서버가 '없음'을 주입한다.",
         nullable = true,
     )

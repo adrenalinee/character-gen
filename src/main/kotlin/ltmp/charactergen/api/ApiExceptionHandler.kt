@@ -2,7 +2,9 @@ package ltmp.charactergen.api
 
 import ltmp.charactergen.service.ResourceConflictException
 import ltmp.charactergen.service.ResourceNotFoundException
+import ltmp.charactergen.service.InvalidRequestException
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -12,6 +14,10 @@ import java.time.OffsetDateTime
 
 @RestControllerAdvice
 class ApiExceptionHandler {
+    @ExceptionHandler(InvalidRequestException::class)
+    fun handleInvalidRequest(exception: InvalidRequestException): ResponseEntity<ApiErrorResponse> =
+        error(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", exception.detail)
+
     @ExceptionHandler(ResourceNotFoundException::class)
     fun handleNotFound(exception: ResourceNotFoundException): ResponseEntity<ApiErrorResponse> =
         error(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.detail)
@@ -19,6 +25,10 @@ class ApiExceptionHandler {
     @ExceptionHandler(ResourceConflictException::class)
     fun handleConflict(exception: ResourceConflictException): ResponseEntity<ApiErrorResponse> =
         error(HttpStatus.CONFLICT, "RESOURCE_CONFLICT", exception.detail)
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException::class)
+    fun handleOptimisticLock(exception: ObjectOptimisticLockingFailureException): ResponseEntity<ApiErrorResponse> =
+        error(HttpStatus.CONFLICT, "RESOURCE_CONFLICT", exception.message.toString())
 
     @ExceptionHandler(DataIntegrityViolationException::class)
     fun handleDataIntegrityViolation(exception: DataIntegrityViolationException): ResponseEntity<ApiErrorResponse> =

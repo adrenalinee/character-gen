@@ -2,12 +2,23 @@ package ltmp.charactergen.api
 
 import io.swagger.v3.oas.annotations.media.Schema
 import ltmp.charactergen.data.L0GenerationExecuteStatus
+import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.entity.L0GenerationExecute
 import java.time.OffsetDateTime
 
 @Schema(description = "L0 캐릭터 생성 실행 정보")
 data class L0GenerationExecuteDto(
     @field:Schema(description = "실행 식별자", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     val id: Long,
+
+    @field:Schema(description = "실행에 사용한 프롬프트 ref 식별자", example = "10", requiredMode = Schema.RequiredMode.REQUIRED)
+    val refId: Long,
+
+    @field:Schema(description = "실행에 사용한 ref 타입", requiredMode = Schema.RequiredMode.REQUIRED)
+    val refType: PromptTemplateRefType,
+
+    @field:Schema(description = "BRANCH 실행 시점의 ref 원본 JSON. VERSION 실행이면 null", nullable = true)
+    val promptRefSnapshotJson: String? = null,
 
     @field:Schema(description = "API로 전달되어 저장된 사용자 입력 JSON", requiredMode = Schema.RequiredMode.REQUIRED)
     val userInputJson: String,
@@ -35,4 +46,20 @@ data class L0GenerationExecuteDto(
 
     @field:Schema(description = "실행 레코드 최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
     val updatedAt: OffsetDateTime,
+)
+
+fun L0GenerationExecute.toDto() = L0GenerationExecuteDto(
+    id = id,
+    refId = promptTemplateRef.id,
+    refType = promptTemplateRef.type,
+    promptRefSnapshotJson = promptRefSnapshotJson,
+    userInputJson = userInputJson,
+    llmOutput = llmOutput,
+    status = status,
+    errorTrace = errorTrace,
+    message = message,
+    elapsed = elapsed,
+    completedAt = completedAt,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
 )

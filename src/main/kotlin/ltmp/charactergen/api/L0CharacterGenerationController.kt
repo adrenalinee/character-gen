@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import ltmp.charactergen.api.axis.L0CharacterGenerationOptionsDto
 import ltmp.charactergen.service.L0CharacterGenerationOptionsService
+import ltmp.charactergen.service.L0CharacterGenerationService
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController
 @Tag(name = "L0 Character Generation", description = "L0 캐릭터 코어 생성 API")
 class L0CharacterGenerationController(
     private val generationOptionsService: L0CharacterGenerationOptionsService,
+    private val generationService: L0CharacterGenerationService,
 ) {
     @Operation(
         summary = "L0 캐릭터 생성 축 조회",
@@ -38,18 +40,19 @@ class L0CharacterGenerationController(
         summary = "L0 캐릭터 생성",
         description = "입력 축으로 L0 캐릭터 생성 프롬프트를 실행한다.",
     )
-    @ApiResponse(
-        responseCode = "202",
-        description = "생성 요청을 수락함",
-        content = [
-            Content(
-                mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = Schema(implementation = L0GenerationExecuteDto::class),
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "202",
+                description = "생성 요청을 수락함",
+                content = [Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = Schema(implementation = L0GenerationExecuteDto::class))],
             ),
+            ApiResponse(responseCode = "400", description = "실행 불가능한 미완성 ref", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
+            ApiResponse(responseCode = "404", description = "프롬프트 ref 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
         ],
     )
     @PostMapping("/generations")
     fun generate(
         @Valid @RequestBody request: L0CharacterGenerationRequest,
-    ): ResponseEntity<L0GenerationExecuteDto> = ResponseEntity.accepted().build()
+    ): ResponseEntity<L0GenerationExecuteDto> = ResponseEntity.accepted().body(generationService.requestGeneration(request))
 }

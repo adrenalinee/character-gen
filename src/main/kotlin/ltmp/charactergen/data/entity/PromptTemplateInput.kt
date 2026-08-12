@@ -13,8 +13,8 @@ import ltmp.charactergen.data.LongBaseEntity
 @Table(name = "prompt_template_inputs")
 class PromptTemplateInput(
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "prompt_template_version_id", nullable = false)
-    var promptTemplateVersion: PromptTemplateVersion,
+    @JoinColumn(name = "prompt_template_ref_id", nullable = false)
+    var promptTemplateRef: PromptTemplateRef,
 
     @Column(nullable = false, length = 50)
     var role: String,

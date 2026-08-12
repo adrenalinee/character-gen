@@ -21,15 +21,19 @@ import java.time.OffsetDateTime
         Index(name = "idx_l0_generation_executes_status", columnList = "status"),
         Index(name = "idx_l0_generation_executes_created_at", columnList = "created_at"),
         Index(
-            name = "idx_l0_generation_executes_prompt_template_version_id",
-            columnList = "prompt_template_version_id",
+            name = "idx_l0_generation_executes_prompt_template_ref_id",
+            columnList = "prompt_template_ref_id",
         ),
     ],
 )
 class L0GenerationExecute(
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "prompt_template_version_id", nullable = false)
-    var promptTemplateVersion: PromptTemplateVersion,
+    @JoinColumn(name = "prompt_template_ref_id", nullable = false)
+    val promptTemplateRef: PromptTemplateRef,
+
+    @Lob
+    @Column(name = "prompt_ref_snapshot_json")
+    val promptRefSnapshotJson: String? = null,
 
     @Lob
     @Column(name = "user_input_json", nullable = false)
