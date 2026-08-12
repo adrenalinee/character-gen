@@ -3,6 +3,7 @@ package ltmp.charactergen.api
 import ltmp.charactergen.service.ResourceConflictException
 import ltmp.charactergen.service.ResourceNotFoundException
 import ltmp.charactergen.service.InvalidRequestException
+import ltmp.charactergen.service.GenerationCapacityExceededException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.http.HttpStatus
@@ -25,6 +26,12 @@ class ApiExceptionHandler {
     @ExceptionHandler(ResourceConflictException::class)
     fun handleConflict(exception: ResourceConflictException): ResponseEntity<ApiErrorResponse> =
         error(HttpStatus.CONFLICT, "RESOURCE_CONFLICT", exception.detail)
+
+    @ExceptionHandler(GenerationCapacityExceededException::class)
+    fun handleGenerationCapacityExceeded(
+        exception: GenerationCapacityExceededException,
+    ): ResponseEntity<ApiErrorResponse> =
+        error(HttpStatus.TOO_MANY_REQUESTS, "GENERATION_CAPACITY_EXCEEDED", exception.detail)
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException::class)
     fun handleOptimisticLock(exception: ObjectOptimisticLockingFailureException): ResponseEntity<ApiErrorResponse> =

@@ -1,12 +1,16 @@
 package ltmp.charactergen.config
 
+import ltmp.charactergen.api.prompt.CreatePromptTemplateVersionRefRequest
 import ltmp.charactergen.data.BigFiveTrait
+import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.AttachmentStyleEntity
 import ltmp.charactergen.data.entity.AvoidanceStyleEntity
 import ltmp.charactergen.data.entity.DomainEntity
 import ltmp.charactergen.data.entity.EmotionalExpressionEntity
 import ltmp.charactergen.data.entity.LieEntity
 import ltmp.charactergen.data.entity.PersonalityTraitStageEntity
+import ltmp.charactergen.data.entity.PromptTemplate
+import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.entity.SpeechArchetypeEntity
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
@@ -14,7 +18,10 @@ import ltmp.charactergen.data.repo.DomainRepository
 import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.LieRepository
 import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
+import ltmp.charactergen.data.repo.PromptTemplateRefRepository
+import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
+import ltmp.charactergen.service.PromptTemplateRefService
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.stereotype.Component
@@ -29,6 +36,9 @@ class L0ReferenceDataInitializer(
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
+    private val promptTemplateRepository: PromptTemplateRepository,
+    private val promptTemplateRefRepository: PromptTemplateRefRepository,
+    private val promptTemplateRefService: PromptTemplateRefService,
 ) : ApplicationRunner {
     @Transactional
     override fun run(args: ApplicationArguments) {
@@ -39,6 +49,7 @@ class L0ReferenceDataInitializer(
         insertMissingEmotionalExpressions()
         insertMissingAvoidanceStyles()
         insertMissingSpeechArchetypes()
+        insertInitialL0CharacterPrompt()
     }
 
     private fun insertMissingDomains() {
@@ -98,6 +109,41 @@ class L0ReferenceDataInitializer(
             SpeechArchetypeEntity(name = it.type, description = it.description)
         }
         speechArchetypeRepository.saveAll(missing)
+    }
+
+    private fun insertInitialL0CharacterPrompt() {
+        val template = promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME)
+            ?: promptTemplateRepository.saveAndFlush(
+                PromptTemplate(name = L0_CHARACTER_PROMPT_TEMPLATE_NAME),
+            )
+        val branch = promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndName(
+            template.id,
+            L0_CHARACTER_PROMPT_BRANCH_NAME,
+        ) ?: createInitialL0CharacterPromptBranch(template)
+
+        // 이미 VERSION이 발급된 템플릿은 서버 재시작 시 새 버전을 만들지 않는다.
+        if (template.lastVersion == 0L) {
+            promptTemplateRefService.createVersion(
+                CreatePromptTemplateVersionRefRequest(
+                    promptTemplateId = template.id,
+                    fromRefId = branch.id,
+                ),
+            )
+        }
+    }
+
+    private fun createInitialL0CharacterPromptBranch(template: PromptTemplate): PromptTemplateRef {
+        val branch = PromptTemplateRef(
+            promptTemplate = template,
+            type = PromptTemplateRefType.BRANCH,
+            name = L0_CHARACTER_PROMPT_BRANCH_NAME,
+            instructions = L0_CHARACTER_PROMPT_INSTRUCTIONS,
+        )
+        branch.addInput(
+            role = L0_CHARACTER_PROMPT_INPUT_ROLE,
+            inputText = L0_CHARACTER_PROMPT_INPUT_TEXT,
+        )
+        return promptTemplateRefRepository.saveAndFlush(branch)
     }
 
     private data class NameDescriptionSpec(

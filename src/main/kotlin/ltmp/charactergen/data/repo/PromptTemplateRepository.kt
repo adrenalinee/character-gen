@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository
 import jakarta.persistence.LockModeType
 
 interface PromptTemplateRepository : JpaRepository<PromptTemplate, Long> {
+    fun findByName(name: String): PromptTemplate?
+
     fun findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<PromptTemplate>
 
     fun existsByName(name: String): Boolean

@@ -10,10 +10,10 @@ class L0GenerationExecutor(
     private val promptRenderer: L0CharacterPromptRenderer,
     private val llmClient: L0CharacterLlmClient,
 ) {
-    fun executeNext(): Boolean {
-        val generationId = stateService.claimNext() ?: return false
+    fun execute(generationId: Long) {
         val startedAt = System.nanoTime()
         try {
+            if (!stateService.markRunning(generationId)) return
             val work = stateService.loadWork(generationId)
             val prompt = promptRenderer.render(work.prompt, work.request)
             val result = llmClient.generate(prompt)
@@ -26,8 +26,10 @@ class L0GenerationExecutor(
         } catch (failure: Exception) {
             stateService.fail(generationId, failure, elapsedSince(startedAt))
         }
-        return true
     }
+
+    fun failBeforeExecution(generationId: Long, failure: Exception) =
+        stateService.fail(generationId, failure, 0)
 
     private fun elapsedSince(startedAt: Long): Long = Duration.ofNanos(System.nanoTime() - startedAt).toMillis()
 }

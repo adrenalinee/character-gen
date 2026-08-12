@@ -1,13 +1,20 @@
 package ltmp.charactergen.api
 
 import ltmp.charactergen.config.L0ReferenceDataInitializer
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_BRANCH_NAME
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_TEMPLATE_NAME
 import ltmp.charactergen.data.BigFiveTrait
+import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
 import ltmp.charactergen.data.repo.DomainRepository
 import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.LieRepository
 import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
+import ltmp.charactergen.data.repo.PromptTemplateRefRepository
+import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -37,6 +44,8 @@ class ManagementApiIntegrationTests(
     @Autowired private val emotionalExpressionRepository: EmotionalExpressionRepository,
     @Autowired private val avoidanceStyleRepository: AvoidanceStyleRepository,
     @Autowired private val speechArchetypeRepository: SpeechArchetypeRepository,
+    @Autowired private val promptTemplateRepository: PromptTemplateRepository,
+    @Autowired private val promptTemplateRefRepository: PromptTemplateRefRepository,
 ) {
     @Test
     fun `OpenAPI 문서에 ref 관리와 페이징 스펙을 노출한다`() {
@@ -54,6 +63,7 @@ class ManagementApiIntegrationTests(
             jsonPath("$.paths['/api/v1/prompt-template-refs/{refId}/branch'].put") { exists() }
             jsonPath("$.paths['/api/v1/prompt-template-versions']") { doesNotExist() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].post") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/generations'].post.responses['429']") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].get") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].get.parameters[?(@.name == 'page')]") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].get.parameters[?(@.name == 'size')]") { exists() }
@@ -341,6 +351,32 @@ class ManagementApiIntegrationTests(
             jsonPath("$.avoidanceStyles.length()") { value(6) }
             jsonPath("$.speechArchetypes.length()") { value(8) }
         }
+    }
+
+    @Test
+    fun `L0 캐릭터 프롬프트 BRANCH와 복사된 VERSION을 초기화한다`() {
+        referenceDataInitializer.run(DefaultApplicationArguments())
+
+        val template = assertNotNull(promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME))
+        assertEquals(1, template.lastVersion)
+
+        val refs = promptTemplateRefRepository.findAll().filter { it.promptTemplate.id == template.id }
+        assertEquals(2, refs.size)
+        val branch = refs.single { it.type == PromptTemplateRefType.BRANCH }
+        val version = refs.single { it.type == PromptTemplateRefType.VERSION }
+
+        assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, branch.name)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS, branch.instructions)
+        assertEquals(1, branch.inputs.size)
+        assertEquals("user", branch.inputs.single().role)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT, branch.inputs.single().inputText)
+
+        assertEquals(1, version.version)
+        assertEquals(branch.id, version.fromRef?.id)
+        assertEquals(branch.revision, version.fromRefRevision)
+        assertEquals(branch.instructions, version.instructions)
+        assertEquals(branch.inputs.single().role, version.inputs.single().role)
+        assertEquals(branch.inputs.single().inputText, version.inputs.single().inputText)
     }
 
     private fun createTemplate(name: String): Long = locationId(

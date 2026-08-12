@@ -18,13 +18,12 @@ class L0GenerationExecutionStateService(
     private val objectMapper: ObjectMapper,
 ) {
     @Transactional
-    fun claimNext(): Long? {
-        val execute = generationExecuteRepository.findFirstByStatusOrderByCreatedAtAsc(
-            L0GenerationExecuteStatus.PREPARING,
-        ) ?: return null
+    fun markRunning(generationId: Long): Boolean {
+        val execute = generationExecuteRepository.findById(generationId).orElse(null) ?: return false
+        if (execute.status != L0GenerationExecuteStatus.PREPARING) return false
         execute.status = L0GenerationExecuteStatus.RUNNING
         execute.message = "OpenAI Responses API 호출 중"
-        return execute.id
+        return true
     }
 
     @Transactional(readOnly = true)

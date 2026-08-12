@@ -10,6 +10,7 @@ import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.service.generation.PromptRefInputSnapshot
 import ltmp.charactergen.service.generation.PromptRefSnapshot
+import ltmp.charactergen.service.generation.L0GenerationTaskDispatcher
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -22,6 +23,7 @@ class L0CharacterGenerationService(
     private val generationExecuteRepository: L0GenerationExecuteRepository,
     private val promptTemplateRefService: PromptTemplateRefService,
     private val objectMapper: ObjectMapper,
+    private val taskDispatcher: L0GenerationTaskDispatcher,
 ) {
     @Transactional(readOnly = true)
     fun searchGenerations(
@@ -58,6 +60,8 @@ class L0CharacterGenerationService(
             userInputJson = objectMapper.writeValueAsString(request),
             status = L0GenerationExecuteStatus.PREPARING,
         )
-        return generationExecuteRepository.saveAndFlush(execute).toDto()
+        val savedExecute = generationExecuteRepository.saveAndFlush(execute)
+        taskDispatcher.dispatchAfterCommit(savedExecute.id)
+        return savedExecute.toDto()
     }
 }

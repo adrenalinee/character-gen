@@ -27,7 +27,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-@SpringBootTest(properties = ["openai.generation.scheduler-enabled=false"])
+@SpringBootTest
 @Import(L0GenerationExecutionIntegrationTests.FakeLlmConfiguration::class)
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 @Transactional
@@ -42,7 +42,7 @@ class L0GenerationExecutionIntegrationTests(
     private val objectMapper: ObjectMapper,
 ) {
     @Test
-    fun `PREPARING 실행을 스케줄러 작업 단위로 처리하고 캐릭터를 저장한다`() {
+    fun `PREPARING 실행을 비동기 executor 작업 단위로 처리하고 캐릭터를 저장한다`() {
         val template = promptTemplateRepository.save(PromptTemplate(name = "L0 execution test"))
         val ref = PromptTemplateRef(
             promptTemplate = template,
@@ -63,7 +63,7 @@ class L0GenerationExecutionIntegrationTests(
         val generation = generationService.requestGeneration(generationRequest(ref.id))
         assertEquals(L0GenerationExecuteStatus.PREPARING, generation.status)
 
-        assertTrue(executor.executeNext())
+        executor.execute(generation.id)
 
         val completed = generationExecuteRepository.findById(generation.id).orElseThrow()
         assertEquals(L0GenerationExecuteStatus.COMPLETED, completed.status)
@@ -90,7 +90,6 @@ class L0GenerationExecutionIntegrationTests(
         assertTrue(renderedInput.contains("이 축은 이 인물을 설명하는 특징이 아니다"))
         assertTrue(renderedInput.contains("누구와도 비슷한 거리를 두고"))
         assertFalse(renderedInput.contains("{{"))
-        assertFalse(executor.executeNext())
     }
 
     @Test
@@ -106,7 +105,7 @@ class L0GenerationExecutionIntegrationTests(
         fakeLlmClient.failure = IllegalStateException("OpenAI unavailable")
 
         val generation = generationService.requestGeneration(generationRequest(ref.id))
-        assertTrue(executor.executeNext())
+        executor.execute(generation.id)
 
         val failed = generationExecuteRepository.findById(generation.id).orElseThrow()
         assertEquals(L0GenerationExecuteStatus.FAILED, failed.status)

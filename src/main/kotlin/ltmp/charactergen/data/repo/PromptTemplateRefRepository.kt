@@ -31,6 +31,9 @@ interface PromptTemplateRefRepository : JpaRepository<PromptTemplateRef, Long> {
     @EntityGraph(attributePaths = ["promptTemplate", "inputs", "fromRef"])
     fun findOneWithDetailsById(id: Long): PromptTemplateRef?
 
+    @EntityGraph(attributePaths = ["promptTemplate", "inputs", "fromRef"])
+    fun findOneWithDetailsByPromptTemplateIdAndName(promptTemplateId: Long, name: String): PromptTemplateRef?
+
     fun existsByPromptTemplateId(promptTemplateId: Long): Boolean
 
     fun existsByPromptTemplateIdAndName(promptTemplateId: Long, name: String): Boolean
