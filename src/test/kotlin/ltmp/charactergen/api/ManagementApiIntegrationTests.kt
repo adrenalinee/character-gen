@@ -65,6 +65,15 @@ class ManagementApiIntegrationTests(
             jsonPath("$.paths['/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}'].delete") { exists() }
             jsonPath("$.paths['/api/v1/prompt-template-refs']") { doesNotExist() }
             jsonPath("$.paths['/api/v1/prompt-template-versions']") { doesNotExist() }
+            jsonPath("$.components.schemas.PromptTemplateSimpleDto") { exists() }
+            jsonPath("$.components.schemas.PromptTemplateRefSimpleDto") { exists() }
+            jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto") { exists() }
+            jsonPath("$.components.schemas.PromptTemplateRefSimpleDto.properties.instructions") { doesNotExist() }
+            jsonPath("$.components.schemas.PromptTemplateRefSimpleDto.properties.inputs") { doesNotExist() }
+            jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto.properties.promptRefSnapshotJson") { doesNotExist() }
+            jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto.properties.userInputJson") { doesNotExist() }
+            jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto.properties.llmOutput") { doesNotExist() }
+            jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto.properties.errorTrace") { doesNotExist() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].post") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].post.responses['429']") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].get") { exists() }
@@ -181,12 +190,16 @@ class ManagementApiIntegrationTests(
             status { isOk() }
             jsonPath("$.content[0].id") { value(copiedBranchId) }
             jsonPath("$.page.totalElements") { value(1) }
+            jsonPath("$.content[0].instructions") { doesNotExist() }
+            jsonPath("$.content[0].inputs") { doesNotExist() }
         }
 
         mockMvc.get("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "experiment").andExpect {
             status { isOk() }
             jsonPath("$.id") { value(copiedBranchId) }
             jsonPath("$.name") { value("experiment") }
+            jsonPath("$.instructions") { value("Generate character") }
+            jsonPath("$.inputs.length()") { value(2) }
         }
         mockMvc.get("/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}", templateId, 1).andExpect {
             status { isOk() }
@@ -287,6 +300,10 @@ class ManagementApiIntegrationTests(
             jsonPath("$.content[0].status") { value("PREPARING") }
             jsonPath("$.page.size") { value(1) }
             jsonPath("$.page.totalElements") { value(2) }
+            jsonPath("$.content[0].promptRefSnapshotJson") { doesNotExist() }
+            jsonPath("$.content[0].userInputJson") { doesNotExist() }
+            jsonPath("$.content[0].llmOutput") { doesNotExist() }
+            jsonPath("$.content[0].errorTrace") { doesNotExist() }
         }
 
         mockMvc.get("/api/v1/l0-characters/generations/{generationId}", firstGenerationId).andExpect {

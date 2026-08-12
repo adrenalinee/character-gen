@@ -36,7 +36,7 @@ class PromptTemplateRefController(
     @Operation(summary = "프롬프트 ref 검색", description = "경로의 템플릿에 속한 ref를 타입, 이름, 버전 번호 조건으로 검색한다.")
     @ApiResponses(
         value = [
-            ApiResponse(responseCode = "200", description = "검색 성공", content = [Content(schema = Schema(implementation = PagedModel::class))]),
+            ApiResponse(responseCode = "200", description = "검색 성공"),
             ApiResponse(responseCode = "404", description = "템플릿 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
         ],
     )
@@ -47,7 +47,7 @@ class PromptTemplateRefController(
         @RequestParam(required = false) name: String?,
         @RequestParam(required = false) version: Long?,
         @ParameterObject @PageableDefault(sort = ["id"], direction = Sort.Direction.DESC) pageable: Pageable,
-    ): PagedModel<PromptTemplateRefDto> =
+    ): PagedModel<PromptTemplateRefSimpleDto> =
         PagedModel(promptTemplateRefService.search(promptTemplateId, type, name, version, pageable))
 
     @Operation(summary = "빈 또는 복제 BRANCH 생성", description = "fromRefId가 없으면 빈 BRANCH, 있으면 같은 템플릿 ref의 깊은 복사본을 만든다.")

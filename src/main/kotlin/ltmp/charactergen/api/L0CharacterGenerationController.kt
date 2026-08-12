@@ -51,14 +51,13 @@ class L0CharacterGenerationController(
     @ApiResponse(
         responseCode = "200",
         description = "실행 이력 검색 성공",
-        content = [Content(schema = Schema(implementation = PagedModel::class))],
     )
     @GetMapping("/generations")
     fun searchGenerations(
         @RequestParam(required = false) refId: Long?,
         @RequestParam(required = false) status: L0GenerationExecuteStatus?,
         @ParameterObject @PageableDefault(sort = ["id"], direction = Sort.Direction.DESC) pageable: Pageable,
-    ): PagedModel<L0GenerationExecuteDto> =
+    ): PagedModel<L0GenerationExecuteSimpleDto> =
         PagedModel(generationService.searchGenerations(refId, status, pageable))
 
     @Operation(summary = "L0 캐릭터 생성 실행 단일 조회")

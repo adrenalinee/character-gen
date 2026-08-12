@@ -34,13 +34,12 @@ class PromptTemplateController(
     @ApiResponse(
         responseCode = "200",
         description = "검색 성공",
-        content = [Content(schema = Schema(implementation = PagedModel::class))],
     )
     @GetMapping
     fun search(
         @RequestParam(required = false) name: String?,
         @ParameterObject pageable: Pageable,
-    ): PagedModel<PromptTemplateDto> = PagedModel(promptTemplateService.searchTemplates(name, pageable))
+    ): PagedModel<PromptTemplateSimpleDto> = PagedModel(promptTemplateService.searchTemplates(name, pageable))
 
     @Operation(summary = "프롬프트 템플릿 생성")
     @ApiResponses(

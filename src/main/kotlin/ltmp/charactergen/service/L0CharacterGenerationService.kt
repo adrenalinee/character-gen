@@ -2,7 +2,9 @@ package ltmp.charactergen.service
 
 import ltmp.charactergen.api.L0CharacterGenerationRequest
 import ltmp.charactergen.api.L0GenerationExecuteDto
+import ltmp.charactergen.api.L0GenerationExecuteSimpleDto
 import ltmp.charactergen.api.toDto
+import ltmp.charactergen.api.toSimpleDto
 import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.L0GenerationExecute
@@ -30,7 +32,8 @@ class L0CharacterGenerationService(
         refId: Long?,
         status: L0GenerationExecuteStatus?,
         pageable: Pageable,
-    ): Page<L0GenerationExecuteDto> = generationExecuteRepository.search(refId, status, pageable).map { it.toDto() }
+    ): Page<L0GenerationExecuteSimpleDto> =
+        generationExecuteRepository.search(refId, status, pageable).map(L0GenerationExecute::toSimpleDto)
 
     @Transactional(readOnly = true)
     fun getGeneration(generationId: Long): L0GenerationExecuteDto =

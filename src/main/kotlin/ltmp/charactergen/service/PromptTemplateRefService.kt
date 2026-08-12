@@ -3,8 +3,10 @@ package ltmp.charactergen.service
 import ltmp.charactergen.api.prompt.CreatePromptTemplateBranchRequest
 import ltmp.charactergen.api.prompt.CreatePromptTemplateVersionRefRequest
 import ltmp.charactergen.api.prompt.PromptTemplateRefDto
+import ltmp.charactergen.api.prompt.PromptTemplateRefSimpleDto
 import ltmp.charactergen.api.prompt.UpdatePromptTemplateBranchRequest
 import ltmp.charactergen.api.prompt.toDto
+import ltmp.charactergen.api.prompt.toSimpleDto
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
@@ -29,12 +31,12 @@ class PromptTemplateRefService(
         name: String?,
         version: Long?,
         pageable: Pageable,
-    ): Page<PromptTemplateRefDto> {
+    ): Page<PromptTemplateRefSimpleDto> {
         if (!promptTemplateRepository.existsById(promptTemplateId)) {
             throw ResourceNotFoundException("PromptTemplate not found: $promptTemplateId")
         }
         return promptTemplateRefRepository.search(promptTemplateId, type, name, version, pageable)
-            .map(PromptTemplateRef::toDto)
+            .map(PromptTemplateRef::toSimpleDto)
     }
 
     @Transactional(readOnly = true)

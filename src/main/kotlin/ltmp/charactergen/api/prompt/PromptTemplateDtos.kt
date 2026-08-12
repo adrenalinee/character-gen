@@ -40,6 +40,20 @@ data class PromptTemplateDto(
     val updatedAt: OffsetDateTime,
 )
 
+@Schema(description = "프롬프트 템플릿 검색 목록 정보")
+data class PromptTemplateSimpleDto(
+    @field:Schema(description = "템플릿 식별자", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    val id: Long,
+    @field:Schema(description = "템플릿 이름", example = "L0 캐릭터 생성", requiredMode = Schema.RequiredMode.REQUIRED)
+    val name: String,
+    @field:Schema(description = "마지막으로 발급한 VERSION 번호", example = "3", requiredMode = Schema.RequiredMode.REQUIRED)
+    val lastVersion: Long,
+    @field:Schema(description = "생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val createdAt: OffsetDateTime,
+    @field:Schema(description = "최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val updatedAt: OffsetDateTime,
+)
+
 @Schema(description = "BRANCH ref 생성 요청")
 data class CreatePromptTemplateBranchRequest(
     @field:NotBlank
@@ -112,6 +126,32 @@ data class PromptTemplateRefDto(
     val updatedAt: OffsetDateTime,
 )
 
+@Schema(description = "프롬프트 템플릿 ref 검색 목록 정보. instructions와 inputs는 상세 조회에서만 제공한다.")
+data class PromptTemplateRefSimpleDto(
+    @field:Schema(description = "ref 식별자", example = "10", requiredMode = Schema.RequiredMode.REQUIRED)
+    val id: Long,
+    @field:Schema(description = "소속 템플릿 식별자", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    val promptTemplateId: Long,
+    @field:Schema(description = "소속 템플릿 이름", requiredMode = Schema.RequiredMode.REQUIRED)
+    val promptTemplateName: String,
+    @field:Schema(description = "ref 타입", requiredMode = Schema.RequiredMode.REQUIRED)
+    val type: PromptTemplateRefType,
+    @field:Schema(description = "BRANCH 이름. VERSION이면 null", nullable = true)
+    val name: String? = null,
+    @field:Schema(description = "템플릿별 VERSION 번호. BRANCH이면 null", nullable = true)
+    val version: Long? = null,
+    @field:Schema(description = "복제 원본 ref 식별자", nullable = true)
+    val fromRefId: Long? = null,
+    @field:Schema(description = "복제 당시 원본 ref revision", nullable = true)
+    val fromRefRevision: Long? = null,
+    @field:Schema(description = "낙관적 잠금 revision", requiredMode = Schema.RequiredMode.REQUIRED)
+    val revision: Long,
+    @field:Schema(description = "생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val createdAt: OffsetDateTime,
+    @field:Schema(description = "최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val updatedAt: OffsetDateTime,
+)
+
 @Schema(description = "저장된 프롬프트 입력")
 data class PromptTemplateInputDto(
     @field:Schema(description = "입력 식별자", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -130,6 +170,14 @@ fun PromptTemplate.toDto() = PromptTemplateDto(
     updatedAt = updatedAt,
 )
 
+fun PromptTemplate.toSimpleDto() = PromptTemplateSimpleDto(
+    id = id,
+    name = name,
+    lastVersion = lastVersion,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
 fun PromptTemplateRef.toDto() = PromptTemplateRefDto(
     id = id,
     promptTemplateId = promptTemplate.id,
@@ -141,6 +189,20 @@ fun PromptTemplateRef.toDto() = PromptTemplateRefDto(
     fromRefRevision = fromRefRevision,
     instructions = instructions,
     inputs = inputs.map { PromptTemplateInputDto(id = it.id, role = it.role, inputText = it.inputText) },
+    revision = revision,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun PromptTemplateRef.toSimpleDto() = PromptTemplateRefSimpleDto(
+    id = id,
+    promptTemplateId = promptTemplate.id,
+    promptTemplateName = promptTemplate.name,
+    type = type,
+    name = name,
+    version = version,
+    fromRefId = fromRef?.id,
+    fromRefRevision = fromRefRevision,
     revision = revision,
     createdAt = createdAt,
     updatedAt = updatedAt,

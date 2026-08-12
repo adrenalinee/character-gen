@@ -2,8 +2,10 @@ package ltmp.charactergen.service
 
 import ltmp.charactergen.api.prompt.CreatePromptTemplateRequest
 import ltmp.charactergen.api.prompt.PromptTemplateDto
+import ltmp.charactergen.api.prompt.PromptTemplateSimpleDto
 import ltmp.charactergen.api.prompt.UpdatePromptTemplateRequest
 import ltmp.charactergen.api.prompt.toDto
+import ltmp.charactergen.api.prompt.toSimpleDto
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
@@ -18,13 +20,13 @@ class PromptTemplateService(
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
 ) {
     @Transactional(readOnly = true)
-    fun searchTemplates(name: String?, pageable: Pageable): Page<PromptTemplateDto> {
+    fun searchTemplates(name: String?, pageable: Pageable): Page<PromptTemplateSimpleDto> {
         val templates = if (name == null) {
             promptTemplateRepository.findAll(pageable)
         } else {
             promptTemplateRepository.findByNameContainingIgnoreCase(name, pageable)
         }
-        return templates.map(PromptTemplate::toDto)
+        return templates.map(PromptTemplate::toSimpleDto)
     }
 
     @Transactional
