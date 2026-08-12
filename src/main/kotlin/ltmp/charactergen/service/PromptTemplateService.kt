@@ -10,6 +10,8 @@ import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateVersion
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.PromptTemplateVersionRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -19,11 +21,11 @@ class PromptTemplateService(
     private val promptTemplateVersionRepository: PromptTemplateVersionRepository,
 ) {
     @Transactional(readOnly = true)
-    fun searchTemplates(name: String?): List<PromptTemplateDto> {
+    fun searchTemplates(name: String?, pageable: Pageable): Page<PromptTemplateDto> {
         val templates = if (name == null) {
-            promptTemplateRepository.findAllByOrderByNameAsc()
+            promptTemplateRepository.findAll(pageable)
         } else {
-            promptTemplateRepository.findByNameContainingIgnoreCaseOrderByNameAsc(name)
+            promptTemplateRepository.findByNameContainingIgnoreCase(name, pageable)
         }
         return templates.map(PromptTemplate::toDto)
     }
@@ -61,19 +63,24 @@ class PromptTemplateService(
     }
 
     @Transactional(readOnly = true)
-    fun searchVersions(promptTemplateId: Long?, name: String?): List<PromptTemplateVersionDto> {
+    fun searchVersions(
+        promptTemplateId: Long?,
+        name: String?,
+        pageable: Pageable,
+    ): Page<PromptTemplateVersionDto> {
         if (promptTemplateId != null && !promptTemplateRepository.existsById(promptTemplateId)) {
             throw ResourceNotFoundException("PromptTemplate not found: $promptTemplateId")
         }
         val versions = when {
             promptTemplateId != null && name != null ->
-                promptTemplateVersionRepository.findByPromptTemplateIdAndNameContainingIgnoreCaseOrderByIdDesc(
+                promptTemplateVersionRepository.findByPromptTemplateIdAndNameContainingIgnoreCase(
                     promptTemplateId,
                     name,
+                    pageable,
                 )
-            promptTemplateId != null -> promptTemplateVersionRepository.findByPromptTemplateIdOrderByIdDesc(promptTemplateId)
-            name != null -> promptTemplateVersionRepository.findByNameContainingIgnoreCaseOrderByIdDesc(name)
-            else -> promptTemplateVersionRepository.findAllByOrderByIdDesc()
+            promptTemplateId != null -> promptTemplateVersionRepository.findByPromptTemplateId(promptTemplateId, pageable)
+            name != null -> promptTemplateVersionRepository.findByNameContainingIgnoreCase(name, pageable)
+            else -> promptTemplateVersionRepository.findAll(pageable)
         }
         return versions.map(PromptTemplateVersion::toDto)
     }

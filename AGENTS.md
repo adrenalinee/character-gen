@@ -21,6 +21,7 @@
 ## API와 OpenAPI 작성 규칙
 
 - 새 API를 작성하거나 기존 API 계약을 변경할 때 OpenAPI annotation으로 스펙 설명을 반드시 함께 작성한다.
+- 모든 검색 API는 페이징을 적용한다. 컨트롤러에서 받은 `Pageable`을 서비스와 repository까지 그대로 전달하고, repository와 서비스는 `Page`를 반환하며, 컨트롤러는 `PagedModel`을 반환한다.
 - 컨트롤러에는 API 그룹을 설명하는 `@Tag`를 작성한다.
 - 각 endpoint에는 목적과 동작을 설명하는 `@Operation`을 작성한다.
 - 가능한 모든 정상·오류 HTTP 상태를 `@ApiResponse` 또는 `@ApiResponses`로 작성하고, 실제 반환 상태 및 response body 타입과 일치시킨다.

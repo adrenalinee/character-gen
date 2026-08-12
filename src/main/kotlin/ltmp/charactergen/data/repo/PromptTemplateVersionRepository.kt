@@ -1,24 +1,27 @@
 package ltmp.charactergen.data.repo
 
 import ltmp.charactergen.data.entity.PromptTemplateVersion
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface PromptTemplateVersionRepository : JpaRepository<PromptTemplateVersion, Long> {
     @EntityGraph(attributePaths = ["promptTemplate"])
-    fun findAllByOrderByIdDesc(): List<PromptTemplateVersion>
+    override fun findAll(pageable: Pageable): Page<PromptTemplateVersion>
 
     @EntityGraph(attributePaths = ["promptTemplate"])
-    fun findByNameContainingIgnoreCaseOrderByIdDesc(name: String): List<PromptTemplateVersion>
+    fun findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<PromptTemplateVersion>
 
     @EntityGraph(attributePaths = ["promptTemplate"])
-    fun findByPromptTemplateIdOrderByIdDesc(promptTemplateId: Long): List<PromptTemplateVersion>
+    fun findByPromptTemplateId(promptTemplateId: Long, pageable: Pageable): Page<PromptTemplateVersion>
 
     @EntityGraph(attributePaths = ["promptTemplate"])
-    fun findByPromptTemplateIdAndNameContainingIgnoreCaseOrderByIdDesc(
+    fun findByPromptTemplateIdAndNameContainingIgnoreCase(
         promptTemplateId: Long,
         name: String,
-    ): List<PromptTemplateVersion>
+        pageable: Pageable,
+    ): Page<PromptTemplateVersion>
 
     @EntityGraph(attributePaths = ["promptTemplate"])
     fun findOneWithPromptTemplateById(id: Long): PromptTemplateVersion?

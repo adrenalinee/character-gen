@@ -43,10 +43,16 @@ class ManagementApiIntegrationTests(
         mockMvc.get("/v3/api-docs").andExpect {
             status { isOk() }
             jsonPath("$.paths['/api/v1/prompt-templates'].get") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates'].get.parameters[?(@.name == 'page')]") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates'].get.parameters[?(@.name == 'size')]") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates'].get.parameters[?(@.name == 'sort')]") { exists() }
             jsonPath("$.paths['/api/v1/prompt-templates'].post") { exists() }
             jsonPath("$.paths['/api/v1/prompt-templates/{id}'].put") { exists() }
             jsonPath("$.paths['/api/v1/prompt-templates/{id}'].delete") { exists() }
             jsonPath("$.paths['/api/v1/prompt-template-versions'].get") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-template-versions'].get.parameters[?(@.name == 'page')]") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-template-versions'].get.parameters[?(@.name == 'size')]") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-template-versions'].get.parameters[?(@.name == 'sort')]") { exists() }
             jsonPath("$.paths['/api/v1/prompt-template-versions'].post") { exists() }
             jsonPath("$.paths['/api/v1/prompt-template-versions/{id}'].get") { exists() }
             jsonPath("$.paths['/api/v1/prompt-template-versions/{id}'].put") { doesNotExist() }
@@ -70,9 +76,14 @@ class ManagementApiIntegrationTests(
 
         mockMvc.get("/api/v1/prompt-templates") {
             param("name", "character")
+            param("page", "0")
+            param("size", "1")
+            param("sort", "name,asc")
         }.andExpect {
             status { isOk() }
-            jsonPath("$[0].id") { value(templateId) }
+            jsonPath("$.content[0].id") { value(templateId) }
+            jsonPath("$.page.size") { value(1) }
+            jsonPath("$.page.totalElements") { value(1) }
         }
 
         mockMvc.put("/api/v1/prompt-templates/{id}", templateId) {
@@ -103,9 +114,14 @@ class ManagementApiIntegrationTests(
         mockMvc.get("/api/v1/prompt-template-versions") {
             param("promptTemplateId", templateId.toString())
             param("name", "v")
+            param("page", "0")
+            param("size", "1")
+            param("sort", "id,desc")
         }.andExpect {
             status { isOk() }
-            jsonPath("$[0].id") { value(versionId) }
+            jsonPath("$.content[0].id") { value(versionId) }
+            jsonPath("$.page.size") { value(1) }
+            jsonPath("$.page.totalElements") { value(1) }
         }
         mockMvc.delete("/api/v1/prompt-templates/{id}", templateId).andExpect {
             status { isConflict() }

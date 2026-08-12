@@ -1,7 +1,6 @@
 package ltmp.charactergen.api.prompt
 
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -10,7 +9,9 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import ltmp.charactergen.api.ApiErrorResponse
 import ltmp.charactergen.service.PromptTemplateService
-import org.springframework.http.MediaType
+import org.springdoc.core.annotations.ParameterObject
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PagedModel
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -33,12 +34,13 @@ class PromptTemplateController(
     @ApiResponse(
         responseCode = "200",
         description = "검색 성공",
-        content = [Content(array = ArraySchema(schema = Schema(implementation = PromptTemplateDto::class)))],
+        content = [Content(schema = Schema(implementation = PagedModel::class))],
     )
     @GetMapping
     fun search(
         @RequestParam(required = false) name: String?,
-    ): List<PromptTemplateDto> = promptTemplateService.searchTemplates(name)
+        @ParameterObject pageable: Pageable,
+    ): PagedModel<PromptTemplateDto> = PagedModel(promptTemplateService.searchTemplates(name, pageable))
 
     @Operation(summary = "프롬프트 템플릿 생성")
     @ApiResponses(

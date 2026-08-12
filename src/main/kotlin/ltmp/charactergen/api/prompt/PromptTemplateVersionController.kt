@@ -1,7 +1,6 @@
 package ltmp.charactergen.api.prompt
 
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -10,6 +9,9 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import ltmp.charactergen.api.ApiErrorResponse
 import ltmp.charactergen.service.PromptTemplateService
+import org.springdoc.core.annotations.ParameterObject
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PagedModel
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -32,7 +34,7 @@ class PromptTemplateVersionController(
     )
     @ApiResponses(
         value = [
-            ApiResponse(responseCode = "200", description = "검색 성공", content = [Content(array = ArraySchema(schema = Schema(implementation = PromptTemplateVersionDto::class)))]),
+            ApiResponse(responseCode = "200", description = "검색 성공", content = [Content(schema = Schema(implementation = PagedModel::class))]),
             ApiResponse(responseCode = "404", description = "검색 대상으로 지정한 템플릿 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
         ],
     )
@@ -40,7 +42,9 @@ class PromptTemplateVersionController(
     fun search(
         @RequestParam(required = false) promptTemplateId: Long?,
         @RequestParam(required = false) name: String?,
-    ): List<PromptTemplateVersionDto> = promptTemplateService.searchVersions(promptTemplateId, name)
+        @ParameterObject pageable: Pageable,
+    ): PagedModel<PromptTemplateVersionDto> =
+        PagedModel(promptTemplateService.searchVersions(promptTemplateId, name, pageable))
 
     @Operation(summary = "프롬프트 템플릿 버전 생성", description = "생성된 버전은 수정하거나 삭제할 수 없다.")
     @ApiResponses(
