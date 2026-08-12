@@ -54,6 +54,11 @@ class ManagementApiIntegrationTests(
             jsonPath("$.paths['/api/v1/prompt-template-refs/{refId}/branch'].put") { exists() }
             jsonPath("$.paths['/api/v1/prompt-template-versions']") { doesNotExist() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].post") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/generations'].get") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/generations'].get.parameters[?(@.name == 'page')]") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/generations'].get.parameters[?(@.name == 'size')]") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/generations'].get.parameters[?(@.name == 'sort')]") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/generations/{generationId}'].get") { exists() }
         }
     }
 
@@ -227,6 +232,55 @@ class ManagementApiIntegrationTests(
     }
 
     @Test
+    fun `생성 실행 이력을 페이징 검색하고 단일 상세 조회한다`() {
+        val templateId = createTemplate("Generation History Template")
+        val branchId = createBranch(templateId, "main")
+        mockMvc.put("/api/v1/prompt-template-refs/{refId}/branch", branchId) {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"main","instructions":"instruction","inputs":[{"role":"user","inputText":"input"}],"revision":0}"""
+        }.andExpect { status { isOk() } }
+
+        val firstGenerationId = generationId(
+            mockMvc.post("/api/v1/l0-characters/generations") {
+                contentType = MediaType.APPLICATION_JSON
+                content = generationRequest(branchId)
+            }.andExpect { status { isAccepted() } }.andReturn().response.contentAsString,
+        )
+        val secondGenerationId = generationId(
+            mockMvc.post("/api/v1/l0-characters/generations") {
+                contentType = MediaType.APPLICATION_JSON
+                content = generationRequest(branchId)
+            }.andExpect { status { isAccepted() } }.andReturn().response.contentAsString,
+        )
+
+        mockMvc.get("/api/v1/l0-characters/generations") {
+            param("refId", branchId.toString())
+            param("status", "PREPARING")
+            param("page", "0")
+            param("size", "1")
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.content[0].id") { value(secondGenerationId) }
+            jsonPath("$.content[0].refId") { value(branchId) }
+            jsonPath("$.content[0].status") { value("PREPARING") }
+            jsonPath("$.page.size") { value(1) }
+            jsonPath("$.page.totalElements") { value(2) }
+        }
+
+        mockMvc.get("/api/v1/l0-characters/generations/{generationId}", firstGenerationId).andExpect {
+            status { isOk() }
+            jsonPath("$.id") { value(firstGenerationId) }
+            jsonPath("$.refId") { value(branchId) }
+            jsonPath("$.refType") { value("BRANCH") }
+            jsonPath("$.userInputJson") { value(org.hamcrest.Matchers.containsString("\"refId\":$branchId")) }
+        }
+        mockMvc.get("/api/v1/l0-characters/generations/{generationId}", Long.MAX_VALUE).andExpect {
+            status { isNotFound() }
+            jsonPath("$.code") { value("RESOURCE_NOT_FOUND") }
+        }
+    }
+
+    @Test
     fun `삭제한 VERSION 번호를 재사용하지 않는다`() {
         val templateId = createTemplate("Version Sequence Template")
         val branchId = createBranch(templateId, "main")
@@ -304,6 +358,9 @@ class ManagementApiIntegrationTests(
     )
 
     private fun locationId(location: String?): Long = assertNotNull(location).substringAfterLast('/').toLong()
+
+    private fun generationId(responseBody: String): Long =
+        assertNotNull(Regex(""""id":(\d+)""").find(responseBody)).groupValues[1].toLong()
 
     private fun generationRequest(refId: Long) = """
         {

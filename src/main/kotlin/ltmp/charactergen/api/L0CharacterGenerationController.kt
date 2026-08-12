@@ -7,14 +7,22 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import ltmp.charactergen.api.axis.L0CharacterGenerationOptionsDto
+import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.service.L0CharacterGenerationOptionsService
 import ltmp.charactergen.service.L0CharacterGenerationService
+import org.springdoc.core.annotations.ParameterObject
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
+import org.springframework.data.web.PagedModel
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -35,6 +43,42 @@ class L0CharacterGenerationController(
     )
     @GetMapping("/generation-options")
     fun getGenerationOptions(): L0CharacterGenerationOptionsDto = generationOptionsService.getOptions()
+
+    @Operation(
+        summary = "L0 캐릭터 생성 실행 검색",
+        description = "프롬프트 ref와 실행 상태를 조건으로 생성 실행 이력을 검색한다. 조건을 생략하면 전체 이력을 반환한다.",
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "실행 이력 검색 성공",
+        content = [Content(schema = Schema(implementation = PagedModel::class))],
+    )
+    @GetMapping("/generations")
+    fun searchGenerations(
+        @RequestParam(required = false) refId: Long?,
+        @RequestParam(required = false) status: L0GenerationExecuteStatus?,
+        @ParameterObject @PageableDefault(sort = ["id"], direction = Sort.Direction.DESC) pageable: Pageable,
+    ): PagedModel<L0GenerationExecuteDto> =
+        PagedModel(generationService.searchGenerations(refId, status, pageable))
+
+    @Operation(summary = "L0 캐릭터 생성 실행 단일 조회")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "실행 상세 조회 성공",
+                content = [Content(schema = Schema(implementation = L0GenerationExecuteDto::class))],
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "생성 실행 없음",
+                content = [Content(schema = Schema(implementation = ApiErrorResponse::class))],
+            ),
+        ],
+    )
+    @GetMapping("/generations/{generationId}")
+    fun getGeneration(@PathVariable generationId: Long): L0GenerationExecuteDto =
+        generationService.getGeneration(generationId)
 
     @Operation(
         summary = "L0 캐릭터 생성",

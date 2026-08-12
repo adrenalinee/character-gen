@@ -8,6 +8,8 @@ import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.L0GenerationExecute
 import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.ObjectMapper
@@ -19,6 +21,19 @@ class L0CharacterGenerationService(
     private val promptTemplateRefService: PromptTemplateRefService,
     private val objectMapper: ObjectMapper,
 ) {
+    @Transactional(readOnly = true)
+    fun searchGenerations(
+        refId: Long?,
+        status: L0GenerationExecuteStatus?,
+        pageable: Pageable,
+    ): Page<L0GenerationExecuteDto> = generationExecuteRepository.search(refId, status, pageable).map { it.toDto() }
+
+    @Transactional(readOnly = true)
+    fun getGeneration(generationId: Long): L0GenerationExecuteDto =
+        generationExecuteRepository.findById(generationId)
+            .orElseThrow { ResourceNotFoundException("L0GenerationExecute not found: $generationId") }
+            .toDto()
+
     @Transactional
     fun requestGeneration(request: L0CharacterGenerationRequest): L0GenerationExecuteDto {
         val ref = promptTemplateRefRepository.findOneWithDetailsById(request.refId)
