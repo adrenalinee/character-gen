@@ -88,6 +88,12 @@ class L0GenerationExecutionIntegrationTests(
         assertEquals(1, character.relations.size)
         assertEquals(4, character.disclosureItems.size)
         assertEquals(1, character.voiceSamples.size)
+        assertEquals(character.id, completed.characterId)
+
+        mockMvc.get("/api/v1/l0-characters/generations/{generationId}", generation.id).andExpect {
+            status { isOk() }
+            jsonPath("$.characterId") { value(character.id) }
+        }
 
         mockMvc.get("/api/v1/l0-characters") {
             param("name", "서")
@@ -168,6 +174,7 @@ class L0GenerationExecutionIntegrationTests(
         assertTrue(assertNotNull(failed.errorTrace).contains("IllegalStateException"))
         assertNotNull(failed.elapsed)
         assertEquals(null, failed.completedAt)
+        assertEquals(null, failed.characterId)
         assertFalse(characterRepository.existsByGenerationExecuteId(generation.id))
     }
 

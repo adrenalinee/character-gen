@@ -43,6 +43,10 @@ class L0GenerationExecute(
     @Column(name = "llm_output")
     var llmOutput: String? = null,
 
+    /** 이 실행으로 생성된 Character의 식별자. 생성 완료 전에는 null이다. */
+    @Column(name = "character_id")
+    var characterId: Long? = null,
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     var status: L0GenerationExecuteStatus,

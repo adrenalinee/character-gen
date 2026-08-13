@@ -26,6 +26,9 @@ data class L0GenerationExecuteDto(
     @field:Schema(description = "LLM 원본 출력. 실행 완료 전에는 null이다.", nullable = true)
     val llmOutput: String? = null,
 
+    @field:Schema(description = "이 실행으로 생성된 캐릭터 식별자. 생성 완료 전에는 null이다.", example = "100", nullable = true)
+    val characterId: Long? = null,
+
     @field:Schema(description = "현재 실행 상태", requiredMode = Schema.RequiredMode.REQUIRED)
     val status: L0GenerationExecuteStatus,
 
@@ -61,6 +64,9 @@ data class L0GenerationExecuteSimpleDto(
     @field:Schema(description = "실행에 사용한 ref 타입", requiredMode = Schema.RequiredMode.REQUIRED)
     val refType: PromptTemplateRefType,
 
+    @field:Schema(description = "이 실행으로 생성된 캐릭터 식별자. 생성 완료 전에는 null이다.", example = "100", nullable = true)
+    val characterId: Long? = null,
+
     @field:Schema(description = "현재 실행 상태", requiredMode = Schema.RequiredMode.REQUIRED)
     val status: L0GenerationExecuteStatus,
 
@@ -87,6 +93,7 @@ fun L0GenerationExecute.toDto() = L0GenerationExecuteDto(
     promptRefSnapshotJson = promptRefSnapshotJson,
     userInputJson = userInputJson,
     llmOutput = llmOutput,
+    characterId = characterId,
     status = status,
     errorTrace = errorTrace,
     message = message,
@@ -100,6 +107,7 @@ fun L0GenerationExecute.toSimpleDto() = L0GenerationExecuteSimpleDto(
     id = id,
     refId = promptTemplateRef.id,
     refType = promptTemplateRef.type,
+    characterId = characterId,
     status = status,
     message = message,
     elapsed = elapsed,

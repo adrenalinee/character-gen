@@ -75,7 +75,8 @@ class L0GenerationExecutionStateService(
             "Character already exists for L0GenerationExecute: $generationId"
         }
 
-        characterRepository.save(response.toEntity(execute))
+        val character = characterRepository.save(response.toEntity(execute))
+        execute.characterId = character.id
         execute.llmOutput = rawJson
         execute.status = L0GenerationExecuteStatus.COMPLETED
         execute.message = "캐릭터 생성 완료"
