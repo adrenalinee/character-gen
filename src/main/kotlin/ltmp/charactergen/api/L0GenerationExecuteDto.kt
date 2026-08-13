@@ -1,6 +1,7 @@
 package ltmp.charactergen.api
 
 import io.swagger.v3.oas.annotations.media.Schema
+import ltmp.charactergen.data.Gender
 import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.L0GenerationExecute
@@ -16,6 +17,60 @@ data class L0GenerationExecuteDto(
 
     @field:Schema(description = "실행에 사용한 ref 타입", requiredMode = Schema.RequiredMode.REQUIRED)
     val refType: PromptTemplateRefType,
+
+    @field:Schema(description = "실행에 사용한 활동 분야 옵션 식별자", example = "1", nullable = true)
+    val domainId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 Lie 옵션 식별자", example = "1", nullable = true)
+    val lieId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 개방성 단계 옵션 식별자", example = "3", nullable = true)
+    val opennessStageId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 성실성 단계 옵션 식별자", example = "8", nullable = true)
+    val conscientiousnessStageId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 외향성 단계 옵션 식별자", example = "13", nullable = true)
+    val extraversionStageId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 우호성 단계 옵션 식별자", example = "18", nullable = true)
+    val agreeablenessStageId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 신경성 단계 옵션 식별자", example = "23", nullable = true)
+    val neuroticismStageId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 관계 태도 옵션 식별자", example = "1", nullable = true)
+    val attachmentStyleId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 정서 표출 옵션 식별자", example = "1", nullable = true)
+    val emotionalExpressionId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 회피 방식 옵션 식별자", example = "1", nullable = true)
+    val avoidanceStyleId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 말투 원형 옵션 식별자", example = "1", nullable = true)
+    val speechArchetypeId: Long? = null,
+
+    @field:Schema(description = "캐릭터에 관한 운영자 설명", nullable = true)
+    val description: String? = null,
+
+    @field:Schema(description = "캐릭터의 연령", example = "29", nullable = true)
+    val age: Int? = null,
+
+    @field:Schema(description = "캐릭터의 성별", example = "FEMALE", nullable = true)
+    val gender: Gender? = null,
+
+    @field:Schema(description = "존댓말/반말 기본 정책", nullable = true)
+    val speechRegister: String? = null,
+
+    @field:Schema(description = "서사 스케일", minimum = "1", maximum = "5", nullable = true)
+    val scale: Int? = null,
+
+    @field:Schema(description = "감정 강도", minimum = "1", maximum = "5", nullable = true)
+    val emotion: Int? = null,
+
+    @field:Schema(description = "추가 생성 제약", nullable = true)
+    val extraConstraints: String? = null,
 
     @field:Schema(description = "BRANCH 실행 시점의 ref 원본 JSON. VERSION 실행이면 null", nullable = true)
     val promptRefSnapshotJson: String? = null,
@@ -90,10 +145,28 @@ fun L0GenerationExecute.toDto() = L0GenerationExecuteDto(
     id = id,
     refId = promptTemplateRef.id,
     refType = promptTemplateRef.type,
+    domainId = domain?.id,
+    lieId = lie?.id,
+    opennessStageId = opennessStage?.id,
+    conscientiousnessStageId = conscientiousnessStage?.id,
+    extraversionStageId = extraversionStage?.id,
+    agreeablenessStageId = agreeablenessStage?.id,
+    neuroticismStageId = neuroticismStage?.id,
+    attachmentStyleId = attachmentStyle?.id,
+    emotionalExpressionId = emotionalExpression?.id,
+    avoidanceStyleId = avoidanceStyle?.id,
+    speechArchetypeId = speechArchetype?.id,
+    description = description,
+    age = age,
+    gender = gender,
+    speechRegister = speechRegister,
+    scale = scale,
+    emotion = emotion,
+    extraConstraints = extraConstraints,
     promptRefSnapshotJson = promptRefSnapshotJson,
     userInputJson = userInputJson,
     llmOutput = llmOutput,
-    characterId = characterId,
+    characterId = character?.id,
     status = status,
     errorTrace = errorTrace,
     message = message,
@@ -107,7 +180,7 @@ fun L0GenerationExecute.toSimpleDto() = L0GenerationExecuteSimpleDto(
     id = id,
     refId = promptTemplateRef.id,
     refType = promptTemplateRef.type,
-    characterId = characterId,
+    characterId = character?.id,
     status = status,
     message = message,
     elapsed = elapsed,

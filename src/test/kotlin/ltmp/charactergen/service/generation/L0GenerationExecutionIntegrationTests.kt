@@ -1,16 +1,25 @@
 package ltmp.charactergen.service.generation
 
 import ltmp.charactergen.api.L0CharacterGenerationRequest
+import ltmp.charactergen.l0GenerationTestOptions
 import ltmp.charactergen.client.openai.L0CharacterLlmClient
 import ltmp.charactergen.client.openai.L0CharacterLlmResult
 import ltmp.charactergen.data.L0GenerationExecuteStatus
+import ltmp.charactergen.data.Gender
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.repo.CharacterRepository
+import ltmp.charactergen.data.repo.AttachmentStyleRepository
+import ltmp.charactergen.data.repo.AvoidanceStyleRepository
+import ltmp.charactergen.data.repo.DomainRepository
+import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
+import ltmp.charactergen.data.repo.LieRepository
+import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
+import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.model.L0CharacterResponse
 import ltmp.charactergen.service.L0CharacterGenerationService
 import org.junit.jupiter.api.Test
@@ -29,7 +38,9 @@ import tools.jackson.databind.ObjectMapper
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import ltmp.charactergen.service.InvalidRequestException
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -43,6 +54,13 @@ class L0GenerationExecutionIntegrationTests(
     private val executor: L0GenerationExecutor,
     private val generationExecuteRepository: L0GenerationExecuteRepository,
     private val characterRepository: CharacterRepository,
+    private val domainRepository: DomainRepository,
+    private val lieRepository: LieRepository,
+    private val personalityTraitStageRepository: PersonalityTraitStageRepository,
+    private val attachmentStyleRepository: AttachmentStyleRepository,
+    private val emotionalExpressionRepository: EmotionalExpressionRepository,
+    private val avoidanceStyleRepository: AvoidanceStyleRepository,
+    private val speechArchetypeRepository: SpeechArchetypeRepository,
     private val fakeLlmClient: FakeL0CharacterLlmClient,
     private val objectMapper: ObjectMapper,
     private val mockMvc: MockMvc,
@@ -77,6 +95,23 @@ class L0GenerationExecutionIntegrationTests(
         assertNotNull(completed.completedAt)
         assertNotNull(completed.elapsed)
         assertEquals("캐릭터 생성 완료", completed.message)
+        val selectedOptions = testOptions()
+        assertEquals(selectedOptions.domainId, completed.domain?.id)
+        assertEquals(selectedOptions.lieId, completed.lie?.id)
+        assertEquals(selectedOptions.opennessStageId, completed.opennessStage?.id)
+        assertEquals(selectedOptions.conscientiousnessStageId, completed.conscientiousnessStage?.id)
+        assertEquals(selectedOptions.extraversionStageId, completed.extraversionStage?.id)
+        assertEquals(selectedOptions.agreeablenessStageId, completed.agreeablenessStage?.id)
+        assertEquals(selectedOptions.neuroticismStageId, completed.neuroticismStage?.id)
+        assertEquals(selectedOptions.attachmentStyleId, completed.attachmentStyle?.id)
+        assertEquals(selectedOptions.emotionalExpressionId, completed.emotionalExpression?.id)
+        assertEquals(selectedOptions.avoidanceStyleId, completed.avoidanceStyle?.id)
+        assertEquals(selectedOptions.speechArchetypeId, completed.speechArchetype?.id)
+        assertEquals(29, completed.age)
+        assertEquals(Gender.FEMALE, completed.gender)
+        assertEquals("기본적으로 존댓말", completed.speechRegister)
+        assertEquals(2, completed.scale)
+        assertEquals(4, completed.emotion)
 
         val character = characterRepository.findAll().single { it.generationExecute.id == generation.id }
         assertEquals("서윤", character.name)
@@ -88,7 +123,7 @@ class L0GenerationExecutionIntegrationTests(
         assertEquals(1, character.relations.size)
         assertEquals(4, character.disclosureItems.size)
         assertEquals(1, character.voiceSamples.size)
-        assertEquals(character.id, completed.characterId)
+        assertEquals(character.id, completed.character?.id)
 
         mockMvc.get("/api/v1/l0-characters/generations/{generationId}", generation.id).andExpect {
             status { isOk() }
@@ -174,28 +209,134 @@ class L0GenerationExecutionIntegrationTests(
         assertTrue(assertNotNull(failed.errorTrace).contains("IllegalStateException"))
         assertNotNull(failed.elapsed)
         assertEquals(null, failed.completedAt)
-        assertEquals(null, failed.characterId)
+        assertEquals(null, failed.character)
         assertFalse(characterRepository.existsByGenerationExecuteId(generation.id))
     }
 
-    private fun generationRequest(refId: Long) = L0CharacterGenerationRequest(
-        refId = refId,
-        domain = "웹툰",
-        lieType = "대체 가능성 공포형",
-        opennessStage = 3,
-        conscientiousnessStage = 3,
-        extraversionStage = 3,
-        agreeablenessStage = 3,
-        neuroticismStage = 3,
-        attachment = "일정 거리 유지",
-        emotionalExpression = "사실 치환",
-        avoidanceStyle = "짧게 답하고 침묵",
-        speechArchetype = "비유형",
-        age = 29,
-        gender = "여성",
-        speechRegister = "기본적으로 존댓말",
-        scale = 2,
-        emotion = 4,
+    @Test
+    fun `Big Five 단계 ID가 요청 축과 다르면 실행을 생성하지 않는다`() {
+        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 invalid option test"))
+        val ref = PromptTemplateRef(
+            promptTemplate = template,
+            type = PromptTemplateRefType.BRANCH,
+            name = "main",
+            instructions = "system",
+        ).also { it.addInput("user", "{{O_DESC}}") }
+        promptTemplateRefRepository.saveAndFlush(ref)
+        val validRequest = generationRequest(ref.id)
+
+        val failure = assertFailsWith<InvalidRequestException> {
+            generationService.requestGeneration(
+                validRequest.copy(opennessStageId = validRequest.conscientiousnessStageId),
+            )
+        }
+
+        assertTrue(failure.detail.contains("OPENNESS"))
+        assertFalse(generationExecuteRepository.findAll().any { it.promptTemplateRef.id == ref.id })
+    }
+
+    @Test
+    fun `refId만 입력하면 나머지 값을 null로 저장하고 프롬프트에는 빈 문자열을 주입한다`() {
+        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 nullable input test"))
+        val placeholders = listOf(
+            "DESCRIPTION",
+            "DOMAIN",
+            "LIE_TYPE",
+            "LIE_STATEMENT",
+            "O_STAGE",
+            "O_DESC",
+            "C_STAGE",
+            "C_DESC",
+            "E_STAGE",
+            "E_DESC",
+            "A_STAGE",
+            "A_DESC",
+            "N_STAGE",
+            "N_DESC",
+            "ATTACHMENT",
+            "ATTACHMENT_DESC",
+            "EMOTIONAL_EXPRESSION",
+            "EMOTIONAL_DESC",
+            "AVOIDANCE_STYLE",
+            "AVOIDANCE_DESC",
+            "SPEECH_ARCHETYPE",
+            "SPEECH_DESC",
+            "AGE",
+            "GENDER",
+            "SPEECH_REGISTER",
+            "SCALE",
+            "EMOTION",
+            "EXTRA_CONSTRAINTS",
+        )
+        val ref = PromptTemplateRef(
+            promptTemplate = template,
+            type = PromptTemplateRefType.BRANCH,
+            name = "main",
+            instructions = placeholders.joinToString("|") { "{{$it}}" },
+        ).also { it.addInput("user", "{{DOMAIN}}/{{AGE}}/{{GENDER}}") }
+        promptTemplateRefRepository.saveAndFlush(ref)
+        fakeLlmClient.failure = null
+        fakeLlmClient.response = objectMapper.readValue(RESPONSE_JSON, L0CharacterResponse::class.java)
+
+        val generation = generationService.requestGeneration(L0CharacterGenerationRequest(refId = ref.id))
+        val saved = generationExecuteRepository.findOneWithDetailsById(generation.id)!!
+        assertEquals(null, saved.domain)
+        assertEquals(null, saved.lie)
+        assertEquals(null, saved.opennessStage)
+        assertEquals(null, saved.attachmentStyle)
+        assertEquals(null, saved.description)
+        assertEquals(null, saved.age)
+        assertEquals(null, saved.gender)
+        assertEquals(null, saved.speechRegister)
+        assertEquals(null, saved.scale)
+        assertEquals(null, saved.emotion)
+        assertEquals(null, saved.extraConstraints)
+
+        executor.execute(generation.id)
+
+        assertEquals("|".repeat(placeholders.size - 1), fakeLlmClient.lastPrompt.instructions)
+        assertEquals("//", fakeLlmClient.lastPrompt.inputs.single().inputText)
+        val detail = generationService.getGeneration(generation.id)
+        assertEquals(null, detail.domainId)
+        assertEquals(null, detail.lieId)
+        assertEquals(null, detail.age)
+        assertEquals(null, detail.gender)
+        assertEquals(null, detail.speechRegister)
+        assertEquals(null, detail.scale)
+        assertEquals(null, detail.emotion)
+    }
+
+    private fun generationRequest(refId: Long): L0CharacterGenerationRequest {
+        val options = testOptions()
+        return L0CharacterGenerationRequest(
+            refId = refId,
+            domainId = options.domainId,
+            lieId = options.lieId,
+            opennessStageId = options.opennessStageId,
+            conscientiousnessStageId = options.conscientiousnessStageId,
+            extraversionStageId = options.extraversionStageId,
+            agreeablenessStageId = options.agreeablenessStageId,
+            neuroticismStageId = options.neuroticismStageId,
+            attachmentStyleId = options.attachmentStyleId,
+            emotionalExpressionId = options.emotionalExpressionId,
+            avoidanceStyleId = options.avoidanceStyleId,
+            speechArchetypeId = options.speechArchetypeId,
+            age = 29,
+            gender = Gender.FEMALE,
+            speechRegister = "기본적으로 존댓말",
+            scale = 2,
+            emotion = 4,
+        )
+    }
+
+    private fun testOptions() = l0GenerationTestOptions(
+        domainRepository,
+        lieRepository,
+        personalityTraitStageRepository,
+        attachmentStyleRepository,
+        emotionalExpressionRepository,
+        avoidanceStyleRepository,
+        speechArchetypeRepository,
     )
 
     @TestConfiguration

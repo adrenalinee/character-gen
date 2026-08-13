@@ -9,8 +9,10 @@ import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.Lob
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToOne
 import jakarta.persistence.Table
 import ltmp.charactergen.data.L0GenerationExecuteStatus
+import ltmp.charactergen.data.Gender
 import ltmp.charactergen.data.LongBaseEntity
 import java.time.OffsetDateTime
 
@@ -24,12 +26,92 @@ import java.time.OffsetDateTime
             name = "idx_l0_generation_executes_prompt_template_ref_id",
             columnList = "prompt_template_ref_id",
         ),
+        Index(name = "idx_l0_generation_executes_domain_id", columnList = "domain_id"),
+        Index(name = "idx_l0_generation_executes_lie_id", columnList = "lie_id"),
+        Index(name = "idx_l0_generation_executes_openness_stage_id", columnList = "openness_stage_id"),
+        Index(name = "idx_l0_generation_executes_conscientiousness_stage_id", columnList = "conscientiousness_stage_id"),
+        Index(name = "idx_l0_generation_executes_extraversion_stage_id", columnList = "extraversion_stage_id"),
+        Index(name = "idx_l0_generation_executes_agreeableness_stage_id", columnList = "agreeableness_stage_id"),
+        Index(name = "idx_l0_generation_executes_neuroticism_stage_id", columnList = "neuroticism_stage_id"),
+        Index(name = "idx_l0_generation_executes_attachment_style_id", columnList = "attachment_style_id"),
+        Index(name = "idx_l0_generation_executes_emotional_expression_id", columnList = "emotional_expression_id"),
+        Index(name = "idx_l0_generation_executes_avoidance_style_id", columnList = "avoidance_style_id"),
+        Index(name = "idx_l0_generation_executes_speech_archetype_id", columnList = "speech_archetype_id"),
+        Index(name = "idx_l0_generation_executes_character_id", columnList = "character_id"),
     ],
 )
 class L0GenerationExecute(
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "prompt_template_ref_id", nullable = false)
     val promptTemplateRef: PromptTemplateRef,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "domain_id", nullable = true)
+    val domain: DomainEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "lie_id", nullable = true)
+    val lie: LieEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "openness_stage_id", nullable = true)
+    val opennessStage: PersonalityTraitStageEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "conscientiousness_stage_id", nullable = true)
+    val conscientiousnessStage: PersonalityTraitStageEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "extraversion_stage_id", nullable = true)
+    val extraversionStage: PersonalityTraitStageEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "agreeableness_stage_id", nullable = true)
+    val agreeablenessStage: PersonalityTraitStageEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "neuroticism_stage_id", nullable = true)
+    val neuroticismStage: PersonalityTraitStageEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "attachment_style_id", nullable = true)
+    val attachmentStyle: AttachmentStyleEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "emotional_expression_id", nullable = true)
+    val emotionalExpression: EmotionalExpressionEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "avoidance_style_id", nullable = true)
+    val avoidanceStyle: AvoidanceStyleEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "speech_archetype_id", nullable = true)
+    val speechArchetype: SpeechArchetypeEntity? = null,
+
+    @Lob
+    @Column(nullable = true)
+    val description: String? = null,
+
+    @Column(nullable = true)
+    val age: Int? = null,
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true, length = 10)
+    val gender: Gender? = null,
+
+    @Column(name = "speech_register", nullable = true, length = 200)
+    val speechRegister: String? = null,
+
+    @Column(nullable = true)
+    val scale: Int? = null,
+
+    @Column(nullable = true)
+    val emotion: Int? = null,
+
+    @Lob
+    @Column(name = "extra_constraints", nullable = true)
+    val extraConstraints: String? = null,
 
     @Lob
     @Column(name = "prompt_ref_snapshot_json")
@@ -43,9 +125,10 @@ class L0GenerationExecute(
     @Column(name = "llm_output")
     var llmOutput: String? = null,
 
-    /** 이 실행으로 생성된 Character의 식별자. 생성 완료 전에는 null이다. */
-    @Column(name = "character_id")
-    var characterId: Long? = null,
+    /** 이 실행으로 생성된 Character. 생성 완료 전에는 null이다. */
+    @OneToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "character_id", nullable = true, unique = true)
+    var character: Character? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

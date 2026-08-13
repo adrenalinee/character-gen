@@ -2,12 +2,20 @@ package ltmp.charactergen.api
 
 import ltmp.charactergen.client.openai.L0CharacterLlmClient
 import ltmp.charactergen.client.openai.L0CharacterLlmResult
+import ltmp.charactergen.l0GenerationTestOptions
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
+import ltmp.charactergen.data.repo.AttachmentStyleRepository
+import ltmp.charactergen.data.repo.AvoidanceStyleRepository
+import ltmp.charactergen.data.repo.DomainRepository
+import ltmp.charactergen.data.repo.EmotionalExpressionRepository
+import ltmp.charactergen.data.repo.LieRepository
+import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
+import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.service.generation.GenerationPrompt
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
@@ -35,6 +43,13 @@ class GenerationCapacityIntegrationTests(
     private val promptTemplateRepository: PromptTemplateRepository,
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
     private val generationExecuteRepository: L0GenerationExecuteRepository,
+    private val domainRepository: DomainRepository,
+    private val lieRepository: LieRepository,
+    private val personalityTraitStageRepository: PersonalityTraitStageRepository,
+    private val attachmentStyleRepository: AttachmentStyleRepository,
+    private val emotionalExpressionRepository: EmotionalExpressionRepository,
+    private val avoidanceStyleRepository: AvoidanceStyleRepository,
+    private val speechArchetypeRepository: SpeechArchetypeRepository,
     private val blockingLlmClient: BlockingL0CharacterLlmClient,
 ) {
     @Test
@@ -75,28 +90,38 @@ class GenerationCapacityIntegrationTests(
         assertTrue(blockingLlmClient.returned.await(5, TimeUnit.SECONDS))
     }
 
-    private fun generationRequest(refId: Long) =
-        """
+    private fun generationRequest(refId: Long): String {
+        val options = l0GenerationTestOptions(
+            domainRepository,
+            lieRepository,
+            personalityTraitStageRepository,
+            attachmentStyleRepository,
+            emotionalExpressionRepository,
+            avoidanceStyleRepository,
+            speechArchetypeRepository,
+        )
+        return """
         {
           "refId":$refId,
-          "domain":"웹툰",
-          "lieType":"대체 가능성 공포형",
-          "opennessStage":3,
-          "conscientiousnessStage":3,
-          "extraversionStage":3,
-          "agreeablenessStage":3,
-          "neuroticismStage":3,
-          "attachment":"일정 거리 유지",
-          "emotionalExpression":"사실 치환",
-          "avoidanceStyle":"짧게 답하고 침묵",
-          "speechArchetype":"비유형",
+          "domainId":${options.domainId},
+          "lieId":${options.lieId},
+          "opennessStageId":${options.opennessStageId},
+          "conscientiousnessStageId":${options.conscientiousnessStageId},
+          "extraversionStageId":${options.extraversionStageId},
+          "agreeablenessStageId":${options.agreeablenessStageId},
+          "neuroticismStageId":${options.neuroticismStageId},
+          "attachmentStyleId":${options.attachmentStyleId},
+          "emotionalExpressionId":${options.emotionalExpressionId},
+          "avoidanceStyleId":${options.avoidanceStyleId},
+          "speechArchetypeId":${options.speechArchetypeId},
           "age":29,
-          "gender":"여성",
+          "gender":"FEMALE",
           "speechRegister":"기본적으로 존댓말",
           "scale":2,
           "emotion":4
         }
         """.trimIndent()
+    }
 
     @TestConfiguration
     class BlockingLlmConfiguration {

@@ -15,7 +15,7 @@ class L0GenerationExecutor(
         try {
             if (!stateService.markRunning(generationId)) return
             val work = stateService.loadWork(generationId)
-            val prompt = promptRenderer.render(work.prompt, work.request)
+            val prompt = promptRenderer.render(work.prompt, work.request, work.options)
             val result = llmClient.generate(prompt)
             stateService.complete(
                 generationId = generationId,

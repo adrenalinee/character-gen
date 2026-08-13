@@ -29,6 +29,7 @@ class CharacterService(
     @Transactional
     fun deleteCharacter(characterId: Long) {
         val character = findCharacter(characterId)
+        character.generationExecute.character = null
         characterRepository.delete(character)
         characterRepository.flush()
     }

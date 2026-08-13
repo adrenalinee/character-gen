@@ -4,7 +4,6 @@ import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
-import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.Lob
 import jakarta.persistence.OneToMany
@@ -15,13 +14,9 @@ import ltmp.charactergen.data.LongBaseEntity
 import org.hibernate.annotations.BatchSize
 
 @Entity
-@Table(
-    name = "characters",
-    indexes = [Index(name = "idx_characters_generation_execute_id", columnList = "generation_execute_id")],
-)
+@Table(name = "characters")
 class Character(
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "generation_execute_id", nullable = false, unique = true)
+    @OneToOne(mappedBy = "character", fetch = FetchType.LAZY, optional = false)
     val generationExecute: L0GenerationExecute,
 
     @Column(nullable = false, length = 200)

@@ -1,6 +1,7 @@
 package ltmp.charactergen.api
 
 import ltmp.charactergen.config.L0ReferenceDataInitializer
+import ltmp.charactergen.l0GenerationTestOptions
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_BRANCH_NAME
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS
@@ -79,6 +80,18 @@ class ManagementApiIntegrationTests(
             jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto.properties.userInputJson") { doesNotExist() }
             jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto.properties.llmOutput") { doesNotExist() }
             jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto.properties.errorTrace") { doesNotExist() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.domainId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.domain") { doesNotExist() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.lieId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.opennessStageId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.required.length()") { value(1) }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.required[0]") { value("refId") }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.gender.enum[0]") {
+                value("MALE")
+            }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.gender.enum[1]") {
+                value("FEMALE")
+            }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].post") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].post.responses['429']") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].get") { exists() }
@@ -286,6 +299,29 @@ class ManagementApiIntegrationTests(
         }
         mockMvc.delete("/api/v1/prompt-templates/{promptTemplateId}/refs/versions/{version}", templateId, 1).andExpect {
             status { isConflict() }
+        }
+    }
+
+    @Test
+    fun `생성 요청은 refId 외의 입력을 생략할 수 있다`() {
+        val templateId = createTemplate("Nullable Generation Input Template")
+        val branchId = createBranch(templateId, "main")
+        mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"main","instructions":"System","inputs":[{"role":"user","inputText":"{{DOMAIN}}"}],"revision":0}"""
+        }.andExpect { status { isOk() } }
+
+        mockMvc.post("/api/v1/l0-characters/generations") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"refId":$branchId}"""
+        }.andExpect {
+            status { isAccepted() }
+            jsonPath("$.refId") { value(branchId) }
+            jsonPath("$.status") { value("PREPARING") }
+            jsonPath("$.domainId") { doesNotExist() }
+            jsonPath("$.age") { doesNotExist() }
+            jsonPath("$.gender") { doesNotExist() }
+            jsonPath("$.speechRegister") { doesNotExist() }
         }
     }
 
@@ -519,25 +555,36 @@ class ManagementApiIntegrationTests(
     private fun generationId(responseBody: String): Long =
         assertNotNull(Regex(""""id":(\d+)""").find(responseBody)).groupValues[1].toLong()
 
-    private fun generationRequest(refId: Long) = """
+    private fun generationRequest(refId: Long): String {
+        val options = l0GenerationTestOptions(
+            domainRepository,
+            lieRepository,
+            personalityTraitStageRepository,
+            attachmentStyleRepository,
+            emotionalExpressionRepository,
+            avoidanceStyleRepository,
+            speechArchetypeRepository,
+        )
+        return """
         {
           "refId":$refId,
-          "domain":"웹툰",
-          "lieType":"대체 가능성 공포형",
-          "opennessStage":3,
-          "conscientiousnessStage":3,
-          "extraversionStage":3,
-          "agreeablenessStage":3,
-          "neuroticismStage":3,
-          "attachment":"일정 거리 유지",
-          "emotionalExpression":"사실 치환",
-          "avoidanceStyle":"짧게 답하고 침묵",
-          "speechArchetype":"비유형",
+          "domainId":${options.domainId},
+          "lieId":${options.lieId},
+          "opennessStageId":${options.opennessStageId},
+          "conscientiousnessStageId":${options.conscientiousnessStageId},
+          "extraversionStageId":${options.extraversionStageId},
+          "agreeablenessStageId":${options.agreeablenessStageId},
+          "neuroticismStageId":${options.neuroticismStageId},
+          "attachmentStyleId":${options.attachmentStyleId},
+          "emotionalExpressionId":${options.emotionalExpressionId},
+          "avoidanceStyleId":${options.avoidanceStyleId},
+          "speechArchetypeId":${options.speechArchetypeId},
           "age":29,
-          "gender":"여성",
+          "gender":"FEMALE",
           "speechRegister":"기본적으로 존댓말",
           "scale":2,
           "emotion":4
         }
-    """.trimIndent()
+        """.trimIndent()
+    }
 }

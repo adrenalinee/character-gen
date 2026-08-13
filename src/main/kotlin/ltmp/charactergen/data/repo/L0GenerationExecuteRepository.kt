@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param
 import org.springframework.data.jpa.repository.EntityGraph
 
 interface L0GenerationExecuteRepository : JpaRepository<L0GenerationExecute, Long> {
+    @EntityGraph(attributePaths = ["promptTemplateRef", "character"])
     @Query(
         """
         select execute
@@ -26,6 +27,41 @@ interface L0GenerationExecuteRepository : JpaRepository<L0GenerationExecute, Lon
 
     fun existsByPromptTemplateRefId(promptTemplateRefId: Long): Boolean
 
-    @EntityGraph(attributePaths = ["promptTemplateRef", "promptTemplateRef.inputs"])
+    @EntityGraph(
+        attributePaths = [
+            "promptTemplateRef",
+            "domain",
+            "lie",
+            "opennessStage",
+            "conscientiousnessStage",
+            "extraversionStage",
+            "agreeablenessStage",
+            "neuroticismStage",
+            "attachmentStyle",
+            "emotionalExpression",
+            "avoidanceStyle",
+            "speechArchetype",
+            "character",
+        ],
+    )
+    fun findOneWithDetailsById(id: Long): L0GenerationExecute?
+
+    @EntityGraph(
+        attributePaths = [
+            "promptTemplateRef",
+            "promptTemplateRef.inputs",
+            "domain",
+            "lie",
+            "opennessStage",
+            "conscientiousnessStage",
+            "extraversionStage",
+            "agreeablenessStage",
+            "neuroticismStage",
+            "attachmentStyle",
+            "emotionalExpression",
+            "avoidanceStyle",
+            "speechArchetype",
+        ],
+    )
     fun findOneWithPromptById(id: Long): L0GenerationExecute?
 }

@@ -34,7 +34,27 @@ class L0GenerationExecutionStateService(
             "L0GenerationExecute is not RUNNING: $generationId (${execute.status})"
         }
 
-        val request = objectMapper.readValue(execute.userInputJson, L0CharacterGenerationRequest::class.java)
+        val request = L0CharacterGenerationRequest(
+            refId = execute.promptTemplateRef.id,
+            description = execute.description,
+            domainId = execute.domain?.id,
+            lieId = execute.lie?.id,
+            opennessStageId = execute.opennessStage?.id,
+            conscientiousnessStageId = execute.conscientiousnessStage?.id,
+            extraversionStageId = execute.extraversionStage?.id,
+            agreeablenessStageId = execute.agreeablenessStage?.id,
+            neuroticismStageId = execute.neuroticismStage?.id,
+            attachmentStyleId = execute.attachmentStyle?.id,
+            emotionalExpressionId = execute.emotionalExpression?.id,
+            avoidanceStyleId = execute.avoidanceStyle?.id,
+            speechArchetypeId = execute.speechArchetype?.id,
+            age = execute.age,
+            gender = execute.gender,
+            speechRegister = execute.speechRegister,
+            scale = execute.scale,
+            emotion = execute.emotion,
+            extraConstraints = execute.extraConstraints,
+        )
         val prompt = if (execute.promptTemplateRef.type == PromptTemplateRefType.BRANCH) {
             val snapshotJson = requireNotNull(execute.promptRefSnapshotJson) {
                 "BRANCH generation has no prompt snapshot: $generationId"
@@ -55,7 +75,33 @@ class L0GenerationExecutionStateService(
                 },
             )
         }
-        return L0GenerationWork(request = request, prompt = prompt)
+        return L0GenerationWork(
+            request = request,
+            prompt = prompt,
+            options = L0GenerationOptions(
+                domainName = execute.domain?.name,
+                lieType = execute.lie?.type,
+                lieStatement = execute.lie?.coreStatement,
+                opennessStage = execute.opennessStage?.stage,
+                opennessDescription = execute.opennessStage?.description,
+                conscientiousnessStage = execute.conscientiousnessStage?.stage,
+                conscientiousnessDescription = execute.conscientiousnessStage?.description,
+                extraversionStage = execute.extraversionStage?.stage,
+                extraversionDescription = execute.extraversionStage?.description,
+                agreeablenessStage = execute.agreeablenessStage?.stage,
+                agreeablenessDescription = execute.agreeablenessStage?.description,
+                neuroticismStage = execute.neuroticismStage?.stage,
+                neuroticismDescription = execute.neuroticismStage?.description,
+                attachmentType = execute.attachmentStyle?.type,
+                attachmentDescription = execute.attachmentStyle?.description,
+                emotionalExpressionType = execute.emotionalExpression?.type,
+                emotionalExpressionDescription = execute.emotionalExpression?.description,
+                avoidanceStyleType = execute.avoidanceStyle?.type,
+                avoidanceStyleDescription = execute.avoidanceStyle?.description,
+                speechArchetypeName = execute.speechArchetype?.name,
+                speechArchetypeDescription = execute.speechArchetype?.description,
+            ),
+        )
     }
 
     @Transactional
@@ -76,7 +122,7 @@ class L0GenerationExecutionStateService(
         }
 
         val character = characterRepository.save(response.toEntity(execute))
-        execute.characterId = character.id
+        execute.character = character
         execute.llmOutput = rawJson
         execute.status = L0GenerationExecuteStatus.COMPLETED
         execute.message = "캐릭터 생성 완료"
@@ -106,4 +152,29 @@ class L0GenerationExecutionStateService(
 data class L0GenerationWork(
     val request: L0CharacterGenerationRequest,
     val prompt: GenerationPrompt,
+    val options: L0GenerationOptions,
+)
+
+data class L0GenerationOptions(
+    val domainName: String? = null,
+    val lieType: String? = null,
+    val lieStatement: String? = null,
+    val opennessStage: Int? = null,
+    val opennessDescription: String? = null,
+    val conscientiousnessStage: Int? = null,
+    val conscientiousnessDescription: String? = null,
+    val extraversionStage: Int? = null,
+    val extraversionDescription: String? = null,
+    val agreeablenessStage: Int? = null,
+    val agreeablenessDescription: String? = null,
+    val neuroticismStage: Int? = null,
+    val neuroticismDescription: String? = null,
+    val attachmentType: String? = null,
+    val attachmentDescription: String? = null,
+    val emotionalExpressionType: String? = null,
+    val emotionalExpressionDescription: String? = null,
+    val avoidanceStyleType: String? = null,
+    val avoidanceStyleDescription: String? = null,
+    val speechArchetypeName: String? = null,
+    val speechArchetypeDescription: String? = null,
 )
