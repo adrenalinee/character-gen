@@ -16,9 +16,13 @@ import ltmp.charactergen.service.L0CharacterGenerationService
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.delete
+import org.springframework.test.web.servlet.get
 import org.springframework.test.context.TestConstructor
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.ObjectMapper
@@ -28,6 +32,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Import(L0GenerationExecutionIntegrationTests.FakeLlmConfiguration::class)
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 @Transactional
@@ -40,6 +45,7 @@ class L0GenerationExecutionIntegrationTests(
     private val characterRepository: CharacterRepository,
     private val fakeLlmClient: FakeL0CharacterLlmClient,
     private val objectMapper: ObjectMapper,
+    private val mockMvc: MockMvc,
 ) {
     @Test
     fun `PREPARING 실행을 비동기 executor 작업 단위로 처리하고 캐릭터를 저장한다`() {
@@ -82,6 +88,55 @@ class L0GenerationExecutionIntegrationTests(
         assertEquals(1, character.relations.size)
         assertEquals(4, character.disclosureItems.size)
         assertEquals(1, character.voiceSamples.size)
+
+        mockMvc.get("/api/v1/l0-characters") {
+            param("name", "서")
+            param("generationExecuteId", generation.id.toString())
+            param("page", "0")
+            param("size", "1")
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.content[0].id") { value(character.id) }
+            jsonPath("$.content[0].generationExecuteId") { value(generation.id) }
+            jsonPath("$.content[0].name") { value("서윤") }
+            jsonPath("$.content[0].concreteDetails") { doesNotExist() }
+            jsonPath("$.content[0].dailyLife") { doesNotExist() }
+            jsonPath("$.page.totalElements") { value(1) }
+        }
+
+        mockMvc.get("/api/v1/l0-characters/{characterId}", character.id).andExpect {
+            status { isOk() }
+            jsonPath("$.generationExecuteId") { value(generation.id) }
+            jsonPath("$.name") { value("서윤") }
+            jsonPath("$.dailyLife") { value("작업한다") }
+            jsonPath("$.lieType") { value("대체 가능성 공포형") }
+            jsonPath("$.contradictionTraitA") { value("먼저 선을 긋는다") }
+            jsonPath("$.speechArchetypeNote") { value("작화 도구에 빗댄다") }
+            jsonPath("$.longTermViability") { value("여러 관계에서 교체 공포가 반복된다") }
+            jsonPath("$.identity") { doesNotExist() }
+            jsonPath("$.core") { doesNotExist() }
+            jsonPath("$.voice") { doesNotExist() }
+            jsonPath("$.concreteDetails.length()") { value(2) }
+            jsonPath("$.concreteDetails[0].id") { isNumber() }
+            jsonPath("$.concreteDetails[0].detailText") { value("왼손잡이") }
+            jsonPath("$.nonNegotiables.length()") { value(3) }
+            jsonPath("$.bannedWords.length()") { value(2) }
+            jsonPath("$.bannedWords[0].wordText") { value("무조건") }
+            jsonPath("$.relations[0].name") { value("민호") }
+            jsonPath("$.disclosureItems[3].level") { value("DEEPEST") }
+            jsonPath("$.disclosureItems[3].itemText") { value("자기 가치에 대한 공포") }
+            jsonPath("$.voiceSamples[0].line") { value("그 선은 제가 정할게요.") }
+        }
+
+        mockMvc.delete("/api/v1/l0-characters/{characterId}", character.id).andExpect {
+            status { isNoContent() }
+        }
+        assertFalse(characterRepository.existsById(character.id))
+        assertTrue(generationExecuteRepository.existsById(generation.id))
+        mockMvc.get("/api/v1/l0-characters/{characterId}", character.id).andExpect {
+            status { isNotFound() }
+            jsonPath("$.code") { value("RESOURCE_NOT_FOUND") }
+        }
 
         assertEquals("system ", fakeLlmClient.lastPrompt.instructions)
         val renderedInput = fakeLlmClient.lastPrompt.inputs.single().inputText

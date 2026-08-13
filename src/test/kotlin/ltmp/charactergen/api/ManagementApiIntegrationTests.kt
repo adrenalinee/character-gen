@@ -86,6 +86,24 @@ class ManagementApiIntegrationTests(
             jsonPath("$.paths['/api/v1/l0-characters/generations'].get.parameters[?(@.name == 'size')]") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations'].get.parameters[?(@.name == 'sort')]") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/generations/{generationId}'].get") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters'].get") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters'].get.parameters[?(@.name == 'page')]") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters'].get.parameters[?(@.name == 'size')]") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/{characterId}'].get") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/{characterId}'].delete") { exists() }
+            jsonPath("$.components.schemas.CharacterSimpleDto") { exists() }
+            jsonPath("$.components.schemas.CharacterSimpleDto.properties.identity") { doesNotExist() }
+            jsonPath("$.components.schemas.CharacterDto") { exists() }
+            jsonPath("$.components.schemas.CharacterDto.properties.name") { exists() }
+            jsonPath("$.components.schemas.CharacterDto.properties.lieType") { exists() }
+            jsonPath("$.components.schemas.CharacterDto.properties.speechArchetypeNote") { exists() }
+            jsonPath("$.components.schemas.CharacterDto.properties.concreteDetails") { exists() }
+            jsonPath("$.components.schemas.CharacterDto.properties.disclosureItems") { exists() }
+            jsonPath("$.components.schemas.CharacterDto.properties.identity") { doesNotExist() }
+            jsonPath("$.components.schemas.CharacterDto.properties.core") { doesNotExist() }
+            jsonPath("$.components.schemas.CharacterDto.properties.voice") { doesNotExist() }
+            jsonPath("$.components.schemas.CharacterConcreteDetailDto") { exists() }
+            jsonPath("$.components.schemas.CharacterDisclosureItemDto") { exists() }
         }
     }
 
