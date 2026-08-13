@@ -4,13 +4,17 @@ import ltmp.charactergen.model.L0CharacterResponse
 import ltmp.charactergen.service.generation.GenerationPrompt
 import ltmp.charactergen.service.generation.GenerationPromptInput
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.mock
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class OpenAiResponsesL0CharacterClientTests {
     @Test
     fun `L0CharacterResponse 클래스로 Responses API 구조화 출력 스키마를 만든다`() {
-        val params = OpenAiResponsesL0CharacterClient("gpt-5.5").createParams(
+        val params = OpenAiResponsesL0CharacterClient(
+            model = "gpt-5.5",
+            openAIClient = mock(),
+        ).createParams(
             GenerationPrompt(
                 instructions = "system instructions",
                 inputs = listOf(GenerationPromptInput(role = "user", inputText = "user prompt")),
