@@ -114,12 +114,19 @@ class L0ReferenceDataInitializer(
     private fun insertInitialL0CharacterPrompt() {
         val template = promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME)
             ?: promptTemplateRepository.saveAndFlush(
-                PromptTemplate(name = L0_CHARACTER_PROMPT_TEMPLATE_NAME),
+                PromptTemplate(
+                    name = L0_CHARACTER_PROMPT_TEMPLATE_NAME,
+                    defaultBranch = L0_CHARACTER_PROMPT_BRANCH_NAME,
+                ),
             )
         val branch = promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndName(
             template.id,
             L0_CHARACTER_PROMPT_BRANCH_NAME,
         ) ?: createInitialL0CharacterPromptBranch(template)
+        if (template.defaultBranch == null) {
+            template.defaultBranch = L0_CHARACTER_PROMPT_BRANCH_NAME
+            promptTemplateRepository.flush()
+        }
 
         // 이미 VERSION이 발급된 템플릿은 서버 재시작 시 새 버전을 만들지 않는다.
         if (template.lastVersion == 0L) {

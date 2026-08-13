@@ -49,7 +49,8 @@ class PromptTemplateRefService(
 
     @Transactional
     fun createBranch(promptTemplateId: Long, request: CreatePromptTemplateBranchRequest): PromptTemplateRefDto {
-        val template = findTemplate(promptTemplateId)
+        val template = promptTemplateRepository.findLockedById(promptTemplateId)
+            ?: throw ResourceNotFoundException("PromptTemplate not found: $promptTemplateId")
         ensureUniqueBranchName(template.id, request.name, null)
         val source = request.fromRefId?.let { findSource(template.id, it) }
         val branch = PromptTemplateRef(
@@ -61,7 +62,12 @@ class PromptTemplateRefService(
             instructions = source?.instructions ?: "",
         )
         source?.inputs?.forEach { branch.addInput(it.role, it.inputText) }
-        return promptTemplateRefRepository.saveAndFlush(branch).toDto()
+        val savedBranch = promptTemplateRefRepository.save(branch)
+        if (template.defaultBranch == null) {
+            template.defaultBranch = request.name
+        }
+        promptTemplateRefRepository.flush()
+        return savedBranch.toDto()
     }
 
     @Transactional
@@ -100,6 +106,9 @@ class PromptTemplateRefService(
             )
         }
         ensureUniqueBranchName(branch.promptTemplate.id, request.name, branch.id)
+        if (branch.promptTemplate.defaultBranch == refName) {
+            branch.promptTemplate.defaultBranch = request.name
+        }
         branch.name = request.name
         branch.instructions = request.instructions
         branch.replaceInputs(request.inputs.map { it.role to it.inputText })
@@ -109,7 +118,12 @@ class PromptTemplateRefService(
 
     @Transactional
     fun deleteBranch(promptTemplateId: Long, refName: String) {
-        delete(findBranch(promptTemplateId, refName))
+        val branch = findBranch(promptTemplateId, refName)
+        delete(branch)
+        if (branch.promptTemplate.defaultBranch == refName) {
+            branch.promptTemplate.defaultBranch = null
+            promptTemplateRepository.flush()
+        }
     }
 
     @Transactional

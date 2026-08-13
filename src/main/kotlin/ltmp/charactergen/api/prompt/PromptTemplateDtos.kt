@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.PositiveOrZero
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.PromptTemplate
@@ -24,6 +25,14 @@ data class UpdatePromptTemplateRequest(
     @field:Size(max = 200)
     @field:Schema(description = "변경할 템플릿 이름", example = "L0 캐릭터 생성", requiredMode = Schema.RequiredMode.REQUIRED)
     val name: String,
+    @field:Pattern(regexp = PROMPT_TEMPLATE_BRANCH_NAME_PATTERN)
+    @field:Size(max = 200)
+    @field:Schema(
+        description = "기본 BRANCH 이름. 같은 템플릿에 존재하는 BRANCH만 지정할 수 있으며 null이면 기본 BRANCH를 해제한다.",
+        example = "main",
+        nullable = true,
+    )
+    val defaultBranch: String? = null,
 )
 
 @Schema(description = "프롬프트 템플릿 정보")
@@ -32,6 +41,8 @@ data class PromptTemplateDto(
     val id: Long,
     @field:Schema(description = "템플릿 이름", example = "L0 캐릭터 생성", requiredMode = Schema.RequiredMode.REQUIRED)
     val name: String,
+    @field:Schema(description = "기본 BRANCH 이름", example = "main", nullable = true)
+    val defaultBranch: String? = null,
     @field:Schema(description = "마지막으로 발급한 VERSION 번호", example = "3", requiredMode = Schema.RequiredMode.REQUIRED)
     val lastVersion: Long,
     @field:Schema(description = "생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -46,6 +57,8 @@ data class PromptTemplateSimpleDto(
     val id: Long,
     @field:Schema(description = "템플릿 이름", example = "L0 캐릭터 생성", requiredMode = Schema.RequiredMode.REQUIRED)
     val name: String,
+    @field:Schema(description = "기본 BRANCH 이름", example = "main", nullable = true)
+    val defaultBranch: String? = null,
     @field:Schema(description = "마지막으로 발급한 VERSION 번호", example = "3", requiredMode = Schema.RequiredMode.REQUIRED)
     val lastVersion: Long,
     @field:Schema(description = "생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -58,7 +71,13 @@ data class PromptTemplateSimpleDto(
 data class CreatePromptTemplateBranchRequest(
     @field:NotBlank
     @field:Size(max = 200)
-    @field:Schema(description = "BRANCH 이름", example = "main", requiredMode = Schema.RequiredMode.REQUIRED)
+    @field:Pattern(regexp = PROMPT_TEMPLATE_BRANCH_NAME_PATTERN)
+    @field:Schema(
+        description = "BRANCH 이름. 영문 대소문자, 숫자, 하이픈, 언더스코어만 사용할 수 있다.",
+        example = "main",
+        pattern = PROMPT_TEMPLATE_BRANCH_NAME_PATTERN,
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
     val name: String,
     @field:Schema(description = "내용을 복사할 동일 템플릿의 ref 식별자. null이면 빈 BRANCH를 만든다.", nullable = true)
     val fromRefId: Long? = null,
@@ -74,7 +93,13 @@ data class CreatePromptTemplateVersionRefRequest(
 data class UpdatePromptTemplateBranchRequest(
     @field:NotBlank
     @field:Size(max = 200)
-    @field:Schema(description = "BRANCH 이름", example = "main", requiredMode = Schema.RequiredMode.REQUIRED)
+    @field:Pattern(regexp = PROMPT_TEMPLATE_BRANCH_NAME_PATTERN)
+    @field:Schema(
+        description = "BRANCH 이름. 영문 대소문자, 숫자, 하이픈, 언더스코어만 사용할 수 있다.",
+        example = "main",
+        pattern = PROMPT_TEMPLATE_BRANCH_NAME_PATTERN,
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
     val name: String,
     @field:Schema(description = "LLM 지시사항. 중간 저장에서는 빈 문자열을 허용한다.", requiredMode = Schema.RequiredMode.REQUIRED)
     val instructions: String,
@@ -165,6 +190,7 @@ data class PromptTemplateInputDto(
 fun PromptTemplate.toDto() = PromptTemplateDto(
     id = id,
     name = name,
+    defaultBranch = defaultBranch,
     lastVersion = lastVersion,
     createdAt = createdAt,
     updatedAt = updatedAt,
@@ -173,10 +199,13 @@ fun PromptTemplate.toDto() = PromptTemplateDto(
 fun PromptTemplate.toSimpleDto() = PromptTemplateSimpleDto(
     id = id,
     name = name,
+    defaultBranch = defaultBranch,
     lastVersion = lastVersion,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
+
+const val PROMPT_TEMPLATE_BRANCH_NAME_PATTERN = "^[A-Za-z0-9_-]+$"
 
 fun PromptTemplateRef.toDto() = PromptTemplateRefDto(
     id = id,

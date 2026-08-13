@@ -46,7 +46,16 @@ class PromptTemplateService(
         if (promptTemplateRepository.existsByNameAndIdNot(request.name, id)) {
             throw ResourceConflictException("PromptTemplate name already exists: ${request.name}")
         }
+        if (
+            request.defaultBranch != null &&
+            !promptTemplateRefRepository.existsByPromptTemplateIdAndName(id, request.defaultBranch)
+        ) {
+            throw InvalidRequestException(
+                "Default BRANCH not found: templateId=$id, branchName=${request.defaultBranch}",
+            )
+        }
         template.name = request.name
+        template.defaultBranch = request.defaultBranch
         promptTemplateRepository.flush()
         return template.toDto()
     }

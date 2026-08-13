@@ -66,6 +66,11 @@ class ManagementApiIntegrationTests(
             jsonPath("$.paths['/api/v1/prompt-template-refs']") { doesNotExist() }
             jsonPath("$.paths['/api/v1/prompt-template-versions']") { doesNotExist() }
             jsonPath("$.components.schemas.PromptTemplateSimpleDto") { exists() }
+            jsonPath("$.components.schemas.PromptTemplateDto.properties.defaultBranch") { exists() }
+            jsonPath("$.components.schemas.PromptTemplateSimpleDto.properties.defaultBranch") { exists() }
+            jsonPath("$.components.schemas.CreatePromptTemplateBranchRequest.properties.name.pattern") {
+                value("^[A-Za-z0-9_-]+$")
+            }
             jsonPath("$.components.schemas.PromptTemplateRefSimpleDto") { exists() }
             jsonPath("$.components.schemas.L0GenerationExecuteSimpleDto") { exists() }
             jsonPath("$.components.schemas.PromptTemplateRefSimpleDto.properties.instructions") { doesNotExist() }
@@ -352,6 +357,62 @@ class ManagementApiIntegrationTests(
     }
 
     @Test
+    fun `첫 BRANCH를 기본값으로 지정하고 템플릿에서 기본 BRANCH를 변경한다`() {
+        val templateId = createTemplate("Default Branch Template")
+
+        mockMvc.get("/api/v1/prompt-templates/{id}", templateId).andExpect {
+            status { isOk() }
+            jsonPath("$.defaultBranch") { doesNotExist() }
+        }
+        mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/branches", templateId) {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"feature/new"}"""
+        }.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.code") { value("INVALID_REQUEST") }
+        }
+
+        createBranch(templateId, "main")
+        createBranch(templateId, "candidate_2")
+        mockMvc.get("/api/v1/prompt-templates/{id}", templateId).andExpect {
+            status { isOk() }
+            jsonPath("$.defaultBranch") { value("main") }
+        }
+
+        mockMvc.put("/api/v1/prompt-templates/{id}", templateId) {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"Default Branch Template","defaultBranch":"candidate_2"}"""
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.defaultBranch") { value("candidate_2") }
+        }
+        mockMvc.put("/api/v1/prompt-templates/{id}", templateId) {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"Default Branch Template","defaultBranch":"missing"}"""
+        }.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.code") { value("INVALID_REQUEST") }
+        }
+
+        mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "candidate_2") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"release-2","instructions":"","inputs":[],"revision":0}"""
+        }.andExpect { status { isOk() } }
+        mockMvc.get("/api/v1/prompt-templates/{id}", templateId).andExpect {
+            status { isOk() }
+            jsonPath("$.defaultBranch") { value("release-2") }
+        }
+
+        mockMvc.delete("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "release-2").andExpect {
+            status { isNoContent() }
+        }
+        mockMvc.get("/api/v1/prompt-templates/{id}", templateId).andExpect {
+            status { isOk() }
+            jsonPath("$.defaultBranch") { doesNotExist() }
+        }
+    }
+
+    @Test
     fun `캐릭터 생성에 필요한 모든 축 정보를 한 번에 조회한다`() {
         referenceDataInitializer.run(DefaultApplicationArguments())
         assertEquals(2, domainRepository.count())
@@ -386,6 +447,7 @@ class ManagementApiIntegrationTests(
 
         val template = assertNotNull(promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME))
         assertEquals(1, template.lastVersion)
+        assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, template.defaultBranch)
 
         val refs = promptTemplateRefRepository.findAll().filter { it.promptTemplate.id == template.id }
         assertEquals(2, refs.size)
@@ -404,6 +466,17 @@ class ManagementApiIntegrationTests(
         assertEquals(branch.instructions, version.instructions)
         assertEquals(branch.inputs.single().role, version.inputs.single().role)
         assertEquals(branch.inputs.single().inputText, version.inputs.single().inputText)
+
+        mockMvc.get("/api/v1/prompt-templates/{id}", template.id).andExpect {
+            status { isOk() }
+            jsonPath("$.defaultBranch") { value(L0_CHARACTER_PROMPT_BRANCH_NAME) }
+        }
+        mockMvc.get("/api/v1/prompt-templates") {
+            param("name", L0_CHARACTER_PROMPT_TEMPLATE_NAME)
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.content[0].defaultBranch") { value(L0_CHARACTER_PROMPT_BRANCH_NAME) }
+        }
     }
 
     private fun createTemplate(name: String): Long = locationId(

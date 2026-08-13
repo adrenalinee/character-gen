@@ -69,11 +69,14 @@ class PromptTemplateController(
     @GetMapping("/{id}")
     fun get(@PathVariable id: Long): PromptTemplateDto = promptTemplateService.getTemplate(id)
 
-    @Operation(summary = "프롬프트 템플릿 수정", description = "템플릿 이름을 수정한다. 버전은 수정되지 않는다.")
+    @Operation(
+        summary = "프롬프트 템플릿 수정",
+        description = "템플릿 이름과 기본 BRANCH를 수정한다. 기본 BRANCH는 같은 템플릿에 존재하는 이름만 지정할 수 있다.",
+    )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "수정 성공", content = [Content(schema = Schema(implementation = PromptTemplateDto::class))]),
-            ApiResponse(responseCode = "400", description = "입력값 오류", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
+            ApiResponse(responseCode = "400", description = "입력값 오류 또는 존재하지 않는 기본 BRANCH", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
             ApiResponse(responseCode = "404", description = "템플릿 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
             ApiResponse(responseCode = "409", description = "동일한 이름 존재", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
         ],

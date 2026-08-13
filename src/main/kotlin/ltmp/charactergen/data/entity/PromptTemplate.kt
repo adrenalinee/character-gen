@@ -18,6 +18,9 @@ class PromptTemplate(
     @Column(nullable = false, length = 200)
     var name: String,
 
+    @Column(name = "default_branch", length = 200)
+    var defaultBranch: String? = null,
+
     // VERSION 번호를 삭제 후에도 재사용하지 않기 위한 템플릿별 발급 카운터다.
     @Column(name = "last_version", nullable = false)
     var lastVersion: Long = 0,
