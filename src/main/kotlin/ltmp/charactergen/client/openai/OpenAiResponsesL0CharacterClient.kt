@@ -1,7 +1,6 @@
 package ltmp.charactergen.client.openai
 
 import com.openai.client.OpenAIClient
-import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.models.responses.EasyInputMessage
 import com.openai.models.responses.ResponseCreateParams
 import com.openai.models.responses.ResponseInputItem
@@ -10,18 +9,19 @@ import ltmp.charactergen.model.L0CharacterResponse
 import ltmp.charactergen.service.generation.GenerationPrompt
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
-import java.util.Locale
+import java.util.*
 
 @Component
 class OpenAiResponsesL0CharacterClient(
     @Value("\${openai.model}") private val model: String,
+    private val openAIClient: OpenAIClient,
 ) : L0CharacterLlmClient {
-    private val openAiClient: OpenAIClient by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        OpenAIOkHttpClient.fromEnv()
-    }
+//    private val openAiClient: OpenAIClient by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+//        OpenAIOkHttpClient.fromEnv()
+//    }
 
     override fun generate(prompt: GenerationPrompt): L0CharacterLlmResult {
-        val response = openAiClient.responses().create(createParams(prompt))
+        val response = openAIClient.responses().create(createParams(prompt))
 
         for (outputItem in response.output()) {
             val message = outputItem.message().orElse(null) ?: continue

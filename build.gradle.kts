@@ -18,6 +18,13 @@ java {
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/adrenalinee/tracer")
+        credentials {
+            username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
+            password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+        }
+    }
 }
 
 dependencies {
@@ -33,6 +40,9 @@ dependencies {
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
     implementation("com.fasterxml.uuid:java-uuid-generator:5.1.1")
+
+    implementation("malibu.tracer:tracer-webmvc:16.0-SNAPSHOT")
+    implementation("malibu.tracer:tracer-webclient:16.0-SNAPSHOT")
 
 
     runtimeOnly("com.h2database:h2")
