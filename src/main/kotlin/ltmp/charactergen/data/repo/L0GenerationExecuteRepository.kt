@@ -41,6 +41,7 @@ interface L0GenerationExecuteRepository : JpaRepository<L0GenerationExecute, Lon
             "emotionalExpression",
             "avoidanceStyle",
             "speechArchetype",
+            "speechRegister",
             "character",
         ],
     )
@@ -61,6 +62,7 @@ interface L0GenerationExecuteRepository : JpaRepository<L0GenerationExecute, Lon
             "emotionalExpression",
             "avoidanceStyle",
             "speechArchetype",
+            "speechRegister",
         ],
     )
     fun findOneWithPromptById(id: Long): L0GenerationExecute?

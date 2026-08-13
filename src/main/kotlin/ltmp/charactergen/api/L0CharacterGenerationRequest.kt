@@ -93,12 +93,9 @@ data class L0CharacterGenerationRequest(
     @field:Schema(description = "캐릭터의 성별", example = "FEMALE", nullable = true)
     val gender: Gender? = null,
 
-    @field:Schema(
-        description = "존댓말/반말 기본 정책",
-        example = "기본적으로 존댓말",
-        nullable = true,
-    )
-    val speechRegister: String? = null,
+    @field:Positive
+    @field:Schema(description = "존댓말/반말 기본 정책 옵션 식별자", example = "1", nullable = true)
+    val speechRegisterId: Long? = null,
 
     @field:Min(1)
     @field:Max(5)

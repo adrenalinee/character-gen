@@ -12,6 +12,7 @@ import ltmp.charactergen.data.entity.PersonalityTraitStageEntity
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.entity.SpeechArchetypeEntity
+import ltmp.charactergen.data.entity.SpeechRegisterEntity
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
 import ltmp.charactergen.data.repo.DomainRepository
@@ -21,6 +22,7 @@ import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
+import ltmp.charactergen.data.repo.SpeechRegisterRepository
 import ltmp.charactergen.service.PromptTemplateRefService
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -36,6 +38,7 @@ class L0ReferenceDataInitializer(
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
+    private val speechRegisterRepository: SpeechRegisterRepository,
     private val promptTemplateRepository: PromptTemplateRepository,
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
     private val promptTemplateRefService: PromptTemplateRefService,
@@ -49,6 +52,7 @@ class L0ReferenceDataInitializer(
         insertMissingEmotionalExpressions()
         insertMissingAvoidanceStyles()
         insertMissingSpeechArchetypes()
+        insertMissingSpeechRegisters()
         insertInitialL0CharacterPrompt()
     }
 
@@ -109,6 +113,14 @@ class L0ReferenceDataInitializer(
             SpeechArchetypeEntity(name = it.type, description = it.description)
         }
         speechArchetypeRepository.saveAll(missing)
+    }
+
+    private fun insertMissingSpeechRegisters() {
+        val existingNames = speechRegisterRepository.findAll().mapTo(mutableSetOf()) { it.name }
+        val missing = SPEECH_REGISTER_NAMES.filterNot { it in existingNames }.map {
+            SpeechRegisterEntity(name = it)
+        }
+        speechRegisterRepository.saveAll(missing)
     }
 
     private fun insertInitialL0CharacterPrompt() {
@@ -173,6 +185,12 @@ class L0ReferenceDataInitializer(
         val DOMAIN_SPECS = listOf(
             NameDescriptionSpec(name = "웹툰", description = "웹툰 분야"),
             NameDescriptionSpec(name = "요리", description = "요리 분야"),
+            NameDescriptionSpec(name = "인디 음악", description = "인디 음악 분야"),
+            NameDescriptionSpec(name = "사진", description = "사진 분야"),
+            NameDescriptionSpec(name = "격투기", description = "격투기 분야"),
+            NameDescriptionSpec(name = "카페 창업", description = "카페 창업 분야"),
+            NameDescriptionSpec(name = "수의", description = "수의 분야"),
+            NameDescriptionSpec(name = "목공", description = "목공 분야"),
         )
 
         val LIE_SPECS = listOf(
@@ -254,6 +272,12 @@ class L0ReferenceDataInitializer(
             TypeDescriptionSpec(type = "과공손형", description = "필요 이상으로 예의를 갖춰 거리를 만든다"),
             TypeDescriptionSpec(type = "단답형", description = "최소한만 말하고 나머지는 상대가 채우게 둔다"),
             TypeDescriptionSpec(type = "독백형", description = "상대에게 말하다가 혼잣말로 새어 나간다"),
+        )
+
+        val SPEECH_REGISTER_NAMES = listOf(
+            "반말 기본",
+            "존댓말 기본",
+            "처음엔 존댓말 후 반말",
         )
     }
 }

@@ -16,6 +16,7 @@ import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
+import ltmp.charactergen.data.repo.SpeechRegisterRepository
 import ltmp.charactergen.service.generation.GenerationPrompt
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
@@ -50,6 +51,7 @@ class GenerationCapacityIntegrationTests(
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
+    private val speechRegisterRepository: SpeechRegisterRepository,
     private val blockingLlmClient: BlockingL0CharacterLlmClient,
 ) {
     @Test
@@ -99,6 +101,7 @@ class GenerationCapacityIntegrationTests(
             emotionalExpressionRepository,
             avoidanceStyleRepository,
             speechArchetypeRepository,
+            speechRegisterRepository,
         )
         return """
         {
@@ -114,9 +117,9 @@ class GenerationCapacityIntegrationTests(
           "emotionalExpressionId":${options.emotionalExpressionId},
           "avoidanceStyleId":${options.avoidanceStyleId},
           "speechArchetypeId":${options.speechArchetypeId},
+          "speechRegisterId":${options.speechRegisterId},
           "age":29,
           "gender":"FEMALE",
-          "speechRegister":"기본적으로 존댓말",
           "scale":2,
           "emotion":4
         }

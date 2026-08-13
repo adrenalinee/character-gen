@@ -50,7 +50,7 @@ class L0GenerationExecutionStateService(
             speechArchetypeId = execute.speechArchetype?.id,
             age = execute.age,
             gender = execute.gender,
-            speechRegister = execute.speechRegister,
+            speechRegisterId = execute.speechRegister?.id,
             scale = execute.scale,
             emotion = execute.emotion,
             extraConstraints = execute.extraConstraints,
@@ -100,6 +100,7 @@ class L0GenerationExecutionStateService(
                 avoidanceStyleDescription = execute.avoidanceStyle?.description,
                 speechArchetypeName = execute.speechArchetype?.name,
                 speechArchetypeDescription = execute.speechArchetype?.description,
+                speechRegisterName = execute.speechRegister?.name,
             ),
         )
     }
@@ -177,4 +178,5 @@ data class L0GenerationOptions(
     val avoidanceStyleDescription: String? = null,
     val speechArchetypeName: String? = null,
     val speechArchetypeDescription: String? = null,
+    val speechRegisterName: String? = null,
 )

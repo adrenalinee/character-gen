@@ -19,6 +19,7 @@ import ltmp.charactergen.data.repo.LieRepository
 import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
+import ltmp.charactergen.data.repo.SpeechRegisterRepository
 import ltmp.charactergen.service.generation.PromptRefInputSnapshot
 import ltmp.charactergen.service.generation.PromptRefSnapshot
 import ltmp.charactergen.service.generation.L0GenerationTaskDispatcher
@@ -39,6 +40,7 @@ class L0CharacterGenerationService(
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
+    private val speechRegisterRepository: SpeechRegisterRepository,
     private val promptTemplateRefService: PromptTemplateRefService,
     private val objectMapper: ObjectMapper,
     private val taskDispatcher: L0GenerationTaskDispatcher,
@@ -105,6 +107,10 @@ class L0CharacterGenerationService(
             speechArchetypeRepository.findById(id)
                 .orElseThrow { ResourceNotFoundException("SpeechArchetype not found: $id") }
         }
+        val speechRegister = request.speechRegisterId?.let { id ->
+            speechRegisterRepository.findById(id)
+                .orElseThrow { ResourceNotFoundException("SpeechRegister not found: $id") }
+        }
         val execute = L0GenerationExecute(
             promptTemplateRef = ref,
             domain = domain,
@@ -118,10 +124,10 @@ class L0CharacterGenerationService(
             emotionalExpression = emotionalExpression,
             avoidanceStyle = avoidanceStyle,
             speechArchetype = speechArchetype,
+            speechRegister = speechRegister,
             description = request.description,
             age = request.age,
             gender = request.gender,
-            speechRegister = request.speechRegister,
             scale = request.scale,
             emotion = request.emotion,
             extraConstraints = request.extraConstraints,

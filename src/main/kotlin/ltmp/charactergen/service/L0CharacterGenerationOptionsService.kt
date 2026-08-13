@@ -5,6 +5,7 @@ import ltmp.charactergen.api.axis.L0CharacterGenerationOptionsDto
 import ltmp.charactergen.api.axis.LieOptionDto
 import ltmp.charactergen.api.axis.PersonalityTraitStageOptionDto
 import ltmp.charactergen.api.axis.SpeechArchetypeOptionDto
+import ltmp.charactergen.api.axis.SpeechRegisterOptionDto
 import ltmp.charactergen.api.axis.TypeDescriptionOptionDto
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
@@ -13,6 +14,7 @@ import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.LieRepository
 import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
+import ltmp.charactergen.data.repo.SpeechRegisterRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -25,6 +27,7 @@ class L0CharacterGenerationOptionsService(
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
+    private val speechRegisterRepository: SpeechRegisterRepository,
 ) {
     @Transactional(readOnly = true)
     fun getOptions() = L0CharacterGenerationOptionsDto(
@@ -48,6 +51,9 @@ class L0CharacterGenerationOptionsService(
         },
         speechArchetypes = speechArchetypeRepository.findAllByOrderByNameAsc().map {
             SpeechArchetypeOptionDto(id = it.id, name = it.name, description = it.description)
+        },
+        speechRegisters = speechRegisterRepository.findAllByOrderByIdAsc().map {
+            SpeechRegisterOptionDto(id = it.id, name = it.name)
         },
     )
 }

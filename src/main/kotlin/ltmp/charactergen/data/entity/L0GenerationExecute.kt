@@ -37,6 +37,7 @@ import java.time.OffsetDateTime
         Index(name = "idx_l0_generation_executes_emotional_expression_id", columnList = "emotional_expression_id"),
         Index(name = "idx_l0_generation_executes_avoidance_style_id", columnList = "avoidance_style_id"),
         Index(name = "idx_l0_generation_executes_speech_archetype_id", columnList = "speech_archetype_id"),
+        Index(name = "idx_l0_generation_executes_speech_register_id", columnList = "speech_register_id"),
         Index(name = "idx_l0_generation_executes_character_id", columnList = "character_id"),
     ],
 )
@@ -89,6 +90,10 @@ class L0GenerationExecute(
     @JoinColumn(name = "speech_archetype_id", nullable = true)
     val speechArchetype: SpeechArchetypeEntity? = null,
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "speech_register_id", nullable = true)
+    val speechRegister: SpeechRegisterEntity? = null,
+
     @Lob
     @Column(nullable = true)
     val description: String? = null,
@@ -99,9 +104,6 @@ class L0GenerationExecute(
     @Enumerated(EnumType.STRING)
     @Column(nullable = true, length = 10)
     val gender: Gender? = null,
-
-    @Column(name = "speech_register", nullable = true, length = 200)
-    val speechRegister: String? = null,
 
     @Column(nullable = true)
     val scale: Int? = null,

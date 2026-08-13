@@ -60,8 +60,8 @@ data class L0GenerationExecuteDto(
     @field:Schema(description = "캐릭터의 성별", example = "FEMALE", nullable = true)
     val gender: Gender? = null,
 
-    @field:Schema(description = "존댓말/반말 기본 정책", nullable = true)
-    val speechRegister: String? = null,
+    @field:Schema(description = "존댓말/반말 기본 정책 옵션 식별자", example = "1", nullable = true)
+    val speechRegisterId: Long? = null,
 
     @field:Schema(description = "서사 스케일", minimum = "1", maximum = "5", nullable = true)
     val scale: Int? = null,
@@ -159,7 +159,7 @@ fun L0GenerationExecute.toDto() = L0GenerationExecuteDto(
     description = description,
     age = age,
     gender = gender,
-    speechRegister = speechRegister,
+    speechRegisterId = speechRegister?.id,
     scale = scale,
     emotion = emotion,
     extraConstraints = extraConstraints,

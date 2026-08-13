@@ -17,6 +17,7 @@ import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
+import ltmp.charactergen.data.repo.SpeechRegisterRepository
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.DefaultApplicationArguments
@@ -45,6 +46,7 @@ class ManagementApiIntegrationTests(
     @Autowired private val emotionalExpressionRepository: EmotionalExpressionRepository,
     @Autowired private val avoidanceStyleRepository: AvoidanceStyleRepository,
     @Autowired private val speechArchetypeRepository: SpeechArchetypeRepository,
+    @Autowired private val speechRegisterRepository: SpeechRegisterRepository,
     @Autowired private val promptTemplateRepository: PromptTemplateRepository,
     @Autowired private val promptTemplateRefRepository: PromptTemplateRefRepository,
 ) {
@@ -84,6 +86,10 @@ class ManagementApiIntegrationTests(
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.domain") { doesNotExist() }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.lieId") { exists() }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.opennessStageId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.speechRegisterId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.speechRegister") {
+                doesNotExist()
+            }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.required.length()") { value(1) }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.required[0]") { value("refId") }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.gender.enum[0]") {
@@ -321,7 +327,7 @@ class ManagementApiIntegrationTests(
             jsonPath("$.domainId") { doesNotExist() }
             jsonPath("$.age") { doesNotExist() }
             jsonPath("$.gender") { doesNotExist() }
-            jsonPath("$.speechRegister") { doesNotExist() }
+            jsonPath("$.speechRegisterId") { doesNotExist() }
         }
     }
 
@@ -476,6 +482,7 @@ class ManagementApiIntegrationTests(
         assertEquals(6, emotionalExpressionRepository.count())
         assertEquals(6, avoidanceStyleRepository.count())
         assertEquals(8, speechArchetypeRepository.count())
+        assertEquals(3, speechRegisterRepository.count())
         val opennessStageThree = personalityTraitStageRepository.findAll().single {
             it.trait == BigFiveTrait.OPENNESS && it.stage == 3
         }
@@ -492,6 +499,10 @@ class ManagementApiIntegrationTests(
             jsonPath("$.emotionalExpressions.length()") { value(6) }
             jsonPath("$.avoidanceStyles.length()") { value(6) }
             jsonPath("$.speechArchetypes.length()") { value(8) }
+            jsonPath("$.speechRegisters.length()") { value(3) }
+            jsonPath("$.speechRegisters[0].name") { value("반말 기본") }
+            jsonPath("$.speechRegisters[1].name") { value("존댓말 기본") }
+            jsonPath("$.speechRegisters[2].name") { value("처음엔 존댓말 후 반말") }
         }
     }
 
@@ -564,6 +575,7 @@ class ManagementApiIntegrationTests(
             emotionalExpressionRepository,
             avoidanceStyleRepository,
             speechArchetypeRepository,
+            speechRegisterRepository,
         )
         return """
         {
@@ -579,9 +591,9 @@ class ManagementApiIntegrationTests(
           "emotionalExpressionId":${options.emotionalExpressionId},
           "avoidanceStyleId":${options.avoidanceStyleId},
           "speechArchetypeId":${options.speechArchetypeId},
+          "speechRegisterId":${options.speechRegisterId},
           "age":29,
           "gender":"FEMALE",
-          "speechRegister":"기본적으로 존댓말",
           "scale":2,
           "emotion":4
         }

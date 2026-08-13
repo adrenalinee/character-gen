@@ -50,7 +50,7 @@ class L0CharacterPromptRenderer {
         "SPEECH_DESC" to options.speechArchetypeDescription.orEmpty(),
         "AGE" to request.age?.toString().orEmpty(),
         "GENDER" to request.gender?.name.orEmpty(),
-        "SPEECH_REGISTER" to request.speechRegister.orEmpty(),
+        "SPEECH_REGISTER" to options.speechRegisterName.orEmpty(),
         "SCALE" to request.scale?.toString().orEmpty(),
         "EMOTION" to request.emotion?.toString().orEmpty(),
         "EXTRA_CONSTRAINTS" to request.extraConstraints.orEmpty(),

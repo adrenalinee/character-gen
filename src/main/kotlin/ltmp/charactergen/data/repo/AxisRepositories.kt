@@ -7,6 +7,7 @@ import ltmp.charactergen.data.entity.EmotionalExpressionEntity
 import ltmp.charactergen.data.entity.LieEntity
 import ltmp.charactergen.data.entity.PersonalityTraitStageEntity
 import ltmp.charactergen.data.entity.SpeechArchetypeEntity
+import ltmp.charactergen.data.entity.SpeechRegisterEntity
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface DomainRepository : JpaRepository<DomainEntity, Long> {
@@ -47,4 +48,10 @@ interface SpeechArchetypeRepository : JpaRepository<SpeechArchetypeEntity, Long>
     fun findAllByOrderByNameAsc(): List<SpeechArchetypeEntity>
 
     fun findByName(name: String): SpeechArchetypeEntity?
+}
+
+interface SpeechRegisterRepository : JpaRepository<SpeechRegisterEntity, Long> {
+    fun findAllByOrderByIdAsc(): List<SpeechRegisterEntity>
+
+    fun findByName(name: String): SpeechRegisterEntity?
 }

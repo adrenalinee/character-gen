@@ -20,6 +20,7 @@ import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
+import ltmp.charactergen.data.repo.SpeechRegisterRepository
 import ltmp.charactergen.model.L0CharacterResponse
 import ltmp.charactergen.service.L0CharacterGenerationService
 import org.junit.jupiter.api.Test
@@ -61,6 +62,7 @@ class L0GenerationExecutionIntegrationTests(
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
+    private val speechRegisterRepository: SpeechRegisterRepository,
     private val fakeLlmClient: FakeL0CharacterLlmClient,
     private val objectMapper: ObjectMapper,
     private val mockMvc: MockMvc,
@@ -77,7 +79,7 @@ class L0GenerationExecutionIntegrationTests(
             it.addInput(
                 "user",
                 "{{DOMAIN}}|{{LIE_STATEMENT}}|{{O_DESC}}|{{ATTACHMENT_DESC}}|" +
-                    "{{TIC_SITUATIONS}}|{{EXTRA_CONSTRAINTS}}",
+                    "{{SPEECH_REGISTER}}|{{TIC_SITUATIONS}}|{{EXTRA_CONSTRAINTS}}",
             )
         }
         promptTemplateRefRepository.saveAndFlush(ref)
@@ -107,9 +109,9 @@ class L0GenerationExecutionIntegrationTests(
         assertEquals(selectedOptions.emotionalExpressionId, completed.emotionalExpression?.id)
         assertEquals(selectedOptions.avoidanceStyleId, completed.avoidanceStyle?.id)
         assertEquals(selectedOptions.speechArchetypeId, completed.speechArchetype?.id)
+        assertEquals(selectedOptions.speechRegisterId, completed.speechRegister?.id)
         assertEquals(29, completed.age)
         assertEquals(Gender.FEMALE, completed.gender)
-        assertEquals("기본적으로 존댓말", completed.speechRegister)
         assertEquals(2, completed.scale)
         assertEquals(4, completed.emotion)
 
@@ -185,6 +187,7 @@ class L0GenerationExecutionIntegrationTests(
         assertTrue(renderedInput.contains("나는 언제든 다른 사람으로 대체된다"))
         assertTrue(renderedInput.contains("이 축은 이 인물을 설명하는 특징이 아니다"))
         assertTrue(renderedInput.contains("누구와도 비슷한 거리를 두고"))
+        assertTrue(renderedInput.contains("존댓말 기본"))
         assertFalse(renderedInput.contains("{{"))
     }
 
@@ -301,7 +304,7 @@ class L0GenerationExecutionIntegrationTests(
         assertEquals(null, detail.lieId)
         assertEquals(null, detail.age)
         assertEquals(null, detail.gender)
-        assertEquals(null, detail.speechRegister)
+        assertEquals(null, detail.speechRegisterId)
         assertEquals(null, detail.scale)
         assertEquals(null, detail.emotion)
     }
@@ -323,7 +326,7 @@ class L0GenerationExecutionIntegrationTests(
             speechArchetypeId = options.speechArchetypeId,
             age = 29,
             gender = Gender.FEMALE,
-            speechRegister = "기본적으로 존댓말",
+            speechRegisterId = options.speechRegisterId,
             scale = 2,
             emotion = 4,
         )
@@ -337,6 +340,7 @@ class L0GenerationExecutionIntegrationTests(
         emotionalExpressionRepository,
         avoidanceStyleRepository,
         speechArchetypeRepository,
+        speechRegisterRepository,
     )
 
     @TestConfiguration

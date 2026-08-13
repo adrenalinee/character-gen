@@ -25,6 +25,9 @@ data class L0CharacterGenerationOptionsDto(
 
     @field:Schema(description = "말투 원형 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
     val speechArchetypes: List<SpeechArchetypeOptionDto>,
+
+    @field:Schema(description = "존댓말/반말 기본 정책 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
+    val speechRegisters: List<SpeechRegisterOptionDto>,
 )
 
 @Schema(description = "활동 분야 선택지")
@@ -77,4 +80,12 @@ data class SpeechArchetypeOptionDto(
     val name: String,
     @field:Schema(description = "말투 원형 설명", requiredMode = Schema.RequiredMode.REQUIRED)
     val description: String,
+)
+
+@Schema(description = "존댓말/반말 기본 정책 선택지")
+data class SpeechRegisterOptionDto(
+    @field:Schema(description = "식별자", requiredMode = Schema.RequiredMode.REQUIRED)
+    val id: Long,
+    @field:Schema(description = "프롬프트에 사용할 정책 이름", requiredMode = Schema.RequiredMode.REQUIRED)
+    val name: String,
 )

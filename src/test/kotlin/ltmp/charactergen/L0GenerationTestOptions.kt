@@ -8,6 +8,7 @@ import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.LieRepository
 import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
+import ltmp.charactergen.data.repo.SpeechRegisterRepository
 
 data class L0GenerationTestOptions(
     val domainId: Long,
@@ -21,6 +22,7 @@ data class L0GenerationTestOptions(
     val emotionalExpressionId: Long,
     val avoidanceStyleId: Long,
     val speechArchetypeId: Long,
+    val speechRegisterId: Long,
 )
 
 fun l0GenerationTestOptions(
@@ -31,6 +33,7 @@ fun l0GenerationTestOptions(
     emotionalExpressionRepository: EmotionalExpressionRepository,
     avoidanceStyleRepository: AvoidanceStyleRepository,
     speechArchetypeRepository: SpeechArchetypeRepository,
+    speechRegisterRepository: SpeechRegisterRepository,
 ): L0GenerationTestOptions = L0GenerationTestOptions(
     domainId = domainRepository.findAll().single { it.name == "웹툰" }.id,
     lieId = requireNotNull(lieRepository.findByType("대체 가능성 공포형")).id,
@@ -53,4 +56,5 @@ fun l0GenerationTestOptions(
     emotionalExpressionId = requireNotNull(emotionalExpressionRepository.findByType("사실 치환")).id,
     avoidanceStyleId = requireNotNull(avoidanceStyleRepository.findByType("짧게 답하고 침묵")).id,
     speechArchetypeId = requireNotNull(speechArchetypeRepository.findByName("비유형")).id,
+    speechRegisterId = requireNotNull(speechRegisterRepository.findByName("존댓말 기본")).id,
 )
