@@ -11,6 +11,21 @@ data class L0CharacterGenerationOptionsDto(
     @field:Schema(description = "Lie 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
     val lies: List<LieOptionDto>,
 
+    @field:Schema(description = "상처가 생긴 시기 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
+    val woundTimings: List<WoundOptionDto>,
+
+    @field:Schema(description = "상처가 생긴 장소 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
+    val woundPlaces: List<WoundOptionDto>,
+
+    @field:Schema(description = "상처를 준 사람 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
+    val woundAgents: List<WoundOptionDto>,
+
+    @field:Schema(description = "상처 형태 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
+    val woundForms: List<WoundOptionDto>,
+
+    @field:Schema(description = "상처 지속 시간 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
+    val woundDurations: List<WoundOptionDto>,
+
     @field:Schema(description = "Big Five 성향별 단계 선택지", requiredMode = Schema.RequiredMode.REQUIRED)
     val personalityTraitStages: List<PersonalityTraitStageOptionDto>,
 
@@ -48,6 +63,16 @@ data class LieOptionDto(
     val type: String,
     @field:Schema(description = "Lie 핵심 명제", requiredMode = Schema.RequiredMode.REQUIRED)
     val coreStatement: String,
+)
+
+@Schema(description = "상처 조건 축 선택지")
+data class WoundOptionDto(
+    @field:Schema(description = "식별자", requiredMode = Schema.RequiredMode.REQUIRED)
+    val id: Long,
+    @field:Schema(description = "프롬프트에 주입할 값", requiredMode = Schema.RequiredMode.REQUIRED)
+    val value: String,
+    @field:Schema(description = "값의 설계 의도 또는 주의 사항", nullable = true)
+    val description: String? = null,
 )
 
 @Schema(description = "Big Five 성향 단계 선택지")

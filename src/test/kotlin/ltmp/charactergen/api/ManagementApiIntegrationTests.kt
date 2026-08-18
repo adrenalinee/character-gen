@@ -5,6 +5,8 @@ import ltmp.charactergen.l0GenerationTestOptions
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_BRANCH_NAME
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT_V3_1
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_1
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_TEMPLATE_NAME
 import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.PromptTemplateRefType
@@ -18,6 +20,11 @@ import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.data.repo.SpeechRegisterRepository
+import ltmp.charactergen.data.repo.WoundAgentRepository
+import ltmp.charactergen.data.repo.WoundDurationRepository
+import ltmp.charactergen.data.repo.WoundFormRepository
+import ltmp.charactergen.data.repo.WoundPlaceRepository
+import ltmp.charactergen.data.repo.WoundTimingRepository
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.DefaultApplicationArguments
@@ -41,6 +48,11 @@ class ManagementApiIntegrationTests(
     @Autowired private val referenceDataInitializer: L0ReferenceDataInitializer,
     @Autowired private val domainRepository: DomainRepository,
     @Autowired private val lieRepository: LieRepository,
+    @Autowired private val woundTimingRepository: WoundTimingRepository,
+    @Autowired private val woundPlaceRepository: WoundPlaceRepository,
+    @Autowired private val woundAgentRepository: WoundAgentRepository,
+    @Autowired private val woundFormRepository: WoundFormRepository,
+    @Autowired private val woundDurationRepository: WoundDurationRepository,
     @Autowired private val personalityTraitStageRepository: PersonalityTraitStageRepository,
     @Autowired private val attachmentStyleRepository: AttachmentStyleRepository,
     @Autowired private val emotionalExpressionRepository: EmotionalExpressionRepository,
@@ -85,6 +97,12 @@ class ManagementApiIntegrationTests(
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.domainId") { exists() }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.domain") { doesNotExist() }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.lieId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.name") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.woundTimingId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.woundPlaceId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.woundAgentId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.woundFormId") { exists() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.woundDurationId") { exists() }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.opennessStageId") { exists() }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.speechRegisterId") { exists() }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.speechRegister") {
@@ -475,8 +493,13 @@ class ManagementApiIntegrationTests(
     @Test
     fun `캐릭터 생성에 필요한 모든 축 정보를 한 번에 조회한다`() {
         referenceDataInitializer.run(DefaultApplicationArguments())
-        assertEquals(2, domainRepository.count())
+        assertEquals(8, domainRepository.count())
         assertEquals(12, lieRepository.count())
+        assertEquals(4, woundTimingRepository.count())
+        assertEquals(5, woundPlaceRepository.count())
+        assertEquals(7, woundAgentRepository.count())
+        assertEquals(6, woundFormRepository.count())
+        assertEquals(4, woundDurationRepository.count())
         assertEquals(25, personalityTraitStageRepository.count())
         assertEquals(6, attachmentStyleRepository.count())
         assertEquals(6, emotionalExpressionRepository.count())
@@ -492,8 +515,16 @@ class ManagementApiIntegrationTests(
         )
         mockMvc.get("/api/v1/l0-characters/generation-options").andExpect {
             status { isOk() }
-            jsonPath("$.domains.length()") { value(2) }
+            jsonPath("$.domains.length()") { value(8) }
             jsonPath("$.lies.length()") { value(12) }
+            jsonPath("$.woundTimings.length()") { value(4) }
+            jsonPath("$.woundPlaces.length()") { value(5) }
+            jsonPath("$.woundAgents.length()") { value(7) }
+            jsonPath("$.woundForms.length()") { value(6) }
+            jsonPath("$.woundDurations.length()") { value(4) }
+            jsonPath("$.woundTimings[0].value") { value("유년") }
+            jsonPath("$.woundAgents[6].value") { value("특정인 없음") }
+            jsonPath("$.woundDurations[3].value") { value("수년간 서서히") }
             jsonPath("$.personalityTraitStages.length()") { value(25) }
             jsonPath("$.attachments.length()") { value(6) }
             jsonPath("$.emotionalExpressions.length()") { value(6) }
@@ -511,26 +542,28 @@ class ManagementApiIntegrationTests(
         referenceDataInitializer.run(DefaultApplicationArguments())
 
         val template = assertNotNull(promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME))
-        assertEquals(1, template.lastVersion)
+        assertEquals(2, template.lastVersion)
         assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, template.defaultBranch)
 
         val refs = promptTemplateRefRepository.findAll().filter { it.promptTemplate.id == template.id }
-        assertEquals(2, refs.size)
+        assertEquals(3, refs.size)
         val branch = refs.single { it.type == PromptTemplateRefType.BRANCH }
-        val version = refs.single { it.type == PromptTemplateRefType.VERSION }
+        val versionOne = refs.single { it.version == 1L }
+        val versionTwo = refs.single { it.version == 2L }
 
         assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, branch.name)
-        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS, branch.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_1, branch.instructions)
         assertEquals(1, branch.inputs.size)
         assertEquals("user", branch.inputs.single().role)
-        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT, branch.inputs.single().inputText)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V3_1, branch.inputs.single().inputText)
 
-        assertEquals(1, version.version)
-        assertEquals(branch.id, version.fromRef?.id)
-        assertEquals(branch.revision, version.fromRefRevision)
-        assertEquals(branch.instructions, version.instructions)
-        assertEquals(branch.inputs.single().role, version.inputs.single().role)
-        assertEquals(branch.inputs.single().inputText, version.inputs.single().inputText)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS, versionOne.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT, versionOne.inputs.single().inputText)
+        assertEquals(branch.id, versionOne.fromRef?.id)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_1, versionTwo.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V3_1, versionTwo.inputs.single().inputText)
+        assertEquals(branch.id, versionTwo.fromRef?.id)
+        assertEquals(branch.revision, versionTwo.fromRefRevision)
 
         mockMvc.get("/api/v1/prompt-templates/{id}", template.id).andExpect {
             status { isOk() }

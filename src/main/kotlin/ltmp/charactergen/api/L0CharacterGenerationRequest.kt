@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import ltmp.charactergen.data.Gender
 
 @Schema(description = "L0 캐릭터 생성 프롬프트에 사용할 사용자 입력. refId 외의 필드는 모두 선택 사항이다.")
@@ -22,6 +23,15 @@ data class L0CharacterGenerationRequest(
     )
     val description: String? = null,
 
+    @field:Size(max = 100)
+    @field:Schema(
+        description = "캐릭터 이름. 비어 있으면 프롬프트에 빈 문자열을 주입한다.",
+        example = "서윤",
+        maxLength = 100,
+        nullable = true,
+    )
+    val name: String? = null,
+
     @field:Positive
     @field:Schema(description = "활동 분야 옵션 식별자", example = "1", nullable = true)
     val domainId: Long? = null,
@@ -33,6 +43,26 @@ data class L0CharacterGenerationRequest(
         nullable = true,
     )
     val lieId: Long? = null,
+
+    @field:Positive
+    @field:Schema(description = "상처가 생긴 시기 옵션 식별자", example = "1", nullable = true)
+    val woundTimingId: Long? = null,
+
+    @field:Positive
+    @field:Schema(description = "상처가 생긴 장소 옵션 식별자", example = "1", nullable = true)
+    val woundPlaceId: Long? = null,
+
+    @field:Positive
+    @field:Schema(description = "상처를 준 사람 옵션 식별자", example = "1", nullable = true)
+    val woundAgentId: Long? = null,
+
+    @field:Positive
+    @field:Schema(description = "상처 형태 옵션 식별자", example = "1", nullable = true)
+    val woundFormId: Long? = null,
+
+    @field:Positive
+    @field:Schema(description = "상처 지속 시간 옵션 식별자", example = "1", nullable = true)
+    val woundDurationId: Long? = null,
 
     @field:Positive
     @field:Schema(description = "개방성 단계 옵션 식별자", example = "3", nullable = true)

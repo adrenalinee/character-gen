@@ -20,6 +20,11 @@ import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.data.repo.SpeechRegisterRepository
+import ltmp.charactergen.data.repo.WoundAgentRepository
+import ltmp.charactergen.data.repo.WoundDurationRepository
+import ltmp.charactergen.data.repo.WoundFormRepository
+import ltmp.charactergen.data.repo.WoundPlaceRepository
+import ltmp.charactergen.data.repo.WoundTimingRepository
 import ltmp.charactergen.service.generation.PromptRefInputSnapshot
 import ltmp.charactergen.service.generation.PromptRefSnapshot
 import ltmp.charactergen.service.generation.L0GenerationTaskDispatcher
@@ -35,6 +40,11 @@ class L0CharacterGenerationService(
     private val generationExecuteRepository: L0GenerationExecuteRepository,
     private val domainRepository: DomainRepository,
     private val lieRepository: LieRepository,
+    private val woundTimingRepository: WoundTimingRepository,
+    private val woundPlaceRepository: WoundPlaceRepository,
+    private val woundAgentRepository: WoundAgentRepository,
+    private val woundFormRepository: WoundFormRepository,
+    private val woundDurationRepository: WoundDurationRepository,
     private val personalityTraitStageRepository: PersonalityTraitStageRepository,
     private val attachmentStyleRepository: AttachmentStyleRepository,
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
@@ -83,6 +93,26 @@ class L0CharacterGenerationService(
             lieRepository.findById(id)
                 .orElseThrow { ResourceNotFoundException("Lie not found: $id") }
         }
+        val woundTiming = request.woundTimingId?.let { id ->
+            woundTimingRepository.findById(id)
+                .orElseThrow { ResourceNotFoundException("WoundTiming not found: $id") }
+        }
+        val woundPlace = request.woundPlaceId?.let { id ->
+            woundPlaceRepository.findById(id)
+                .orElseThrow { ResourceNotFoundException("WoundPlace not found: $id") }
+        }
+        val woundAgent = request.woundAgentId?.let { id ->
+            woundAgentRepository.findById(id)
+                .orElseThrow { ResourceNotFoundException("WoundAgent not found: $id") }
+        }
+        val woundForm = request.woundFormId?.let { id ->
+            woundFormRepository.findById(id)
+                .orElseThrow { ResourceNotFoundException("WoundForm not found: $id") }
+        }
+        val woundDuration = request.woundDurationId?.let { id ->
+            woundDurationRepository.findById(id)
+                .orElseThrow { ResourceNotFoundException("WoundDuration not found: $id") }
+        }
         val opennessStage = findTraitStage(request.opennessStageId, BigFiveTrait.OPENNESS)
         val conscientiousnessStage = findTraitStage(
             request.conscientiousnessStageId,
@@ -115,6 +145,11 @@ class L0CharacterGenerationService(
             promptTemplateRef = ref,
             domain = domain,
             lie = lie,
+            woundTiming = woundTiming,
+            woundPlace = woundPlace,
+            woundAgent = woundAgent,
+            woundForm = woundForm,
+            woundDuration = woundDuration,
             opennessStage = opennessStage,
             conscientiousnessStage = conscientiousnessStage,
             extraversionStage = extraversionStage,
@@ -126,6 +161,7 @@ class L0CharacterGenerationService(
             speechArchetype = speechArchetype,
             speechRegister = speechRegister,
             description = request.description,
+            name = request.name,
             age = request.age,
             gender = request.gender,
             scale = request.scale,

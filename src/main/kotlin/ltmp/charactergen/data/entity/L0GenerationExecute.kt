@@ -28,6 +28,11 @@ import java.time.OffsetDateTime
         ),
         Index(name = "idx_l0_generation_executes_domain_id", columnList = "domain_id"),
         Index(name = "idx_l0_generation_executes_lie_id", columnList = "lie_id"),
+        Index(name = "idx_l0_generation_executes_wound_timing_id", columnList = "wound_timing_id"),
+        Index(name = "idx_l0_generation_executes_wound_place_id", columnList = "wound_place_id"),
+        Index(name = "idx_l0_generation_executes_wound_agent_id", columnList = "wound_agent_id"),
+        Index(name = "idx_l0_generation_executes_wound_form_id", columnList = "wound_form_id"),
+        Index(name = "idx_l0_generation_executes_wound_duration_id", columnList = "wound_duration_id"),
         Index(name = "idx_l0_generation_executes_openness_stage_id", columnList = "openness_stage_id"),
         Index(name = "idx_l0_generation_executes_conscientiousness_stage_id", columnList = "conscientiousness_stage_id"),
         Index(name = "idx_l0_generation_executes_extraversion_stage_id", columnList = "extraversion_stage_id"),
@@ -53,6 +58,26 @@ class L0GenerationExecute(
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "lie_id", nullable = true)
     val lie: LieEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "wound_timing_id", nullable = true)
+    val woundTiming: WoundTimingEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "wound_place_id", nullable = true)
+    val woundPlace: WoundPlaceEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "wound_agent_id", nullable = true)
+    val woundAgent: WoundAgentEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "wound_form_id", nullable = true)
+    val woundForm: WoundFormEntity? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "wound_duration_id", nullable = true)
+    val woundDuration: WoundDurationEntity? = null,
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "openness_stage_id", nullable = true)
@@ -97,6 +122,9 @@ class L0GenerationExecute(
     @Lob
     @Column(nullable = true)
     val description: String? = null,
+
+    @Column(nullable = true, length = 100)
+    val name: String? = null,
 
     @Column(nullable = true)
     val age: Int? = null,

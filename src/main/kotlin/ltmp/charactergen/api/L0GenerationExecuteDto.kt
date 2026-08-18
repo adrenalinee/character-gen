@@ -24,6 +24,21 @@ data class L0GenerationExecuteDto(
     @field:Schema(description = "실행에 사용한 Lie 옵션 식별자", example = "1", nullable = true)
     val lieId: Long? = null,
 
+    @field:Schema(description = "실행에 사용한 상처 시기 옵션 식별자", example = "1", nullable = true)
+    val woundTimingId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 상처 장소 옵션 식별자", example = "1", nullable = true)
+    val woundPlaceId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 상처를 준 사람 옵션 식별자", example = "1", nullable = true)
+    val woundAgentId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 상처 형태 옵션 식별자", example = "1", nullable = true)
+    val woundFormId: Long? = null,
+
+    @field:Schema(description = "실행에 사용한 상처 지속 시간 옵션 식별자", example = "1", nullable = true)
+    val woundDurationId: Long? = null,
+
     @field:Schema(description = "실행에 사용한 개방성 단계 옵션 식별자", example = "3", nullable = true)
     val opennessStageId: Long? = null,
 
@@ -53,6 +68,9 @@ data class L0GenerationExecuteDto(
 
     @field:Schema(description = "캐릭터에 관한 운영자 설명", nullable = true)
     val description: String? = null,
+
+    @field:Schema(description = "프롬프트에 주입한 캐릭터 이름", example = "서윤", nullable = true)
+    val name: String? = null,
 
     @field:Schema(description = "캐릭터의 연령", example = "29", nullable = true)
     val age: Int? = null,
@@ -147,6 +165,11 @@ fun L0GenerationExecute.toDto() = L0GenerationExecuteDto(
     refType = promptTemplateRef.type,
     domainId = domain?.id,
     lieId = lie?.id,
+    woundTimingId = woundTiming?.id,
+    woundPlaceId = woundPlace?.id,
+    woundAgentId = woundAgent?.id,
+    woundFormId = woundForm?.id,
+    woundDurationId = woundDuration?.id,
     opennessStageId = opennessStage?.id,
     conscientiousnessStageId = conscientiousnessStage?.id,
     extraversionStageId = extraversionStage?.id,
@@ -157,6 +180,7 @@ fun L0GenerationExecute.toDto() = L0GenerationExecuteDto(
     avoidanceStyleId = avoidanceStyle?.id,
     speechArchetypeId = speechArchetype?.id,
     description = description,
+    name = name,
     age = age,
     gender = gender,
     speechRegisterId = speechRegister?.id,

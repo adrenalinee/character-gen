@@ -34,7 +34,7 @@ class L0CharacterGenerationController(
 ) {
     @Operation(
         summary = "L0 캐릭터 생성 축 조회",
-        description = "캐릭터 생성 입력 UI에서 선택할 분야, Lie, Big Five, 관계 태도, 정서 표출, 회피 방식, 말투 원형, 존댓말/반말 기본 정책을 모두 반환한다.",
+        description = "캐릭터 생성 입력 UI에서 선택할 분야, Lie, 상처 조건 5개 축, Big Five, 관계 태도, 정서 표출, 회피 방식, 말투 원형, 존댓말/반말 기본 정책을 모두 반환한다.",
     )
     @ApiResponse(
         responseCode = "200",

@@ -21,6 +21,11 @@ import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.data.repo.SpeechRegisterRepository
+import ltmp.charactergen.data.repo.WoundAgentRepository
+import ltmp.charactergen.data.repo.WoundDurationRepository
+import ltmp.charactergen.data.repo.WoundFormRepository
+import ltmp.charactergen.data.repo.WoundPlaceRepository
+import ltmp.charactergen.data.repo.WoundTimingRepository
 import ltmp.charactergen.model.L0CharacterResponse
 import ltmp.charactergen.service.L0CharacterGenerationService
 import org.junit.jupiter.api.Test
@@ -57,6 +62,11 @@ class L0GenerationExecutionIntegrationTests(
     private val characterRepository: CharacterRepository,
     private val domainRepository: DomainRepository,
     private val lieRepository: LieRepository,
+    private val woundTimingRepository: WoundTimingRepository,
+    private val woundPlaceRepository: WoundPlaceRepository,
+    private val woundAgentRepository: WoundAgentRepository,
+    private val woundFormRepository: WoundFormRepository,
+    private val woundDurationRepository: WoundDurationRepository,
     private val personalityTraitStageRepository: PersonalityTraitStageRepository,
     private val attachmentStyleRepository: AttachmentStyleRepository,
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
@@ -78,7 +88,8 @@ class L0GenerationExecutionIntegrationTests(
         ).also {
             it.addInput(
                 "user",
-                "{{DOMAIN}}|{{LIE_STATEMENT}}|{{O_DESC}}|{{ATTACHMENT_DESC}}|" +
+                "{{NAME}}|{{DOMAIN}}|{{LIE_STATEMENT}}|{{WOUND_TIMING}}|{{WOUND_PLACE}}|" +
+                    "{{WOUND_AGENT}}|{{WOUND_FORM}}|{{WOUND_DURATION}}|{{O_DESC}}|{{ATTACHMENT_DESC}}|" +
                     "{{SPEECH_REGISTER}}|{{TIC_SITUATIONS}}|{{EXTRA_CONSTRAINTS}}",
             )
         }
@@ -100,6 +111,12 @@ class L0GenerationExecutionIntegrationTests(
         val selectedOptions = testOptions()
         assertEquals(selectedOptions.domainId, completed.domain?.id)
         assertEquals(selectedOptions.lieId, completed.lie?.id)
+        assertEquals("서윤", completed.name)
+        assertEquals("유년", completed.woundTiming?.value)
+        assertEquals("가정", completed.woundPlace?.value)
+        assertEquals("부모", completed.woundAgent?.value)
+        assertEquals("사고", completed.woundForm?.value)
+        assertEquals("한순간", completed.woundDuration?.value)
         assertEquals(selectedOptions.opennessStageId, completed.opennessStage?.id)
         assertEquals(selectedOptions.conscientiousnessStageId, completed.conscientiousnessStage?.id)
         assertEquals(selectedOptions.extraversionStageId, completed.extraversionStage?.id)
@@ -184,6 +201,12 @@ class L0GenerationExecutionIntegrationTests(
         assertEquals("system ", fakeLlmClient.lastPrompt.instructions)
         val renderedInput = fakeLlmClient.lastPrompt.inputs.single().inputText
         assertTrue(renderedInput.contains("웹툰"))
+        assertTrue(renderedInput.contains("서윤"))
+        assertTrue(renderedInput.contains("유년"))
+        assertTrue(renderedInput.contains("가정"))
+        assertTrue(renderedInput.contains("부모"))
+        assertTrue(renderedInput.contains("사고"))
+        assertTrue(renderedInput.contains("한순간"))
         assertTrue(renderedInput.contains("나는 언제든 다른 사람으로 대체된다"))
         assertTrue(renderedInput.contains("이 축은 이 인물을 설명하는 특징이 아니다"))
         assertTrue(renderedInput.contains("누구와도 비슷한 거리를 두고"))
@@ -243,9 +266,15 @@ class L0GenerationExecutionIntegrationTests(
         val template = promptTemplateRepository.save(PromptTemplate(name = "L0 nullable input test"))
         val placeholders = listOf(
             "DESCRIPTION",
+            "NAME",
             "DOMAIN",
             "LIE_TYPE",
             "LIE_STATEMENT",
+            "WOUND_TIMING",
+            "WOUND_PLACE",
+            "WOUND_AGENT",
+            "WOUND_FORM",
+            "WOUND_DURATION",
             "O_STAGE",
             "O_DESC",
             "C_STAGE",
@@ -285,6 +314,12 @@ class L0GenerationExecutionIntegrationTests(
         val saved = generationExecuteRepository.findOneWithDetailsById(generation.id)!!
         assertEquals(null, saved.domain)
         assertEquals(null, saved.lie)
+        assertEquals(null, saved.name)
+        assertEquals(null, saved.woundTiming)
+        assertEquals(null, saved.woundPlace)
+        assertEquals(null, saved.woundAgent)
+        assertEquals(null, saved.woundForm)
+        assertEquals(null, saved.woundDuration)
         assertEquals(null, saved.opennessStage)
         assertEquals(null, saved.attachmentStyle)
         assertEquals(null, saved.description)
@@ -302,6 +337,12 @@ class L0GenerationExecutionIntegrationTests(
         val detail = generationService.getGeneration(generation.id)
         assertEquals(null, detail.domainId)
         assertEquals(null, detail.lieId)
+        assertEquals(null, detail.name)
+        assertEquals(null, detail.woundTimingId)
+        assertEquals(null, detail.woundPlaceId)
+        assertEquals(null, detail.woundAgentId)
+        assertEquals(null, detail.woundFormId)
+        assertEquals(null, detail.woundDurationId)
         assertEquals(null, detail.age)
         assertEquals(null, detail.gender)
         assertEquals(null, detail.speechRegisterId)
@@ -313,8 +354,14 @@ class L0GenerationExecutionIntegrationTests(
         val options = testOptions()
         return L0CharacterGenerationRequest(
             refId = refId,
+            name = "서윤",
             domainId = options.domainId,
             lieId = options.lieId,
+            woundTimingId = woundTimingRepository.findAllByOrderByIdAsc().first().id,
+            woundPlaceId = woundPlaceRepository.findAllByOrderByIdAsc().first().id,
+            woundAgentId = woundAgentRepository.findAllByOrderByIdAsc().first().id,
+            woundFormId = woundFormRepository.findAllByOrderByIdAsc().first().id,
+            woundDurationId = woundDurationRepository.findAllByOrderByIdAsc().first().id,
             opennessStageId = options.opennessStageId,
             conscientiousnessStageId = options.conscientiousnessStageId,
             extraversionStageId = options.extraversionStageId,

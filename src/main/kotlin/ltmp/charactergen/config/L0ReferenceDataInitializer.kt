@@ -13,6 +13,11 @@ import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.entity.SpeechArchetypeEntity
 import ltmp.charactergen.data.entity.SpeechRegisterEntity
+import ltmp.charactergen.data.entity.WoundAgentEntity
+import ltmp.charactergen.data.entity.WoundDurationEntity
+import ltmp.charactergen.data.entity.WoundFormEntity
+import ltmp.charactergen.data.entity.WoundPlaceEntity
+import ltmp.charactergen.data.entity.WoundTimingEntity
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
 import ltmp.charactergen.data.repo.DomainRepository
@@ -23,6 +28,11 @@ import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.data.repo.SpeechRegisterRepository
+import ltmp.charactergen.data.repo.WoundAgentRepository
+import ltmp.charactergen.data.repo.WoundDurationRepository
+import ltmp.charactergen.data.repo.WoundFormRepository
+import ltmp.charactergen.data.repo.WoundPlaceRepository
+import ltmp.charactergen.data.repo.WoundTimingRepository
 import ltmp.charactergen.service.PromptTemplateRefService
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -33,6 +43,11 @@ import org.springframework.transaction.annotation.Transactional
 class L0ReferenceDataInitializer(
     private val domainRepository: DomainRepository,
     private val lieRepository: LieRepository,
+    private val woundTimingRepository: WoundTimingRepository,
+    private val woundPlaceRepository: WoundPlaceRepository,
+    private val woundAgentRepository: WoundAgentRepository,
+    private val woundFormRepository: WoundFormRepository,
+    private val woundDurationRepository: WoundDurationRepository,
     private val personalityTraitStageRepository: PersonalityTraitStageRepository,
     private val attachmentStyleRepository: AttachmentStyleRepository,
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
@@ -47,6 +62,11 @@ class L0ReferenceDataInitializer(
     override fun run(args: ApplicationArguments) {
         insertMissingDomains()
         insertMissingLies()
+        insertMissingWoundTimings()
+        insertMissingWoundPlaces()
+        insertMissingWoundAgents()
+        insertMissingWoundForms()
+        insertMissingWoundDurations()
         insertMissingPersonalityTraitStages()
         insertMissingAttachmentStyles()
         insertMissingEmotionalExpressions()
@@ -70,6 +90,46 @@ class L0ReferenceDataInitializer(
             LieEntity(type = it.type, coreStatement = it.description)
         }
         lieRepository.saveAll(missing)
+    }
+
+    private fun insertMissingWoundTimings() {
+        val existingValues = woundTimingRepository.findAll().mapTo(mutableSetOf()) { it.value }
+        val missing = WOUND_TIMING_SPECS.filterNot { it.value in existingValues }.map {
+            WoundTimingEntity(value = it.value, description = it.description)
+        }
+        woundTimingRepository.saveAll(missing)
+    }
+
+    private fun insertMissingWoundPlaces() {
+        val existingValues = woundPlaceRepository.findAll().mapTo(mutableSetOf()) { it.value }
+        val missing = WOUND_PLACE_SPECS.filterNot { it.value in existingValues }.map {
+            WoundPlaceEntity(value = it.value, description = it.description)
+        }
+        woundPlaceRepository.saveAll(missing)
+    }
+
+    private fun insertMissingWoundAgents() {
+        val existingValues = woundAgentRepository.findAll().mapTo(mutableSetOf()) { it.value }
+        val missing = WOUND_AGENT_SPECS.filterNot { it.value in existingValues }.map {
+            WoundAgentEntity(value = it.value, description = it.description)
+        }
+        woundAgentRepository.saveAll(missing)
+    }
+
+    private fun insertMissingWoundForms() {
+        val existingValues = woundFormRepository.findAll().mapTo(mutableSetOf()) { it.value }
+        val missing = WOUND_FORM_SPECS.filterNot { it.value in existingValues }.map {
+            WoundFormEntity(value = it.value, description = it.description)
+        }
+        woundFormRepository.saveAll(missing)
+    }
+
+    private fun insertMissingWoundDurations() {
+        val existingValues = woundDurationRepository.findAll().mapTo(mutableSetOf()) { it.value }
+        val missing = WOUND_DURATION_SPECS.filterNot { it.value in existingValues }.map {
+            WoundDurationEntity(value = it.value, description = it.description)
+        }
+        woundDurationRepository.saveAll(missing)
     }
 
     private fun insertMissingPersonalityTraitStages() {
@@ -140,8 +200,21 @@ class L0ReferenceDataInitializer(
             promptTemplateRepository.flush()
         }
 
-        // 이미 VERSION이 발급된 템플릿은 서버 재시작 시 새 버전을 만들지 않는다.
+        // v3을 VERSION 1로 보존한 뒤 main을 v3.1로 갱신하고 VERSION 2를 한 번만 발행한다.
         if (template.lastVersion == 0L) {
+            promptTemplateRefService.createVersion(
+                template.id,
+                CreatePromptTemplateVersionRefRequest(
+                    fromRefId = branch.id,
+                ),
+            )
+        }
+        if (template.lastVersion == 1L) {
+            branch.instructions = L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_1
+            branch.replaceInputs(
+                listOf(L0_CHARACTER_PROMPT_INPUT_ROLE to L0_CHARACTER_PROMPT_INPUT_TEXT_V3_1),
+            )
+            promptTemplateRefRepository.flush()
             promptTemplateRefService.createVersion(
                 template.id,
                 CreatePromptTemplateVersionRefRequest(
@@ -175,6 +248,11 @@ class L0ReferenceDataInitializer(
         val description: String,
     )
 
+    private data class ValueDescriptionSpec(
+        val value: String,
+        val description: String? = null,
+    )
+
     private data class PersonalityTraitStageSpec(
         val trait: BigFiveTrait,
         val stage: Int,
@@ -206,6 +284,47 @@ class L0ReferenceDataInitializer(
             TypeDescriptionSpec(type = "감정 억압형", description = "감정을 보이면 약점이 된다"),
             TypeDescriptionSpec(type = "과잉 책임형", description = "모든 게 내 탓이고 내가 해결해야 한다"),
             TypeDescriptionSpec(type = "자격 부정형", description = "좋은 것을 받으면 언젠가 대가를 치른다"),
+        )
+
+        val WOUND_TIMING_SPECS = listOf(
+            ValueDescriptionSpec(value = "유년", description = "사건의 인과를 이해하지 못한 채 각인됨"),
+            ValueDescriptionSpec(value = "10대", description = "가장 흔한 선택. 격자에서 과대 표집되지 않게 주의"),
+            ValueDescriptionSpec(value = "20대"),
+            ValueDescriptionSpec(value = "30대 이후", description = "이미 형성된 자아 위에 덧씌워진 상처"),
+        )
+
+        val WOUND_PLACE_SPECS = listOf(
+            ValueDescriptionSpec(value = "가정"),
+            ValueDescriptionSpec(value = "학교"),
+            ValueDescriptionSpec(value = "일터"),
+            ValueDescriptionSpec(value = "공개된 자리"),
+            ValueDescriptionSpec(value = "낯선 곳"),
+        )
+
+        val WOUND_AGENT_SPECS = listOf(
+            ValueDescriptionSpec(value = "부모"),
+            ValueDescriptionSpec(value = "친척", description = "미지정 시 과대 표집됨"),
+            ValueDescriptionSpec(value = "스승"),
+            ValueDescriptionSpec(value = "동료"),
+            ValueDescriptionSpec(value = "친구"),
+            ValueDescriptionSpec(value = "낯선 사람"),
+            ValueDescriptionSpec(value = "특정인 없음", description = "상황·시스템·공백이 상처가 됨"),
+        )
+
+        val WOUND_FORM_SPECS = listOf(
+            ValueDescriptionSpec(value = "사고", description = "예기치 못한 일이 벌어짐. 미지정 시 과대 표집됨"),
+            ValueDescriptionSpec(value = "배신", description = "믿었던 관계가 깨짐"),
+            ValueDescriptionSpec(value = "방치", description = "필요한 순간에 아무도 오지 않음"),
+            ValueDescriptionSpec(value = "비교", description = "다른 사람과 견주어져 밀려남"),
+            ValueDescriptionSpec(value = "상실", description = "있던 것을 잃음"),
+            ValueDescriptionSpec(value = "누명", description = "하지 않은 일의 책임을 짐"),
+        )
+
+        val WOUND_DURATION_SPECS = listOf(
+            ValueDescriptionSpec(value = "한순간"),
+            ValueDescriptionSpec(value = "하루"),
+            ValueDescriptionSpec(value = "몇 달에 걸쳐"),
+            ValueDescriptionSpec(value = "수년간 서서히", description = "극적인 사건 없이 형성된 Lie를 만듦"),
         )
 
         val PERSONALITY_TRAIT_STAGE_SPECS = listOf(

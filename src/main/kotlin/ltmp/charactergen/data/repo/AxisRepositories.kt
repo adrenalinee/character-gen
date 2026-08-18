@@ -8,6 +8,11 @@ import ltmp.charactergen.data.entity.LieEntity
 import ltmp.charactergen.data.entity.PersonalityTraitStageEntity
 import ltmp.charactergen.data.entity.SpeechArchetypeEntity
 import ltmp.charactergen.data.entity.SpeechRegisterEntity
+import ltmp.charactergen.data.entity.WoundAgentEntity
+import ltmp.charactergen.data.entity.WoundDurationEntity
+import ltmp.charactergen.data.entity.WoundFormEntity
+import ltmp.charactergen.data.entity.WoundPlaceEntity
+import ltmp.charactergen.data.entity.WoundTimingEntity
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface DomainRepository : JpaRepository<DomainEntity, Long> {
@@ -18,6 +23,26 @@ interface LieRepository : JpaRepository<LieEntity, Long> {
     fun findAllByOrderByTypeAsc(): List<LieEntity>
 
     fun findByType(type: String): LieEntity?
+}
+
+interface WoundTimingRepository : JpaRepository<WoundTimingEntity, Long> {
+    fun findAllByOrderByIdAsc(): List<WoundTimingEntity>
+}
+
+interface WoundPlaceRepository : JpaRepository<WoundPlaceEntity, Long> {
+    fun findAllByOrderByIdAsc(): List<WoundPlaceEntity>
+}
+
+interface WoundAgentRepository : JpaRepository<WoundAgentEntity, Long> {
+    fun findAllByOrderByIdAsc(): List<WoundAgentEntity>
+}
+
+interface WoundFormRepository : JpaRepository<WoundFormEntity, Long> {
+    fun findAllByOrderByIdAsc(): List<WoundFormEntity>
+}
+
+interface WoundDurationRepository : JpaRepository<WoundDurationEntity, Long> {
+    fun findAllByOrderByIdAsc(): List<WoundDurationEntity>
 }
 
 interface PersonalityTraitStageRepository : JpaRepository<PersonalityTraitStageEntity, Long> {

@@ -88,11 +88,19 @@ data class CharacterTraits(
 
 data class CharacterBehavior(
     @get:JsonProperty("attachment_note")
-    val attachmentNote: String,
+    val attachmentNote: String, // AttachmentNote,
     @get:JsonProperty("emotional_expression_note")
     val emotionalExpressionNote: String,
     @get:JsonProperty("avoidance_note")
     val avoidanceNote: String,
+)
+
+data class AttachmentNote(
+    val early: String,
+    val deepening: String,
+    val close: String,
+    @get:JsonProperty("on_rejection")
+    val onRejection: String,
 )
 
 data class CharacterVoice(

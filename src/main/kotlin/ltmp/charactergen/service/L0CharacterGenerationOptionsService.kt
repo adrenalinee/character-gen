@@ -7,6 +7,7 @@ import ltmp.charactergen.api.axis.PersonalityTraitStageOptionDto
 import ltmp.charactergen.api.axis.SpeechArchetypeOptionDto
 import ltmp.charactergen.api.axis.SpeechRegisterOptionDto
 import ltmp.charactergen.api.axis.TypeDescriptionOptionDto
+import ltmp.charactergen.api.axis.WoundOptionDto
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
 import ltmp.charactergen.data.repo.DomainRepository
@@ -15,6 +16,11 @@ import ltmp.charactergen.data.repo.LieRepository
 import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.data.repo.SpeechRegisterRepository
+import ltmp.charactergen.data.repo.WoundAgentRepository
+import ltmp.charactergen.data.repo.WoundDurationRepository
+import ltmp.charactergen.data.repo.WoundFormRepository
+import ltmp.charactergen.data.repo.WoundPlaceRepository
+import ltmp.charactergen.data.repo.WoundTimingRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -22,6 +28,11 @@ import org.springframework.transaction.annotation.Transactional
 class L0CharacterGenerationOptionsService(
     private val domainRepository: DomainRepository,
     private val lieRepository: LieRepository,
+    private val woundTimingRepository: WoundTimingRepository,
+    private val woundPlaceRepository: WoundPlaceRepository,
+    private val woundAgentRepository: WoundAgentRepository,
+    private val woundFormRepository: WoundFormRepository,
+    private val woundDurationRepository: WoundDurationRepository,
     private val personalityTraitStageRepository: PersonalityTraitStageRepository,
     private val attachmentStyleRepository: AttachmentStyleRepository,
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
@@ -36,6 +47,21 @@ class L0CharacterGenerationOptionsService(
         },
         lies = lieRepository.findAllByOrderByTypeAsc().map {
             LieOptionDto(id = it.id, type = it.type, coreStatement = it.coreStatement)
+        },
+        woundTimings = woundTimingRepository.findAllByOrderByIdAsc().map {
+            WoundOptionDto(id = it.id, value = it.value, description = it.description)
+        },
+        woundPlaces = woundPlaceRepository.findAllByOrderByIdAsc().map {
+            WoundOptionDto(id = it.id, value = it.value, description = it.description)
+        },
+        woundAgents = woundAgentRepository.findAllByOrderByIdAsc().map {
+            WoundOptionDto(id = it.id, value = it.value, description = it.description)
+        },
+        woundForms = woundFormRepository.findAllByOrderByIdAsc().map {
+            WoundOptionDto(id = it.id, value = it.value, description = it.description)
+        },
+        woundDurations = woundDurationRepository.findAllByOrderByIdAsc().map {
+            WoundOptionDto(id = it.id, value = it.value, description = it.description)
         },
         personalityTraitStages = personalityTraitStageRepository.findAllByOrderByTraitAscStageAsc().map {
             PersonalityTraitStageOptionDto(id = it.id, trait = it.trait, stage = it.stage, description = it.description)
