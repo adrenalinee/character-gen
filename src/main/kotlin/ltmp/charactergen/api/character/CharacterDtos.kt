@@ -67,8 +67,20 @@ data class CharacterDto(
     @field:Schema(description = "정체성 설명", requiredMode = Schema.RequiredMode.REQUIRED)
     val identityNote: String,
 
-    @field:Schema(description = "관계 태도 설명", requiredMode = Schema.RequiredMode.REQUIRED)
-    val attachmentNote: String,
+//    @field:Schema(description = "관계 태도 설명", requiredMode = Schema.RequiredMode.REQUIRED)
+//    val attachmentNote: String,
+
+    @field:Schema(description = "관계 태도 설명. 관계 형성 초기", requiredMode = Schema.RequiredMode.REQUIRED)
+    val attachmentNoteEarly: String,
+
+    @field:Schema(description = "관계 태도 설명. 관계 심화", requiredMode = Schema.RequiredMode.REQUIRED)
+    val attachmentNoteDeepening: String,
+
+    @field:Schema(description = "관계 태도 설명. 가까운 관계", requiredMode = Schema.RequiredMode.REQUIRED)
+    val attachmentNoteClose: String,
+
+    @field:Schema(description = "관계 태도 설명. 거절당했을 때", requiredMode = Schema.RequiredMode.REQUIRED)
+    val attachmentNoteOnRejection: String,
 
     @field:Schema(description = "정서 표출 설명", requiredMode = Schema.RequiredMode.REQUIRED)
     val emotionalExpressionNote: String,
@@ -297,7 +309,10 @@ fun Character.toDto() = CharacterDto(
     contradictionSharedRoot = contradictionSharedRoot,
     expressionNote = expressionNote,
     identityNote = identityNote,
-    attachmentNote = attachmentNote,
+    attachmentNoteEarly = attachmentNoteEarly,
+    attachmentNoteDeepening = attachmentNoteDeepening,
+    attachmentNoteClose = attachmentNoteClose,
+    attachmentNoteOnRejection = attachmentNoteOnRejection,
     emotionalExpressionNote = emotionalExpressionNote,
     avoidanceNote = avoidanceNote,
     speechArchetypeNote = speechArchetypeNote,

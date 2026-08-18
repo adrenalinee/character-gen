@@ -1,15 +1,6 @@
 package ltmp.charactergen.data.entity
 
-import jakarta.persistence.CascadeType
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.FetchType
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.Lob
-import jakarta.persistence.OneToMany
-import jakarta.persistence.OneToOne
-import jakarta.persistence.OrderColumn
-import jakarta.persistence.Table
+import jakarta.persistence.*
 import ltmp.charactergen.data.LongBaseEntity
 import org.hibernate.annotations.BatchSize
 
@@ -82,9 +73,25 @@ class Character(
     @Column(name = "identity_note", nullable = false)
     val identityNote: String,
 
+//    @Lob
+//    @Column(name = "attachment_note", nullable = false)
+//    val attachmentNote: String,
+
     @Lob
-    @Column(name = "attachment_note", nullable = false)
-    val attachmentNote: String,
+    @Column(nullable = false)
+    val attachmentNoteEarly: String,
+
+    @Lob
+    @Column(nullable = false)
+    val attachmentNoteDeepening: String,
+
+    @Lob
+    @Column(nullable = false)
+    val attachmentNoteClose: String,
+
+    @Lob
+    @Column(nullable = false)
+    val attachmentNoteOnRejection: String,
 
     @Lob
     @Column(name = "emotional_expression_note", nullable = false)
