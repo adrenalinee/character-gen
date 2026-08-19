@@ -1,9 +1,11 @@
 package ltmp.charactergen.data.entity
 
 import jakarta.persistence.Column
+import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import ltmp.charactergen.data.BigFiveVector
 import ltmp.charactergen.data.LongBaseEntity
 
 @Entity
@@ -17,4 +19,7 @@ class SpeechArchetypeEntity(
 
     @Column(nullable = false, length = 1000)
     var description: String,
+
+    @Embedded
+    var bigFiveVector: BigFiveVector,
 ) : LongBaseEntity()

@@ -2,6 +2,7 @@ package ltmp.charactergen.data.repo
 
 import ltmp.charactergen.data.entity.AttachmentStyleEntity
 import ltmp.charactergen.data.entity.AvoidanceStyleEntity
+import ltmp.charactergen.data.entity.AxisConflictEntity
 import ltmp.charactergen.data.entity.DomainEntity
 import ltmp.charactergen.data.entity.EmotionalExpressionEntity
 import ltmp.charactergen.data.entity.LieEntity
@@ -14,6 +15,7 @@ import ltmp.charactergen.data.entity.WoundFormEntity
 import ltmp.charactergen.data.entity.WoundPlaceEntity
 import ltmp.charactergen.data.entity.WoundTimingEntity
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 
 interface DomainRepository : JpaRepository<DomainEntity, Long> {
     fun findAllByOrderByNameAsc(): List<DomainEntity>
@@ -73,6 +75,23 @@ interface SpeechArchetypeRepository : JpaRepository<SpeechArchetypeEntity, Long>
     fun findAllByOrderByNameAsc(): List<SpeechArchetypeEntity>
 
     fun findByName(name: String): SpeechArchetypeEntity?
+}
+
+interface AxisConflictRepository : JpaRepository<AxisConflictEntity, Long> {
+    @Query(
+        """
+        select conflict from AxisConflictEntity conflict
+        join fetch conflict.emotionalExpression
+        join fetch conflict.avoidanceStyle
+        order by conflict.id asc
+        """,
+    )
+    fun findAllWithAxisValues(): List<AxisConflictEntity>
+
+    fun findByEmotionalExpressionIdAndAvoidanceStyleId(
+        emotionalExpressionId: Long,
+        avoidanceStyleId: Long,
+    ): AxisConflictEntity?
 }
 
 interface SpeechRegisterRepository : JpaRepository<SpeechRegisterEntity, Long> {

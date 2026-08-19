@@ -1,6 +1,7 @@
 package ltmp.charactergen.service.generation
 
 import ltmp.charactergen.api.L0CharacterGenerationRequest
+import ltmp.charactergen.data.BigFiveVector
 import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.repo.CharacterRepository
@@ -105,12 +106,16 @@ class L0GenerationExecutionStateService(
                 neuroticismDescription = execute.neuroticismStage?.description,
                 attachmentType = execute.attachmentStyle?.type,
                 attachmentDescription = execute.attachmentStyle?.description,
+                attachmentVector = execute.attachmentStyle?.bigFiveVector,
                 emotionalExpressionType = execute.emotionalExpression?.type,
                 emotionalExpressionDescription = execute.emotionalExpression?.description,
+                emotionalExpressionVector = execute.emotionalExpression?.bigFiveVector,
                 avoidanceStyleType = execute.avoidanceStyle?.type,
                 avoidanceStyleDescription = execute.avoidanceStyle?.description,
+                avoidanceStyleVector = execute.avoidanceStyle?.bigFiveVector,
                 speechArchetypeName = execute.speechArchetype?.name,
                 speechArchetypeDescription = execute.speechArchetype?.description,
+                speechArchetypeVector = execute.speechArchetype?.bigFiveVector,
                 speechRegisterName = execute.speechRegister?.name,
             ),
         )
@@ -188,11 +193,15 @@ data class L0GenerationOptions(
     val neuroticismDescription: String? = null,
     val attachmentType: String? = null,
     val attachmentDescription: String? = null,
+    val attachmentVector: BigFiveVector? = null,
     val emotionalExpressionType: String? = null,
     val emotionalExpressionDescription: String? = null,
+    val emotionalExpressionVector: BigFiveVector? = null,
     val avoidanceStyleType: String? = null,
     val avoidanceStyleDescription: String? = null,
+    val avoidanceStyleVector: BigFiveVector? = null,
     val speechArchetypeName: String? = null,
     val speechArchetypeDescription: String? = null,
+    val speechArchetypeVector: BigFiveVector? = null,
     val speechRegisterName: String? = null,
 )

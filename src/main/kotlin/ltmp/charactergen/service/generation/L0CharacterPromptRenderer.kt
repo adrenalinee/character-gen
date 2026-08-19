@@ -1,10 +1,17 @@
 package ltmp.charactergen.service.generation
 
 import ltmp.charactergen.api.L0CharacterGenerationRequest
+import ltmp.charactergen.data.BigFiveTrait
+import ltmp.charactergen.data.BigFiveVector
+import ltmp.charactergen.data.ExpressionAxis
+import ltmp.charactergen.service.ExpressionAxisValue
+import ltmp.charactergen.service.L0AxisBalanceService
 import org.springframework.stereotype.Component
 
 @Component
-class L0CharacterPromptRenderer {
+class L0CharacterPromptRenderer(
+    private val axisBalanceService: L0AxisBalanceService,
+) {
     fun render(
         prompt: GenerationPrompt,
         request: L0CharacterGenerationRequest,
@@ -60,12 +67,60 @@ class L0CharacterPromptRenderer {
         "SCALE" to request.scale?.toString().orEmpty(),
         "EMOTION" to request.emotion?.toString().orEmpty(),
         "EXTRA_CONSTRAINTS" to request.extraConstraints.orEmpty(),
+        "IMBALANCE_NOTE" to imbalanceNote(options),
     )
+
+    /**
+     * 불균형 안내는 저장하지 않고 렌더 시점에 축 값으로부터 다시 계산한다.
+     */
+    private fun imbalanceNote(options: L0GenerationOptions): String {
+        val stages = buildMap {
+            options.opennessStage?.let { put(BigFiveTrait.OPENNESS, it) }
+            options.conscientiousnessStage?.let { put(BigFiveTrait.CONSCIENTIOUSNESS, it) }
+            options.extraversionStage?.let { put(BigFiveTrait.EXTRAVERSION, it) }
+            options.agreeablenessStage?.let { put(BigFiveTrait.AGREEABLENESS, it) }
+            options.neuroticismStage?.let { put(BigFiveTrait.NEUROTICISM, it) }
+        }
+        val axisValues = listOfNotNull(
+            expressionAxisValue(
+                ExpressionAxis.ATTACHMENT_STYLE,
+                options.attachmentType,
+                options.attachmentVector,
+            ),
+            expressionAxisValue(
+                ExpressionAxis.EMOTIONAL_EXPRESSION,
+                options.emotionalExpressionType,
+                options.emotionalExpressionVector,
+            ),
+            expressionAxisValue(
+                ExpressionAxis.AVOIDANCE_STYLE,
+                options.avoidanceStyleType,
+                options.avoidanceStyleVector,
+            ),
+            expressionAxisValue(
+                ExpressionAxis.SPEECH_ARCHETYPE,
+                options.speechArchetypeName,
+                options.speechArchetypeVector,
+            ),
+        )
+        val imbalances = axisBalanceService.findImbalances(stages, axisValues)
+        return axisBalanceService.buildImbalanceNote(imbalances) ?: NO_IMBALANCE
+    }
+
+    private fun expressionAxisValue(
+        axis: ExpressionAxis,
+        name: String?,
+        vector: BigFiveVector?,
+    ): ExpressionAxisValue? {
+        if (name == null || vector == null) return null
+        return ExpressionAxisValue(axis = axis, name = name, vector = vector)
+    }
 
     private fun replacePlaceholders(template: String, replacements: Map<String, String>): String =
         PLACEHOLDER_REGEX.replace(template) { match -> replacements[match.groupValues[1]].orEmpty() }
 
     private companion object {
         val PLACEHOLDER_REGEX = Regex("""\{\{([A-Z0-9_]+)}}""")
+        const val NO_IMBALANCE = "없음"
     }
 }

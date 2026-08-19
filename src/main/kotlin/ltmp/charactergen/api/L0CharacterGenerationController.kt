@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import ltmp.charactergen.api.axis.L0AxisBalanceCheckDto
+import ltmp.charactergen.api.axis.L0AxisBalanceCheckRequest
 import ltmp.charactergen.api.axis.L0CharacterGenerationOptionsDto
 import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.service.L0CharacterGenerationOptionsService
@@ -90,7 +92,7 @@ class L0CharacterGenerationController(
                 description = "생성 요청을 수락함",
                 content = [Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = Schema(implementation = L0GenerationExecuteDto::class))],
             ),
-            ApiResponse(responseCode = "400", description = "실행 불가능한 ref 또는 Big Five 축과 맞지 않는 단계 옵션", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
+            ApiResponse(responseCode = "400", description = "실행 불가능한 ref, Big Five 축과 맞지 않는 단계 옵션, 충돌 조합, 또는 불균형 2개 이상", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
             ApiResponse(responseCode = "404", description = "프롬프트 ref 또는 생성 옵션 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
             ApiResponse(responseCode = "429", description = "동시 생성 실행 한도 초과", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
         ],
@@ -99,4 +101,27 @@ class L0CharacterGenerationController(
     fun generate(
         @Valid @RequestBody request: L0CharacterGenerationRequest,
     ): ResponseEntity<L0GenerationExecuteDto> = ResponseEntity.accepted().body(generationService.requestGeneration(request))
+
+    @Operation(
+        summary = "축 정합성 사전 점검",
+        description = "선택한 성향과 표현 축의 불균형·충돌을 생성 요청 전에 계산한다. " +
+            "불균형은 성향 단계와 표현 축의 예상 Big Five 좌표 사이 거리가 3 이상인 경우이고, " +
+            "충돌은 정서 표출과 회피 방식이 같은 상황에서 반대를 지시하는 조합이다. " +
+            "이 API는 조합을 막지 않고 결과만 반환하며, blocked가 true인 조합으로 생성을 요청하면 400이 된다.",
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "점검 완료",
+                content = [Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = Schema(implementation = L0AxisBalanceCheckDto::class))],
+            ),
+            ApiResponse(responseCode = "400", description = "Big Five 축과 맞지 않는 단계 옵션", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
+            ApiResponse(responseCode = "404", description = "생성 옵션 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
+        ],
+    )
+    @PostMapping("/axis-balance-checks")
+    fun checkAxisBalance(
+        @Valid @RequestBody request: L0AxisBalanceCheckRequest,
+    ): L0AxisBalanceCheckDto = generationService.checkAxisBalance(request)
 }

@@ -2,9 +2,11 @@ package ltmp.charactergen.config
 
 import ltmp.charactergen.api.prompt.CreatePromptTemplateVersionRefRequest
 import ltmp.charactergen.data.BigFiveTrait
+import ltmp.charactergen.data.BigFiveVector
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.entity.AttachmentStyleEntity
 import ltmp.charactergen.data.entity.AvoidanceStyleEntity
+import ltmp.charactergen.data.entity.AxisConflictEntity
 import ltmp.charactergen.data.entity.DomainEntity
 import ltmp.charactergen.data.entity.EmotionalExpressionEntity
 import ltmp.charactergen.data.entity.LieEntity
@@ -20,6 +22,7 @@ import ltmp.charactergen.data.entity.WoundPlaceEntity
 import ltmp.charactergen.data.entity.WoundTimingEntity
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
+import ltmp.charactergen.data.repo.AxisConflictRepository
 import ltmp.charactergen.data.repo.DomainRepository
 import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.LieRepository
@@ -53,6 +56,7 @@ class L0ReferenceDataInitializer(
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
+    private val axisConflictRepository: AxisConflictRepository,
     private val speechRegisterRepository: SpeechRegisterRepository,
     private val promptTemplateRepository: PromptTemplateRepository,
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
@@ -72,6 +76,7 @@ class L0ReferenceDataInitializer(
         insertMissingEmotionalExpressions()
         insertMissingAvoidanceStyles()
         insertMissingSpeechArchetypes()
+        insertMissingAxisConflicts()
         insertMissingSpeechRegisters()
         insertInitialL0CharacterPrompt()
     }
@@ -144,35 +149,94 @@ class L0ReferenceDataInitializer(
     }
 
     private fun insertMissingAttachmentStyles() {
-        val existingTypes = attachmentStyleRepository.findAll().mapTo(mutableSetOf()) { it.type }
-        val missing = ATTACHMENT_STYLE_SPECS.filterNot { it.type in existingTypes }.map {
-            AttachmentStyleEntity(type = it.type, description = it.description)
+        val existing = attachmentStyleRepository.findAll().associateBy { it.type }
+        val missing = ATTACHMENT_STYLE_SPECS.mapNotNull { spec ->
+            val entity = existing[spec.type]
+            if (entity == null) {
+                AttachmentStyleEntity(
+                    type = spec.type,
+                    description = spec.description,
+                    bigFiveVector = spec.toVector(),
+                )
+            } else {
+                entity.bigFiveVector = spec.toVector()
+                null
+            }
         }
         attachmentStyleRepository.saveAll(missing)
     }
 
     private fun insertMissingEmotionalExpressions() {
-        val existingTypes = emotionalExpressionRepository.findAll().mapTo(mutableSetOf()) { it.type }
-        val missing = EMOTIONAL_EXPRESSION_SPECS.filterNot { it.type in existingTypes }.map {
-            EmotionalExpressionEntity(type = it.type, description = it.description)
+        val existing = emotionalExpressionRepository.findAll().associateBy { it.type }
+        val missing = EMOTIONAL_EXPRESSION_SPECS.mapNotNull { spec ->
+            val entity = existing[spec.type]
+            if (entity == null) {
+                EmotionalExpressionEntity(
+                    type = spec.type,
+                    description = spec.description,
+                    bigFiveVector = spec.toVector(),
+                )
+            } else {
+                entity.bigFiveVector = spec.toVector()
+                null
+            }
         }
-        emotionalExpressionRepository.saveAll(missing)
+        emotionalExpressionRepository.saveAllAndFlush(missing)
     }
 
     private fun insertMissingAvoidanceStyles() {
-        val existingTypes = avoidanceStyleRepository.findAll().mapTo(mutableSetOf()) { it.type }
-        val missing = AVOIDANCE_STYLE_SPECS.filterNot { it.type in existingTypes }.map {
-            AvoidanceStyleEntity(type = it.type, description = it.description)
+        val existing = avoidanceStyleRepository.findAll().associateBy { it.type }
+        val missing = AVOIDANCE_STYLE_SPECS.mapNotNull { spec ->
+            val entity = existing[spec.type]
+            if (entity == null) {
+                AvoidanceStyleEntity(
+                    type = spec.type,
+                    description = spec.description,
+                    bigFiveVector = spec.toVector(),
+                )
+            } else {
+                entity.bigFiveVector = spec.toVector()
+                null
+            }
         }
-        avoidanceStyleRepository.saveAll(missing)
+        avoidanceStyleRepository.saveAllAndFlush(missing)
     }
 
     private fun insertMissingSpeechArchetypes() {
-        val existingNames = speechArchetypeRepository.findAll().mapTo(mutableSetOf()) { it.name }
-        val missing = SPEECH_ARCHETYPE_SPECS.filterNot { it.type in existingNames }.map {
-            SpeechArchetypeEntity(name = it.type, description = it.description)
+        val existing = speechArchetypeRepository.findAll().associateBy { it.name }
+        val missing = SPEECH_ARCHETYPE_SPECS.mapNotNull { spec ->
+            val entity = existing[spec.type]
+            if (entity == null) {
+                SpeechArchetypeEntity(
+                    name = spec.type,
+                    description = spec.description,
+                    bigFiveVector = spec.toVector(),
+                )
+            } else {
+                entity.bigFiveVector = spec.toVector()
+                null
+            }
         }
         speechArchetypeRepository.saveAll(missing)
+    }
+
+    private fun insertMissingAxisConflicts() {
+        val existingPairs = axisConflictRepository.findAllWithAxisValues()
+            .mapTo(mutableSetOf()) { it.emotionalExpression.type to it.avoidanceStyle.type }
+        val missing = AXIS_CONFLICT_SPECS
+            .filterNot { (it.emotionalExpressionType to it.avoidanceStyleType) in existingPairs }
+            .map { spec ->
+                AxisConflictEntity(
+                    emotionalExpression = requireNotNull(
+                        emotionalExpressionRepository.findByType(spec.emotionalExpressionType),
+                    ) { "EmotionalExpression not found for conflict: ${spec.emotionalExpressionType}" },
+                    avoidanceStyle = requireNotNull(
+                        avoidanceStyleRepository.findByType(spec.avoidanceStyleType),
+                    ) { "AvoidanceStyle not found for conflict: ${spec.avoidanceStyleType}" },
+                    reason = spec.reason,
+                )
+            }
+        axisConflictRepository.saveAll(missing)
     }
 
     private fun insertMissingSpeechRegisters() {
@@ -246,6 +310,35 @@ class L0ReferenceDataInitializer(
     private data class TypeDescriptionSpec(
         val type: String,
         val description: String,
+    )
+
+    /**
+     * 표현 축의 값 하나와, 그 값이 어떤 성향에서 나오기 쉬운지의 예상 좌표.
+     * 좌표는 3단계를 0으로 본 오프셋이며 0은 그 성향을 예측하지 않는다는 뜻이다.
+     */
+    private data class AxisValueSpec(
+        val type: String,
+        val description: String,
+        val openness: Int,
+        val conscientiousness: Int,
+        val extraversion: Int,
+        val agreeableness: Int,
+        val neuroticism: Int,
+    ) {
+        // 엔티티마다 별도 인스턴스를 가져야 하므로 매번 새로 만든다.
+        fun toVector(): BigFiveVector = BigFiveVector(
+            openness = openness,
+            conscientiousness = conscientiousness,
+            extraversion = extraversion,
+            agreeableness = agreeableness,
+            neuroticism = neuroticism,
+        )
+    }
+
+    private data class AxisConflictSpec(
+        val emotionalExpressionType: String,
+        val avoidanceStyleType: String,
+        val reason: String,
     )
 
     private data class ValueDescriptionSpec(
@@ -355,42 +448,65 @@ class L0ReferenceDataInitializer(
             PersonalityTraitStageSpec(BigFiveTrait.NEUROTICISM, 5, "감정 진폭이 크다. 사소한 계기로 크게 흔들리고, 가라앉는 데 시간이 걸린다."),
         )
 
+        // 예상 좌표 순서: 개방성, 성실성, 외향성, 우호성, 신경성
         val ATTACHMENT_STYLE_SPECS = listOf(
-            TypeDescriptionSpec(type = "경계 후 개방", description = "오래 재본 뒤에야 열지만, 한번 열면 깊이 들어간다"),
-            TypeDescriptionSpec(type = "급속 접근 후 냉각", description = "빠르게 가까워지고 어느 순간 급격히 식는다"),
-            TypeDescriptionSpec(type = "일정 거리 유지", description = "누구와도 비슷한 거리를 두고, 그 선을 넘지 않는다"),
-            TypeDescriptionSpec(type = "내외 이중", description = "안에 들인 사람과 밖의 사람을 전혀 다르게 대한다"),
-            TypeDescriptionSpec(type = "기울어짐", description = "가까워지면 상대 중심으로 자신을 맞춘다"),
-            TypeDescriptionSpec(type = "시험형", description = "떠날지 확인하려고 관계를 자꾸 건드린다"),
+            AxisValueSpec("경계 후 개방", "오래 재본 뒤에야 열지만, 한번 열면 깊이 들어간다", 0, 0, -1, -1, 0),
+            AxisValueSpec("급속 접근 후 냉각", "빠르게 가까워지고 어느 순간 급격히 식는다", 0, 0, 2, 0, 1),
+            AxisValueSpec("일정 거리 유지", "누구와도 비슷한 거리를 두고, 그 선을 넘지 않는다", 0, 0, -1, 0, -1),
+            AxisValueSpec("내외 이중", "안에 들인 사람과 밖의 사람을 전혀 다르게 대한다", 0, 0, 0, -1, 0),
+            AxisValueSpec("기울어짐", "가까워지면 상대 중심으로 자신을 맞춘다", 0, 0, 0, 2, 0),
+            AxisValueSpec("시험형", "떠날지 확인하려고 관계를 자꾸 건드린다", 0, 0, 0, -1, 2),
         )
 
         val EMOTIONAL_EXPRESSION_SPECS = listOf(
-            TypeDescriptionSpec(type = "즉시 표출", description = "느낀 순간 표정과 말에 그대로 나온다"),
-            TypeDescriptionSpec(type = "사실 치환", description = "감정 대신 상황·수치·해야 할 일을 말한다"),
-            TypeDescriptionSpec(type = "과장 후 축소", description = "실제보다 크게 말해놓고 나중에 별일 아니라고 거둔다"),
-            TypeDescriptionSpec(type = "지연 표출", description = "그 자리에서는 안 나오고 한참 뒤 다른 형태로 나온다"),
-            TypeDescriptionSpec(type = "신체화", description = "말 대신 행동·자세·몸 상태로 나타난다"),
-            TypeDescriptionSpec(type = "타인 감정 우선", description = "자기 감정은 알아채지 못하고 남의 감정에는 즉각 반응한다"),
+            AxisValueSpec("즉시 표출", "느낀 순간 표정과 말에 그대로 나온다", 0, 0, 1, 0, 1),
+            AxisValueSpec("사실 치환", "감정 대신 상황·수치·해야 할 일을 말한다", 0, 1, 0, 0, -1),
+            AxisValueSpec("과장 후 축소", "실제보다 크게 말해놓고 나중에 별일 아니라고 거둔다", 0, 0, 1, 0, 1),
+            AxisValueSpec("지연 표출", "그 자리에서는 안 나오고 한참 뒤 다른 형태로 나온다", 0, 0, -1, 0, 0),
+            AxisValueSpec("신체화", "말 대신 행동·자세·몸 상태로 나타난다", 0, 0, -1, 0, 1),
+            AxisValueSpec("타인 감정 우선", "자기 감정은 알아채지 못하고 남의 감정에는 즉각 반응한다", 0, 0, 0, 2, 0),
         )
 
         val AVOIDANCE_STYLE_SPECS = listOf(
-            TypeDescriptionSpec(type = "농담으로 넘김", description = "웃기게 만들어 질문을 무력화한다"),
-            TypeDescriptionSpec(type = "화제 전환", description = "관련 있어 보이는 다른 이야기로 옮긴다"),
-            TypeDescriptionSpec(type = "짧게 답하고 침묵", description = "최소한만 답하고 더 말하지 않는다"),
-            TypeDescriptionSpec(type = "질문으로 되받음", description = "상대에게 질문을 던져 초점을 옮긴다"),
-            TypeDescriptionSpec(type = "일부만 말하고 흐림", description = "사실의 일부를 주고 나머지는 얼버무린다"),
-            TypeDescriptionSpec(type = "거절 명시", description = "그 이야기는 하지 않겠다고 분명히 말한다"),
+            AxisValueSpec("농담으로 넘김", "웃기게 만들어 질문을 무력화한다", 0, 0, 1, 1, 0),
+            AxisValueSpec("화제 전환", "관련 있어 보이는 다른 이야기로 옮긴다", 0, 0, 0, 1, 0),
+            AxisValueSpec("짧게 답하고 침묵", "최소한만 답하고 더 말하지 않는다", 0, 0, -2, 0, 0),
+            AxisValueSpec("질문으로 되받음", "상대에게 질문을 던져 초점을 옮긴다", 0, 0, 1, 0, 0),
+            AxisValueSpec("일부만 말하고 흐림", "사실의 일부를 주고 나머지는 얼버무린다", 0, 0, 0, 0, 1),
+            AxisValueSpec("거절 명시", "그 이야기는 하지 않겠다고 분명히 말한다", 0, 0, 0, -2, 0),
         )
 
         val SPEECH_ARCHETYPE_SPECS = listOf(
-            TypeDescriptionSpec(type = "실무형", description = "결론과 시각을 먼저 말하고 이유는 생략"),
-            TypeDescriptionSpec(type = "우회형", description = "농담이나 딴소리로 감싼 뒤 본론에 늦게 도착"),
-            TypeDescriptionSpec(type = "장황형", description = "하나를 설명하려고 배경부터 길게 깐다"),
-            TypeDescriptionSpec(type = "반문형", description = "답하기 전에 되묻는다"),
-            TypeDescriptionSpec(type = "비유형", description = "자기 분야의 사물에 빗대어 말한다"),
-            TypeDescriptionSpec(type = "과공손형", description = "필요 이상으로 예의를 갖춰 거리를 만든다"),
-            TypeDescriptionSpec(type = "단답형", description = "최소한만 말하고 나머지는 상대가 채우게 둔다"),
-            TypeDescriptionSpec(type = "독백형", description = "상대에게 말하다가 혼잣말로 새어 나간다"),
+            AxisValueSpec("실무형", "결론과 시각을 먼저 말하고 이유는 생략", 0, 1, 0, 0, 0),
+            AxisValueSpec("우회형", "농담이나 딴소리로 감싼 뒤 본론에 늦게 도착", 0, 0, 1, 1, 0),
+            AxisValueSpec("장황형", "하나를 설명하려고 배경부터 길게 깐다", 0, 1, 1, 0, 0),
+            AxisValueSpec("반문형", "답하기 전에 되묻는다", 0, 0, -1, 0, 1),
+            AxisValueSpec("비유형", "자기 분야의 사물에 빗대어 말한다", 2, 0, 0, 0, 0),
+            AxisValueSpec("과공손형", "필요 이상으로 예의를 갖춰 거리를 만든다", 0, 0, -1, 1, 1),
+            AxisValueSpec("단답형", "최소한만 말하고 나머지는 상대가 채우게 둔다", 0, 0, -2, 0, 0),
+            AxisValueSpec("독백형", "상대에게 말하다가 혼잣말로 새어 나간다", 0, 0, -1, 0, 1),
+        )
+
+        /**
+         * 정서 표출과 회피 방식은 "감정적인 화제가 나왔을 때"에서 겹치므로 이 조합만 막는다.
+         * 나머지 축쌍은 서로 다른 상황에 적용되어 원칙적으로 충돌하지 않는다.
+         */
+        val AXIS_CONFLICT_SPECS = listOf(
+            AxisConflictSpec(
+                emotionalExpressionType = "즉시 표출",
+                avoidanceStyleType = "짧게 답하고 침묵",
+                reason = "감정이 그 자리에서 드러나는 인물이 같은 상황에서 말을 줄이는 것은 둘 중 하나가 무시된다는 뜻이다",
+            ),
+            AxisConflictSpec(
+                emotionalExpressionType = "즉시 표출",
+                avoidanceStyleType = "거절 명시",
+                reason = "감정이 그대로 나오는 인물이 그 화제를 하지 않겠다고 선언하는 것은 양립하지 않는다",
+            ),
+            AxisConflictSpec(
+                emotionalExpressionType = "신체화",
+                avoidanceStyleType = "거절 명시",
+                reason = "말 대신 몸으로 나타내는 인물이 거절만 말로 분명히 하는 것은 양립하지 않는다",
+            ),
         )
 
         val SPEECH_REGISTER_NAMES = listOf(

@@ -1,5 +1,6 @@
 package ltmp.charactergen.service
 
+import ltmp.charactergen.api.axis.AxisConflictOptionDto
 import ltmp.charactergen.api.axis.DomainOptionDto
 import ltmp.charactergen.api.axis.L0CharacterGenerationOptionsDto
 import ltmp.charactergen.api.axis.LieOptionDto
@@ -8,8 +9,10 @@ import ltmp.charactergen.api.axis.SpeechArchetypeOptionDto
 import ltmp.charactergen.api.axis.SpeechRegisterOptionDto
 import ltmp.charactergen.api.axis.TypeDescriptionOptionDto
 import ltmp.charactergen.api.axis.WoundOptionDto
+import ltmp.charactergen.api.axis.toDto
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
+import ltmp.charactergen.data.repo.AxisConflictRepository
 import ltmp.charactergen.data.repo.DomainRepository
 import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.LieRepository
@@ -39,6 +42,7 @@ class L0CharacterGenerationOptionsService(
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
     private val speechRegisterRepository: SpeechRegisterRepository,
+    private val axisConflictRepository: AxisConflictRepository,
 ) {
     @Transactional(readOnly = true)
     fun getOptions() = L0CharacterGenerationOptionsDto(
@@ -67,19 +71,48 @@ class L0CharacterGenerationOptionsService(
             PersonalityTraitStageOptionDto(id = it.id, trait = it.trait, stage = it.stage, description = it.description)
         },
         attachments = attachmentStyleRepository.findAllByOrderByTypeAsc().map {
-            TypeDescriptionOptionDto(id = it.id, type = it.type, description = it.description)
+            TypeDescriptionOptionDto(
+                id = it.id,
+                type = it.type,
+                description = it.description,
+                bigFiveVector = it.bigFiveVector.toDto(),
+            )
         },
         emotionalExpressions = emotionalExpressionRepository.findAllByOrderByTypeAsc().map {
-            TypeDescriptionOptionDto(id = it.id, type = it.type, description = it.description)
+            TypeDescriptionOptionDto(
+                id = it.id,
+                type = it.type,
+                description = it.description,
+                bigFiveVector = it.bigFiveVector.toDto(),
+            )
         },
         avoidanceStyles = avoidanceStyleRepository.findAllByOrderByTypeAsc().map {
-            TypeDescriptionOptionDto(id = it.id, type = it.type, description = it.description)
+            TypeDescriptionOptionDto(
+                id = it.id,
+                type = it.type,
+                description = it.description,
+                bigFiveVector = it.bigFiveVector.toDto(),
+            )
         },
         speechArchetypes = speechArchetypeRepository.findAllByOrderByNameAsc().map {
-            SpeechArchetypeOptionDto(id = it.id, name = it.name, description = it.description)
+            SpeechArchetypeOptionDto(
+                id = it.id,
+                name = it.name,
+                description = it.description,
+                bigFiveVector = it.bigFiveVector.toDto(),
+            )
         },
         speechRegisters = speechRegisterRepository.findAllByOrderByIdAsc().map {
             SpeechRegisterOptionDto(id = it.id, name = it.name)
+        },
+        axisConflicts = axisConflictRepository.findAllWithAxisValues().map {
+            AxisConflictOptionDto(
+                emotionalExpressionId = it.emotionalExpression.id,
+                emotionalExpressionType = it.emotionalExpression.type,
+                avoidanceStyleId = it.avoidanceStyle.id,
+                avoidanceStyleType = it.avoidanceStyle.type,
+                reason = it.reason,
+            )
         },
     )
 }

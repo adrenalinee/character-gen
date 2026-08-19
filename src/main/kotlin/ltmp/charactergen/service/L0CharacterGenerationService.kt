@@ -3,6 +3,9 @@ package ltmp.charactergen.service
 import ltmp.charactergen.api.L0CharacterGenerationRequest
 import ltmp.charactergen.api.L0GenerationExecuteDto
 import ltmp.charactergen.api.L0GenerationExecuteSimpleDto
+import ltmp.charactergen.api.axis.L0AxisBalanceCheckDto
+import ltmp.charactergen.api.axis.L0AxisBalanceCheckRequest
+import ltmp.charactergen.api.axis.toCheckDto
 import ltmp.charactergen.api.toDto
 import ltmp.charactergen.api.toSimpleDto
 import ltmp.charactergen.data.L0GenerationExecuteStatus
@@ -51,6 +54,7 @@ class L0CharacterGenerationService(
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
     private val speechArchetypeRepository: SpeechArchetypeRepository,
     private val speechRegisterRepository: SpeechRegisterRepository,
+    private val axisBalanceService: L0AxisBalanceService,
     private val promptTemplateRefService: PromptTemplateRefService,
     private val objectMapper: ObjectMapper,
     private val taskDispatcher: L0GenerationTaskDispatcher,
@@ -141,6 +145,20 @@ class L0CharacterGenerationService(
             speechRegisterRepository.findById(id)
                 .orElseThrow { ResourceNotFoundException("SpeechRegister not found: $id") }
         }
+        validateAxisBalance(
+            axisBalanceService.evaluate(
+                opennessStage = opennessStage,
+                conscientiousnessStage = conscientiousnessStage,
+                extraversionStage = extraversionStage,
+                agreeablenessStage = agreeablenessStage,
+                neuroticismStage = neuroticismStage,
+                attachmentStyle = attachmentStyle,
+                emotionalExpression = emotionalExpression,
+                avoidanceStyle = avoidanceStyle,
+                speechArchetype = speechArchetype,
+            ),
+        )
+
         val execute = L0GenerationExecute(
             promptTemplateRef = ref,
             domain = domain,
@@ -174,6 +192,54 @@ class L0CharacterGenerationService(
         val savedExecute = generationExecuteRepository.saveAndFlush(execute)
         taskDispatcher.dispatchAfterCommit(savedExecute.id)
         return savedExecute.toDto()
+    }
+
+    @Transactional(readOnly = true)
+    fun checkAxisBalance(request: L0AxisBalanceCheckRequest): L0AxisBalanceCheckDto {
+        val result = axisBalanceService.evaluate(
+            opennessStage = findTraitStage(request.opennessStageId, BigFiveTrait.OPENNESS),
+            conscientiousnessStage = findTraitStage(
+                request.conscientiousnessStageId,
+                BigFiveTrait.CONSCIENTIOUSNESS,
+            ),
+            extraversionStage = findTraitStage(request.extraversionStageId, BigFiveTrait.EXTRAVERSION),
+            agreeablenessStage = findTraitStage(request.agreeablenessStageId, BigFiveTrait.AGREEABLENESS),
+            neuroticismStage = findTraitStage(request.neuroticismStageId, BigFiveTrait.NEUROTICISM),
+            attachmentStyle = request.attachmentStyleId?.let { id ->
+                attachmentStyleRepository.findById(id)
+                    .orElseThrow { ResourceNotFoundException("AttachmentStyle not found: $id") }
+            },
+            emotionalExpression = request.emotionalExpressionId?.let { id ->
+                emotionalExpressionRepository.findById(id)
+                    .orElseThrow { ResourceNotFoundException("EmotionalExpression not found: $id") }
+            },
+            avoidanceStyle = request.avoidanceStyleId?.let { id ->
+                avoidanceStyleRepository.findById(id)
+                    .orElseThrow { ResourceNotFoundException("AvoidanceStyle not found: $id") }
+            },
+            speechArchetype = request.speechArchetypeId?.let { id ->
+                speechArchetypeRepository.findById(id)
+                    .orElseThrow { ResourceNotFoundException("SpeechArchetype not found: $id") }
+            },
+        )
+        return result.toCheckDto(axisBalanceService.buildImbalanceNote(result.imbalances))
+    }
+
+    /**
+     * 충돌은 통과시키지 않고, 불균형은 한 번에 하나까지만 통과시킨다.
+     */
+    private fun validateAxisBalance(result: AxisBalanceResult) {
+        result.conflict?.let {
+            throw InvalidRequestException(
+                "${it.describe()} 조합은 같은 상황에서 서로 반대를 지시하므로 함께 지정할 수 없다. ${it.reason}",
+            )
+        }
+        if (result.imbalances.size > AxisBalanceResult.MAX_ALLOWED_IMBALANCES) {
+            throw InvalidRequestException(
+                "불균형 조합은 한 번에 하나만 허용한다. 현재 ${result.imbalances.size}개다: " +
+                    result.imbalances.joinToString(", ") { it.describe() },
+            )
+        }
     }
 
     private fun findTraitStage(id: Long?, expectedTrait: BigFiveTrait): PersonalityTraitStageEntity? {
