@@ -286,6 +286,19 @@ class L0ReferenceDataInitializer(
                 ),
             )
         }
+        if (template.lastVersion == 2L) {
+            branch.instructions = L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_2
+            branch.replaceInputs(
+                listOf(L0_CHARACTER_PROMPT_INPUT_ROLE to L0_CHARACTER_PROMPT_INPUT_TEXT_V3_2),
+            )
+            promptTemplateRefRepository.flush()
+            promptTemplateRefService.createVersion(
+                template.id,
+                CreatePromptTemplateVersionRefRequest(
+                    fromRefId = branch.id,
+                ),
+            )
+        }
     }
 
     private fun createInitialL0CharacterPromptBranch(template: PromptTemplate): PromptTemplateRef {
