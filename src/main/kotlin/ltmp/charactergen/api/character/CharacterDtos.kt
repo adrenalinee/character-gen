@@ -1,6 +1,7 @@
 package ltmp.charactergen.api.character
 
 import io.swagger.v3.oas.annotations.media.Schema
+import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.model.NonNegotiableDomain
@@ -229,6 +230,11 @@ data class CharacterVerbalTicDto(
 data class CharacterBannedWordDto(
     @field:Schema(description = "행 식별자", requiredMode = Schema.RequiredMode.REQUIRED)
     val id: Long,
+    @field:Schema(
+        description = "금지 단어의 출처. FROM_LIE는 Lie 때문에 쓸 수 없는 표현, FROM_BACKGROUND는 이 인물의 일과 자란 환경에서만 나올 법한 표현이다.",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val source: BannedWordSource,
     @field:Schema(description = "금지 단어", requiredMode = Schema.RequiredMode.REQUIRED)
     val wordText: String,
     @field:Schema(description = "행 생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -362,6 +368,7 @@ fun Character.toDto() = CharacterDto(
     bannedWords = bannedWords.map {
         CharacterBannedWordDto(
             id = it.id,
+            source = it.source,
             wordText = it.wordText,
             createdAt = it.createdAt,
             updatedAt = it.updatedAt,

@@ -181,7 +181,10 @@ class L0GenerationExecutionIntegrationTests(
             jsonPath("$.concreteDetails[0].detailText") { value("왼손잡이") }
             jsonPath("$.nonNegotiables.length()") { value(3) }
             jsonPath("$.bannedWords.length()") { value(2) }
+            jsonPath("$.bannedWords[0].source") { value("FROM_LIE") }
             jsonPath("$.bannedWords[0].wordText") { value("무조건") }
+            jsonPath("$.bannedWords[1].source") { value("FROM_BACKGROUND") }
+            jsonPath("$.bannedWords[1].wordText") { value("당연히") }
             jsonPath("$.relations[0].name") { value("민호") }
             jsonPath("$.disclosureItems[3].level") { value("DEEPEST") }
             jsonPath("$.disclosureItems[3].itemText") { value("자기 가치에 대한 공포") }
@@ -416,8 +419,8 @@ class L0GenerationExecutionIntegrationTests(
               "identity":{"name":"서윤","age":29,"gender":"여성","occupation":"웹툰 작가","daily_life":"작업한다","one_line":"선을 지킨다","concrete_details":["왼손잡이","밤에 작업"]},
               "core":{"lie":{"type":"대체 가능성 공포형","statement":"나는 대체된다","wound":"첫 연재에서 교체됐다"},"want":"자기 방식의 작품을 남긴다","need":"교체와 가치가 무관함을 안다","want_need_conflict":"인정을 좇을수록 자기 방식을 버린다","contradiction":{"trait_a":"먼저 선을 긋는다","trait_b":"떠나면 붙잡는다","shared_root":"대체될 두려움"},"non_negotiables":[{"domain":"관계를 다루는 방식","statement":"비교하지 않는다","tie_to_lie":"교체 공포","user_facing":true},{"domain":"세계를 보는 눈","statement":"결과를 과장하지 않는다","tie_to_lie":"교체 공포","user_facing":false},{"domain":"일을 대하는 기준","statement":"남의 선을 베끼지 않는다","tie_to_lie":"교체 공포","user_facing":false}],"forbidden_behaviors":[{"behavior":"상대를 시험하지 않는다","tie_to_lie":"교체 공포"},{"behavior":"성과로 애정을 사지 않는다","tie_to_lie":"교체 공포"}]},
               "traits":{"expression_note":"필요한 말만 한다","identity_note":"낯선 방식에서 행동을 만들지 않는다"},
-              "behavior":{"attachment_note":"같은 거리를 둔다","emotional_expression_note":"감정을 사실로 바꾼다","avoidance_note":"한 문장 뒤 침묵한다"},
-              "voice":{"speech_archetype_note":"작화 도구에 빗댄다","sentence_pattern":"짧은 결론 뒤 비유","verbal_tics":[{"situation":"거절할 때","description":"선을 다시 긋는다고 말한다"}],"banned_words":["무조건","당연히"],"under_stress":"문장이 더 짧아진다","address_style":"기본적으로 존댓말"},
+              "behavior":{"attachment_note":{"early":"먼저 묻지 않는다","deepening":"작업 이야기만 연다","close":"거리를 유지한 채 곁에 둔다","on_rejection":"한 번 물러난 뒤 다시 묻지 않는다"},"emotional_expression_note":"감정을 사실로 바꾼다","avoidance_note":"한 문장 뒤 침묵한다"},
+              "voice":{"speech_archetype_note":"작화 도구에 빗댄다","sentence_pattern":"짧은 결론 뒤 비유","verbal_tics":[{"situation":"거절할 때","description":"선을 다시 긋는다고 말한다"}],"banned_words":{"from_lie":["무조건"],"from_background":["당연히"]},"under_stress":"문장이 더 짧아진다","address_style":"기본적으로 존댓말"},
               "relations":[{"slot":"과거","name":"민호","relation":"전 편집자","description":"첫 연재에서 교체를 알렸다","presence":"부재","tie_to_lie":"대체 공포의 기원"}],
               "disclosure_ladder":{"surface":["마감 습관"],"mid":["편집자 이야기"],"deep":["교체 경험"],"deepest":["자기 가치에 대한 공포"]},
               "voice_samples":[{"situation":"의견에 반대했을 때","line":"그 선은 제가 정할게요.","demonstrates":"거리 유지"}],

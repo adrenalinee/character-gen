@@ -163,9 +163,11 @@ data class VerbalTic(
 
 data class BannedWords(
     @get:JsonPropertyDescription("Lie 때문에 쓸 수 없는 표현. 이 유형의 인물이라면 대체로 피할 만한 것.")
+    @get:JsonProperty("from_lie")
     val fromLie: List<String>,
     @get:JsonPropertyDescription("이 인물의 일, 자란 환경, 말투가 몸에 밴 자리에서만 나올 법한 표현. 다른 캐릭터와 겹치면 안 된다. 일반적인 과장 표현을 여기에 넣지 마라.")
-    val fromBackground: List<String>
+    @get:JsonProperty("from_background")
+    val fromBackground: List<String>,
 )
 
 data class CharacterRelation(

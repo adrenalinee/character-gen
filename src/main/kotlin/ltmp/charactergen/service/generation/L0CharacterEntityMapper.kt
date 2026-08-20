@@ -1,5 +1,6 @@
 package ltmp.charactergen.service.generation
 
+import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.data.entity.CharacterBannedWordEntity
@@ -60,7 +61,10 @@ fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Charac
     verbalTics = voice.verbalTics.map {
         CharacterVerbalTicEntity(situation = it.situation, description = it.description)
     },
-    bannedWords = voice.bannedWords.map { CharacterBannedWordEntity(wordText = it) },
+    bannedWords = buildList {
+        voice.bannedWords.fromLie.forEach { add(CharacterBannedWordEntity(BannedWordSource.FROM_LIE, it)) }
+        voice.bannedWords.fromBackground.forEach { add(CharacterBannedWordEntity(BannedWordSource.FROM_BACKGROUND, it)) }
+    },
     relations = relations.map {
         CharacterRelationEntity(
             slot = it.slot,
