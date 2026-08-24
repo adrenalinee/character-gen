@@ -29,6 +29,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -50,6 +51,8 @@ class CharacterChatService(
     private val log = LoggerFactory.getLogger(javaClass)
     private val permits: Semaphore
     private val executorService: ExecutorService
+
+    private val datetimeFormatter = DateTimeFormatter.ofPattern(DATE_TIME_FORMAT)
 
     init {
         require(maxConcurrency > 0) { "character-chat.session.max-concurrency must be greater than zero" }
@@ -139,9 +142,11 @@ class CharacterChatService(
     }
 
     private fun streamTurn(session: CharacterChatSession, content: String, emitter: SseEmitter) {
+        val sb = StringBuilder("nowTime: ${OffsetDateTime.now().format(datetimeFormatter)} ")
+        sb.append("user: $content")
         val userMessage = CharacterChatMessage(
             role = ChatRole.USER,
-            content = content,
+            content = sb.toString(),
             createdAt = OffsetDateTime.now(),
         )
         try {
@@ -231,5 +236,7 @@ class CharacterChatService(
         const val EVENT_DELTA = "delta"
         const val EVENT_DONE = "done"
         const val EVENT_ERROR = "error"
+
+        const val DATE_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ"
     }
 }
