@@ -79,6 +79,7 @@ class L0ReferenceDataInitializer(
         insertMissingAxisConflicts()
         insertMissingSpeechRegisters()
         insertInitialL0CharacterPrompt()
+        insertInitialL0RuntimeInstructionPrompt()
     }
 
     private fun insertMissingDomains() {
@@ -298,6 +299,42 @@ class L0ReferenceDataInitializer(
                     fromRefId = branch.id,
                 ),
             )
+        }
+    }
+
+    /**
+     * 런타임 캐릭터 인스트럭션 템플릿을 등록한다.
+     *
+     * 이 템플릿은 대화 시점에 사용자 메시지가 input이 되므로 저장된 input이 없다.
+     * [PromptTemplateRefService.validateExecutable]이 input을 요구하는 VERSION은 발행하지 않고,
+     * A/B 비교는 브랜치를 추가로 만들어서 한다.
+     */
+    private fun insertInitialL0RuntimeInstructionPrompt() {
+        val template = promptTemplateRepository.findByName(L0_RUNTIME_INSTRUCTION_TEMPLATE_NAME)
+            ?: promptTemplateRepository.saveAndFlush(
+                PromptTemplate(
+                    name = L0_RUNTIME_INSTRUCTION_TEMPLATE_NAME,
+                    defaultBranch = L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
+                ),
+            )
+        if (
+            promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndName(
+                template.id,
+                L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
+            ) == null
+        ) {
+            promptTemplateRefRepository.saveAndFlush(
+                PromptTemplateRef(
+                    promptTemplate = template,
+                    type = PromptTemplateRefType.BRANCH,
+                    name = L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
+                    instructions = L0_RUNTIME_INSTRUCTION_V1,
+                ),
+            )
+        }
+        if (template.defaultBranch == null) {
+            template.defaultBranch = L0_RUNTIME_INSTRUCTION_BRANCH_NAME
+            promptTemplateRepository.flush()
         }
     }
 

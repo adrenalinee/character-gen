@@ -6,6 +6,7 @@ import ltmp.charactergen.data.BigFiveVector
 import ltmp.charactergen.data.ExpressionAxis
 import ltmp.charactergen.service.ExpressionAxisValue
 import ltmp.charactergen.service.L0AxisBalanceService
+import ltmp.charactergen.service.prompt.renderPlaceholders
 import org.springframework.stereotype.Component
 
 @Component
@@ -19,11 +20,11 @@ class L0CharacterPromptRenderer(
     ): GenerationPrompt {
         val replacements = replacements(request, options)
         return GenerationPrompt(
-            instructions = replacePlaceholders(prompt.instructions, replacements),
+            instructions = renderPlaceholders(prompt.instructions, replacements),
             inputs = prompt.inputs.map {
                 GenerationPromptInput(
                     role = it.role,
-                    inputText = replacePlaceholders(it.inputText, replacements),
+                    inputText = renderPlaceholders(it.inputText, replacements),
                 )
             },
         )
@@ -116,11 +117,7 @@ class L0CharacterPromptRenderer(
         return ExpressionAxisValue(axis = axis, name = name, vector = vector)
     }
 
-    private fun replacePlaceholders(template: String, replacements: Map<String, String>): String =
-        PLACEHOLDER_REGEX.replace(template) { match -> replacements[match.groupValues[1]].orEmpty() }
-
     private companion object {
-        val PLACEHOLDER_REGEX = Regex("""\{\{([A-Z0-9_]+)}}""")
         const val NO_IMBALANCE = "없음"
     }
 }

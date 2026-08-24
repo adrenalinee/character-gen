@@ -1,0 +1,446 @@
+package ltmp.charactergen.api.chat
+
+import ltmp.charactergen.client.openai.CharacterChatLlmClient
+import ltmp.charactergen.client.openai.CharacterChatStreamRequest
+import ltmp.charactergen.data.L0GenerationExecuteStatus
+import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.entity.Character
+import ltmp.charactergen.data.entity.L0GenerationExecute
+import ltmp.charactergen.data.entity.PromptTemplate
+import ltmp.charactergen.data.entity.PromptTemplateRef
+import ltmp.charactergen.data.repo.CharacterRepository
+import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
+import ltmp.charactergen.data.repo.PromptTemplateRefRepository
+import ltmp.charactergen.data.repo.PromptTemplateRepository
+import ltmp.charactergen.service.chat.CharacterChatSessionStore
+import ltmp.charactergen.service.chat.ChatRole
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Primary
+import org.springframework.test.context.TestConstructor
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.MvcResult
+import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.post
+import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.ObjectMapper
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Import(CharacterChatIntegrationTests.FakeChatLlmConfiguration::class)
+@TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
+@Transactional
+class CharacterChatIntegrationTests(
+    private val mockMvc: MockMvc,
+    private val objectMapper: ObjectMapper,
+    private val characterRepository: CharacterRepository,
+    private val generationExecuteRepository: L0GenerationExecuteRepository,
+    private val promptTemplateRepository: PromptTemplateRepository,
+    private val promptTemplateRefRepository: PromptTemplateRefRepository,
+    private val sessionStore: CharacterChatSessionStore,
+    private val fakeChatLlmClient: FakeCharacterChatLlmClient,
+) {
+    @BeforeEach
+    fun resetState() {
+        fakeChatLlmClient.reset()
+        // 세션 스토어는 테스트 사이에 공유되는 싱글턴이라 직접 비운다.
+        sessionStore.clear()
+    }
+
+    @Test
+    fun `세션을 만들면 조립된 인스트럭션과 함께 반환한다`() {
+        val characterId = persistCharacter()
+
+        val response = createSession(characterId, "FIRST")
+
+        assertEquals(characterId.toInt(), response.path("characterId").asInt())
+        assertEquals("서윤", response.path("characterName").asString())
+        assertEquals("FIRST", response.path("relationshipStage").asString())
+        assertEquals("main", response.path("instructionBranch").asString())
+        assertEquals("TOPIC_ONLY", response.path("closedTopicMode").asString())
+        assertTrue(response.path("messages").isEmpty)
+        assertTrue(response.path("sessionId").asString().isNotBlank())
+
+        val instructions = response.path("instructions").asString()
+        assertContains(instructions, "너는 서윤이다")
+        assertContains(instructions, "먼저 묻지 않는다")
+    }
+
+    @Test
+    fun `관계 단계에 따라 조립되는 인스트럭션이 달라진다`() {
+        val characterId = persistCharacter()
+
+        val first = createSession(characterId, "FIRST").path("instructions").asString()
+        val close = createSession(characterId, "CLOSE").path("instructions").asString()
+
+        assertFalse(first.contains("교체 경험"), "1단계에서 심층 개인사가 새면 안 된다")
+        assertTrue(close.contains("교체 경험"), "3단계에서는 심층 개인사가 열려야 한다")
+    }
+
+    @Test
+    fun `상황 부여와 예시 발화 토글이 인스트럭션에 반영된다`() {
+        val characterId = persistCharacter()
+
+        val body = """
+            {
+              "characterId": $characterId,
+              "relationshipStage": "FIRST",
+              "situationNote": "오늘 원고를 크게 반려당했다",
+              "includeVoiceSamples": false,
+              "closedTopicMode": "OMIT"
+            }
+        """.trimIndent()
+        val response = objectMapper.readTree(
+            mockMvc.post("/api/v1/character-chat/sessions") {
+                contentType = org.springframework.http.MediaType.APPLICATION_JSON
+                content = body
+            }.andReturn().response.contentAsString,
+        )
+
+        val instructions = response.path("instructions").asString()
+        assertContains(instructions, "## 지금 네 상황")
+        assertContains(instructions, "오늘 원고를 크게 반려당했다")
+        assertFalse(instructions.contains("## 톤 참조"))
+        assertFalse(instructions.contains("## 말하지 않는 것"))
+        assertEquals("OMIT", response.path("closedTopicMode").asString())
+    }
+
+    @Test
+    fun `대화 요청은 delta 이벤트를 흘려보내고 done으로 끝난다`() {
+        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        fakeChatLlmClient.deltas = listOf("안녕", "하세요.")
+
+        val body = sendMessage(sessionId, "안녕하세요")
+
+        assertContains(body, "event:delta")
+        assertContains(body, "\"text\":\"안녕\"")
+        assertContains(body, "\"text\":\"하세요.\"")
+        assertContains(body, "event:done")
+        assertContains(body, "\"content\":\"안녕하세요.\"")
+        assertFalse(body.contains("event:error"))
+    }
+
+    @Test
+    fun `대화 기록 조회로 오간 메시지를 순서대로 확인할 수 있다`() {
+        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        fakeChatLlmClient.deltas = listOf("네.")
+        sendMessage(sessionId, "안녕하세요")
+
+        val messages = objectMapper.readTree(
+            mockMvc.get("/api/v1/character-chat/sessions/$sessionId").andReturn().response.contentAsString,
+        ).path("messages")
+
+        assertEquals(2, messages.size())
+        assertEquals(ChatRole.USER.name, messages[0].path("role").asString())
+        assertEquals("안녕하세요", messages[0].path("content").asString())
+        assertEquals(ChatRole.ASSISTANT.name, messages[1].path("role").asString())
+        assertEquals("네.", messages[1].path("content").asString())
+    }
+
+    @Test
+    fun `두 번째 턴에는 앞 턴의 대화가 함께 전달된다`() {
+        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        fakeChatLlmClient.deltas = listOf("네.")
+        sendMessage(sessionId, "안녕하세요")
+        fakeChatLlmClient.deltas = listOf("그렇군요.")
+        sendMessage(sessionId, "오늘 어땠어요?")
+
+        val lastRequest = requireNotNull(fakeChatLlmClient.lastRequest)
+        assertEquals(3, lastRequest.messages.size)
+        assertEquals("안녕하세요", lastRequest.messages[0].content)
+        assertEquals("네.", lastRequest.messages[1].content)
+        assertEquals("오늘 어땠어요?", lastRequest.messages[2].content)
+
+        // 인스트럭션은 매 턴 다시 전달된다.
+        assertContains(lastRequest.instructions, "너는 서윤이다")
+    }
+
+    @Test
+    fun `스트림이 실패하면 error 이벤트를 보내고 그 턴은 기록하지 않는다`() {
+        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        fakeChatLlmClient.failure = IllegalStateException("모델 호출 실패")
+
+        val body = sendMessage(sessionId, "안녕하세요")
+
+        assertContains(body, "event:error")
+        assertContains(body, "CHAT_STREAM_FAILED")
+        assertContains(body, "모델 호출 실패")
+
+        val messages = objectMapper.readTree(
+            mockMvc.get("/api/v1/character-chat/sessions/$sessionId").andReturn().response.contentAsString,
+        ).path("messages")
+        assertTrue(messages.isEmpty, "실패한 턴은 대화 기록에 남으면 안 된다")
+    }
+
+    @Test
+    fun `없는 세션으로 대화하거나 조회하면 404를 반환한다`() {
+        mockMvc.get("/api/v1/character-chat/sessions/없는세션").andExpect {
+            status { isNotFound() }
+        }
+        mockMvc.post("/api/v1/character-chat/sessions/없는세션/messages") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            content = """{"content":"안녕하세요"}"""
+        }.andExpect {
+            status { isNotFound() }
+        }
+    }
+
+    @Test
+    fun `없는 캐릭터로 세션을 만들면 404를 반환한다`() {
+        mockMvc.post("/api/v1/character-chat/sessions") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            content = """{"characterId":999999,"relationshipStage":"FIRST"}"""
+        }.andExpect {
+            status { isNotFound() }
+        }
+    }
+
+    @Test
+    fun `없는 인스트럭션 브랜치를 지정하면 404를 반환한다`() {
+        mockMvc.post("/api/v1/character-chat/sessions") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            content = """
+                {"characterId":${persistCharacter()},"relationshipStage":"FIRST","instructionBranch":"없는브랜치"}
+            """.trimIndent()
+        }.andExpect {
+            status { isNotFound() }
+        }
+    }
+
+    @Test
+    fun `빈 메시지는 400을 반환한다`() {
+        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+
+        mockMvc.post("/api/v1/character-chat/sessions/$sessionId/messages") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            content = """{"content":"   "}"""
+        }.andExpect {
+            status { isBadRequest() }
+        }
+    }
+
+    @Test
+    fun `A_B 비교용 브랜치를 지정하면 그 브랜치의 템플릿으로 조립한다`() {
+        val characterId = persistCharacter()
+        val template = requireNotNull(
+            promptTemplateRepository.findByName("L0 character runtime instruction"),
+        )
+        promptTemplateRefRepository.saveAndFlush(
+            PromptTemplateRef(
+                promptTemplate = template,
+                type = PromptTemplateRefType.BRANCH,
+                name = "variant-a",
+                instructions = "실험 템플릿. 이름은 {{NAME}}이고 호칭은 {{ADDRESS_STYLE}}이다.",
+            ),
+        )
+
+        val response = objectMapper.readTree(
+            mockMvc.post("/api/v1/character-chat/sessions") {
+                contentType = org.springframework.http.MediaType.APPLICATION_JSON
+                content = """
+                    {"characterId":$characterId,"relationshipStage":"FIRST","instructionBranch":"variant-a"}
+                """.trimIndent()
+            }.andReturn().response.contentAsString,
+        )
+
+        assertEquals("variant-a", response.path("instructionBranch").asString())
+        assertEquals(
+            "실험 템플릿. 이름은 서윤이고 호칭은 기본적으로 존댓말이다.",
+            response.path("instructions").asString(),
+        )
+    }
+
+    @Test
+    fun `유지 가능한 세션 수를 넘기면 429를 반환한다`() {
+        val characterId = persistCharacter()
+        repeat(SESSION_MAX_COUNT) { createSession(characterId, "FIRST") }
+
+        mockMvc.post("/api/v1/character-chat/sessions") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            content = """{"characterId":$characterId,"relationshipStage":"FIRST"}"""
+        }.andExpect {
+            status { isTooManyRequests() }
+            jsonPath("$.code") { value("CHAT_SESSION_CAPACITY_EXCEEDED") }
+        }
+    }
+
+    private fun createSession(characterId: Long, stage: String) = objectMapper.readTree(
+        mockMvc.post("/api/v1/character-chat/sessions") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            content = """{"characterId":$characterId,"relationshipStage":"$stage"}"""
+        }.andExpect {
+            status { isCreated() }
+        }.andReturn().response.contentAsString,
+    )
+
+    /**
+     * SSE 응답은 비동기 스레드가 채우므로 스트림이 끝날 때까지 기다린 뒤 본문을 읽는다.
+     */
+    private fun sendMessage(sessionId: String, content: String): String {
+        val result: MvcResult = mockMvc.post("/api/v1/character-chat/sessions/$sessionId/messages") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            this.content = """{"content":"$content"}"""
+        }.andExpect {
+            request { asyncStarted() }
+        }.andReturn()
+
+        result.asyncResult
+        return result.response.contentAsByteArray.toString(Charsets.UTF_8)
+    }
+
+    private fun persistCharacter(): Long {
+        val template = promptTemplateRepository.saveAndFlush(PromptTemplate(name = "chat test ${counter++}"))
+        val ref = promptTemplateRefRepository.saveAndFlush(
+            PromptTemplateRef(
+                promptTemplate = template,
+                type = PromptTemplateRefType.BRANCH,
+                name = "main",
+                instructions = "test",
+            ),
+        )
+        val execute = generationExecuteRepository.saveAndFlush(
+            L0GenerationExecute(
+                promptTemplateRef = ref,
+                userInputJson = "{}",
+                status = L0GenerationExecuteStatus.COMPLETED,
+            ),
+        )
+        val character = characterRepository.saveAndFlush(chatTestCharacter(execute))
+        execute.character = character
+        generationExecuteRepository.flush()
+        return character.id
+    }
+
+    @TestConfiguration
+    class FakeChatLlmConfiguration {
+        @Bean
+        @Primary
+        fun fakeChatLlmClient(): FakeCharacterChatLlmClient = FakeCharacterChatLlmClient()
+    }
+
+    class FakeCharacterChatLlmClient : CharacterChatLlmClient {
+        var deltas: List<String> = emptyList()
+        var failure: RuntimeException? = null
+        var lastRequest: CharacterChatStreamRequest? = null
+
+        fun reset() {
+            deltas = emptyList()
+            failure = null
+            lastRequest = null
+        }
+
+        override fun streamReply(request: CharacterChatStreamRequest, onDelta: (String) -> Unit) {
+            lastRequest = request
+            failure?.let { throw it }
+            deltas.forEach(onDelta)
+        }
+    }
+
+    private companion object {
+        /** character-chat.session.max-count 설정값 */
+        const val SESSION_MAX_COUNT = 100
+        var counter = 0
+    }
+}
+
+/**
+ * 인스트럭션 조립 결과를 확인할 수 있게 값이 분명한 캐릭터를 만든다.
+ */
+private fun chatTestCharacter(execute: L0GenerationExecute): Character = Character(
+    generationExecute = execute,
+    name = "서윤",
+    age = 29,
+    gender = "여성",
+    occupation = "웹툰 작가",
+    dailyLife = "밤에만 작업한다",
+    oneLine = "선을 지킨다",
+    lieType = "대체 가능성 공포형",
+    lieStatement = "나는 대체된다",
+    lieWound = "첫 연재에서 교체됐다",
+    want = "자기 방식의 작품을 남긴다",
+    need = "교체와 가치가 무관함을 안다",
+    wantNeedConflict = "인정을 좇을수록 자기 방식을 버린다",
+    contradictionTraitA = "먼저 선을 긋는다",
+    contradictionTraitB = "떠나면 붙잡는다",
+    contradictionSharedRoot = "대체될 두려움",
+    expressionNote = "필요한 말만 한다",
+    identityNote = "낯선 방식에서 행동을 만들지 않는다",
+    attachmentNoteEarly = "먼저 묻지 않는다",
+    attachmentNoteDeepening = "작업 이야기만 연다",
+    attachmentNoteClose = "거리를 유지한 채 곁에 둔다",
+    attachmentNoteOnRejection = "한 번 물러난 뒤 다시 묻지 않는다",
+    emotionalExpressionNote = "감정을 사실로 바꾼다",
+    avoidanceNote = "한 문장 뒤 침묵한다",
+    speechArchetypeNote = "작화 도구에 빗댄다",
+    sentencePattern = "짧은 결론 뒤 비유",
+    underStress = "문장이 더 짧아진다",
+    addressStyle = "기본적으로 존댓말",
+    recognizability = "작화 도구 비유",
+    longTermViability = "교체 공포가 반복된다",
+    imbalanceNote = "없음",
+    concreteDetails = listOf(
+        ltmp.charactergen.data.entity.CharacterConcreteDetailEntity(detailText = "왼손잡이"),
+    ),
+    nonNegotiables = listOf(
+        ltmp.charactergen.data.entity.CharacterNonNegotiableEntity(
+            domain = ltmp.charactergen.model.NonNegotiableDomain.`관계를 다루는 방식`,
+            statement = "비교하지 않는다",
+            tieToLie = "교체 공포",
+            userFacing = true,
+        ),
+    ),
+    forbiddenBehaviors = listOf(
+        ltmp.charactergen.data.entity.CharacterForbiddenBehaviorEntity(
+            behavior = "상대를 시험하지 않는다",
+            tieToLie = "교체 공포",
+        ),
+    ),
+    verbalTics = listOf(
+        ltmp.charactergen.data.entity.CharacterVerbalTicEntity(
+            situation = "거절할 때",
+            description = "선을 다시 긋는다고 말한다",
+        ),
+    ),
+    bannedWords = listOf(
+        ltmp.charactergen.data.entity.CharacterBannedWordEntity(
+            source = ltmp.charactergen.data.BannedWordSource.FROM_LIE,
+            wordText = "무조건",
+        ),
+    ),
+    relations = listOf(
+        ltmp.charactergen.data.entity.CharacterRelationEntity(
+            slot = ltmp.charactergen.model.RelationSlot.`과거`,
+            name = "민호",
+            relation = "전 편집자",
+            description = "첫 연재에서 교체를 알렸다",
+            presence = ltmp.charactergen.model.RelationPresence.`부재`,
+            tieToLie = "대체 공포의 기원",
+        ),
+    ),
+    disclosureItems = listOf(
+        ltmp.charactergen.data.entity.CharacterDisclosureItemEntity(
+            level = ltmp.charactergen.data.DisclosureLevel.SURFACE,
+            itemText = "마감 습관",
+        ),
+        ltmp.charactergen.data.entity.CharacterDisclosureItemEntity(
+            level = ltmp.charactergen.data.DisclosureLevel.DEEP,
+            itemText = "교체 경험",
+        ),
+    ),
+    voiceSamples = listOf(
+        ltmp.charactergen.data.entity.CharacterVoiceSampleEntity(
+            situation = "의견에 반대했을 때",
+            line = "그 선은 제가 정할게요.",
+            demonstrates = "거리 유지",
+        ),
+    ),
+)

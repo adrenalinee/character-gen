@@ -4,6 +4,7 @@ import ltmp.charactergen.service.ResourceConflictException
 import ltmp.charactergen.service.ResourceNotFoundException
 import ltmp.charactergen.service.InvalidRequestException
 import ltmp.charactergen.service.GenerationCapacityExceededException
+import ltmp.charactergen.service.ChatSessionCapacityExceededException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.http.HttpStatus
@@ -32,6 +33,12 @@ class ApiExceptionHandler {
         exception: GenerationCapacityExceededException,
     ): ResponseEntity<ApiErrorResponse> =
         error(HttpStatus.TOO_MANY_REQUESTS, "GENERATION_CAPACITY_EXCEEDED", exception.detail)
+
+    @ExceptionHandler(ChatSessionCapacityExceededException::class)
+    fun handleChatSessionCapacityExceeded(
+        exception: ChatSessionCapacityExceededException,
+    ): ResponseEntity<ApiErrorResponse> =
+        error(HttpStatus.TOO_MANY_REQUESTS, "CHAT_SESSION_CAPACITY_EXCEEDED", exception.detail)
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException::class)
     fun handleOptimisticLock(exception: ObjectOptimisticLockingFailureException): ResponseEntity<ApiErrorResponse> =
