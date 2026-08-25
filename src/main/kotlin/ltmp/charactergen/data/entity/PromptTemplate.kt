@@ -2,10 +2,14 @@ package ltmp.charactergen.data.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Index
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import ltmp.charactergen.data.LongBaseEntity
+import ltmp.charactergen.data.PromptTemplateType
 
 @Entity
 @Table(
@@ -13,10 +17,18 @@ import ltmp.charactergen.data.LongBaseEntity
     uniqueConstraints = [
         UniqueConstraint(name = "uk_prompt_templates_name", columnNames = ["name"]),
     ],
+    indexes = [
+        Index(name = "idx_prompt_templates_type", columnList = "type"),
+    ],
 )
 class PromptTemplate(
     @Column(nullable = false, length = 200)
     var name: String,
+
+    // 타입을 바꾸면 이 템플릿을 기본값으로 쓰던 용도가 조용히 깨지므로 생성 후 변경하지 않는다.
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    val type: PromptTemplateType,
 
     @Column(name = "default_branch", length = 200)
     var defaultBranch: String? = null,

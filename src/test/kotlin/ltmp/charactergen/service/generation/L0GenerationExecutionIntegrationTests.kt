@@ -7,6 +7,7 @@ import ltmp.charactergen.client.openai.L0CharacterLlmResult
 import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.data.Gender
 import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.repo.CharacterRepository
@@ -79,7 +80,7 @@ class L0GenerationExecutionIntegrationTests(
 ) {
     @Test
     fun `PREPARING 실행을 비동기 executor 작업 단위로 처리하고 캐릭터를 저장한다`() {
-        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 execution test"))
+        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 execution test", type = PromptTemplateType.CHARACTER_GENERATION))
         val ref = PromptTemplateRef(
             promptTemplate = template,
             type = PromptTemplateRefType.BRANCH,
@@ -219,7 +220,7 @@ class L0GenerationExecutionIntegrationTests(
 
     @Test
     fun `LLM 호출 실패를 FAILED 상태와 추적 정보로 저장한다`() {
-        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 failure test"))
+        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 failure test", type = PromptTemplateType.CHARACTER_GENERATION))
         val ref = PromptTemplateRef(
             promptTemplate = template,
             type = PromptTemplateRefType.BRANCH,
@@ -244,7 +245,7 @@ class L0GenerationExecutionIntegrationTests(
 
     @Test
     fun `Big Five 단계 ID가 요청 축과 다르면 실행을 생성하지 않는다`() {
-        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 invalid option test"))
+        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 invalid option test", type = PromptTemplateType.CHARACTER_GENERATION))
         val ref = PromptTemplateRef(
             promptTemplate = template,
             type = PromptTemplateRefType.BRANCH,
@@ -266,7 +267,7 @@ class L0GenerationExecutionIntegrationTests(
 
     @Test
     fun `refId만 입력하면 나머지 값을 null로 저장하고 프롬프트에는 빈 문자열을 주입한다`() {
-        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 nullable input test"))
+        val template = promptTemplateRepository.save(PromptTemplate(name = "L0 nullable input test", type = PromptTemplateType.CHARACTER_GENERATION))
         val placeholders = listOf(
             "DESCRIPTION",
             "NAME",

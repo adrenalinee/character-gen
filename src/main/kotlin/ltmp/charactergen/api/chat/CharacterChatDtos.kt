@@ -47,7 +47,17 @@ data class CreateCharacterChatSessionRequest(
     val model: String? = null,
 
     @field:Schema(
-        description = "인스트럭션 템플릿 브랜치 이름. 생략하면 기본 브랜치를 사용한다. A/B 비교에 사용한다.",
+        description = "사용할 인스트럭션 프롬프트 ref 식별자. 용도가 CHARACTER_RUNTIME인 템플릿의 ref여야 한다. " +
+            "생략하면 CHARACTER_RUNTIME 기본 프롬프트를 사용한다. instructionBranch와 동시에 지정할 수 없다.",
+        example = "10",
+        nullable = true,
+    )
+    @field:Positive
+    val refId: Long? = null,
+
+    @field:Schema(
+        description = "기본 CHARACTER_RUNTIME 템플릿 안의 브랜치 이름. 생략하면 그 템플릿의 기본 브랜치를 사용한다. " +
+            "같은 템플릿 안에서의 A/B 비교에 사용하며, refId와 동시에 지정할 수 없다.",
         example = "main",
         nullable = true,
     )
@@ -96,8 +106,15 @@ data class CharacterChatSessionDto(
     @field:Schema(description = "관계 단계", example = "FIRST", requiredMode = Schema.RequiredMode.REQUIRED)
     val relationshipStage: RelationshipStage,
 
-    @field:Schema(description = "사용한 인스트럭션 템플릿 브랜치", example = "main", requiredMode = Schema.RequiredMode.REQUIRED)
-    val instructionBranch: String,
+    @field:Schema(description = "사용한 인스트럭션 프롬프트 ref 식별자", example = "10", requiredMode = Schema.RequiredMode.REQUIRED)
+    val refId: Long,
+
+    @field:Schema(
+        description = "사용한 인스트럭션 템플릿 브랜치. VERSION ref로 조립한 세션이면 null이다.",
+        example = "main",
+        nullable = true,
+    )
+    val instructionBranch: String? = null,
 
     @field:Schema(
         description = "이 세션에서 실제로 주입되는 캐릭터 인스트럭션 전문. 무엇이 주입됐는지 검토하는 용도다.",
@@ -166,6 +183,7 @@ fun CharacterChatSession.toDto(expiresAt: OffsetDateTime): CharacterChatSessionD
     characterId = characterId,
     characterName = characterName,
     relationshipStage = relationshipStage,
+    refId = refId,
     instructionBranch = instructionBranch,
     instructions = instructions,
     model = model,

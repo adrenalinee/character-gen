@@ -4,6 +4,7 @@ import ltmp.charactergen.client.openai.L0CharacterLlmClient
 import ltmp.charactergen.client.openai.L0CharacterLlmResult
 import ltmp.charactergen.l0GenerationTestOptions
 import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
@@ -57,7 +58,7 @@ class GenerationCapacityIntegrationTests(
     @Test
     fun `동시 실행 한도를 초과하면 429를 반환하고 execute 레코드를 만들지 않는다`() {
         val template = promptTemplateRepository.saveAndFlush(
-            PromptTemplate(name = "capacity-${UUID.randomUUID()}"),
+            PromptTemplate(name = "capacity-${UUID.randomUUID()}", type = PromptTemplateType.CHARACTER_GENERATION),
         )
         val ref = PromptTemplateRef(
             promptTemplate = template,

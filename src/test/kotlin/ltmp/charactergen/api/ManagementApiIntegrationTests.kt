@@ -7,9 +7,12 @@ import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT_V3_1
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_1
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT_V3_2
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_2
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_TEMPLATE_NAME
 import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
 import ltmp.charactergen.data.repo.DomainRepository
@@ -108,8 +111,15 @@ class ManagementApiIntegrationTests(
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.speechRegister") {
                 doesNotExist()
             }
-            jsonPath("$.components.schemas.L0CharacterGenerationRequest.required.length()") { value(1) }
-            jsonPath("$.components.schemas.L0CharacterGenerationRequest.required[0]") { value("refId") }
+            // refId까지 선택 항목이 되어 필수 필드가 하나도 없다.
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.required") { doesNotExist() }
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.refId") { exists() }
+            jsonPath("$.components.schemas.PromptTemplateDto.properties.type") { exists() }
+            jsonPath("$.components.schemas.DefaultPromptTemplateDto.properties.promptTemplateId") { exists() }
+            jsonPath("$.paths['/api/v1/default-prompt-templates'].get") { exists() }
+            jsonPath("$.paths['/api/v1/default-prompt-templates/{type}'].get") { exists() }
+            jsonPath("$.paths['/api/v1/default-prompt-templates/{type}'].put") { exists() }
+            jsonPath("$.paths['/api/v1/prompt-templates'].get.parameters[?(@.name == 'type')]") { exists() }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.gender.enum[0]") {
                 value("MALE")
             }
@@ -146,8 +156,8 @@ class ManagementApiIntegrationTests(
 
     @Test
     fun `BRANCH를 편집하고 VERSION을 발행하며 참조 무결성을 지킨다`() {
-        val templateId = createTemplate("L0 Character")
-        val otherTemplateId = createTemplate("Other Character")
+        val templateId = createTemplate("L0 Character", PromptTemplateType.CHARACTER_GENERATION)
+        val otherTemplateId = createTemplate("Other Character", PromptTemplateType.CHARACTER_GENERATION)
 
         val emptyBranch = mockMvc.post("/api/v1/prompt-templates/{promptTemplateId}/refs/branches", templateId) {
             contentType = MediaType.APPLICATION_JSON
@@ -287,7 +297,7 @@ class ManagementApiIntegrationTests(
 
     @Test
     fun `BRANCH 실행에는 원본 스냅샷을 저장하고 VERSION 실행에는 저장하지 않는다`() {
-        val templateId = createTemplate("Generation Template")
+        val templateId = createTemplate("Generation Template", PromptTemplateType.CHARACTER_GENERATION)
         val branchId = createBranch(templateId, "main")
         mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
@@ -328,7 +338,7 @@ class ManagementApiIntegrationTests(
 
     @Test
     fun `생성 요청은 refId 외의 입력을 생략할 수 있다`() {
-        val templateId = createTemplate("Nullable Generation Input Template")
+        val templateId = createTemplate("Nullable Generation Input Template", PromptTemplateType.CHARACTER_GENERATION)
         val branchId = createBranch(templateId, "main")
         mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
@@ -351,7 +361,7 @@ class ManagementApiIntegrationTests(
 
     @Test
     fun `생성 실행 이력을 페이징 검색하고 단일 상세 조회한다`() {
-        val templateId = createTemplate("Generation History Template")
+        val templateId = createTemplate("Generation History Template", PromptTemplateType.CHARACTER_GENERATION)
         val branchId = createBranch(templateId, "main")
         mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
@@ -404,7 +414,7 @@ class ManagementApiIntegrationTests(
 
     @Test
     fun `삭제한 VERSION 번호를 재사용하지 않는다`() {
-        val templateId = createTemplate("Version Sequence Template")
+        val templateId = createTemplate("Version Sequence Template", PromptTemplateType.CHARACTER_GENERATION)
         val branchId = createBranch(templateId, "main")
         mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
@@ -436,7 +446,7 @@ class ManagementApiIntegrationTests(
 
     @Test
     fun `첫 BRANCH를 기본값으로 지정하고 템플릿에서 기본 BRANCH를 변경한다`() {
-        val templateId = createTemplate("Default Branch Template")
+        val templateId = createTemplate("Default Branch Template", PromptTemplateType.CHARACTER_GENERATION)
 
         mockMvc.get("/api/v1/prompt-templates/{id}", templateId).andExpect {
             status { isOk() }
@@ -542,20 +552,22 @@ class ManagementApiIntegrationTests(
         referenceDataInitializer.run(DefaultApplicationArguments())
 
         val template = assertNotNull(promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME))
-        assertEquals(2, template.lastVersion)
+        assertEquals(3, template.lastVersion)
         assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, template.defaultBranch)
+        assertEquals(PromptTemplateType.CHARACTER_GENERATION, template.type)
 
         val refs = promptTemplateRefRepository.findAll().filter { it.promptTemplate.id == template.id }
-        assertEquals(3, refs.size)
+        assertEquals(4, refs.size)
         val branch = refs.single { it.type == PromptTemplateRefType.BRANCH }
         val versionOne = refs.single { it.version == 1L }
         val versionTwo = refs.single { it.version == 2L }
+        val versionThree = refs.single { it.version == 3L }
 
         assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, branch.name)
-        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_1, branch.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_2, branch.instructions)
         assertEquals(1, branch.inputs.size)
         assertEquals("user", branch.inputs.single().role)
-        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V3_1, branch.inputs.single().inputText)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V3_2, branch.inputs.single().inputText)
 
         assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS, versionOne.instructions)
         assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT, versionOne.inputs.single().inputText)
@@ -563,7 +575,10 @@ class ManagementApiIntegrationTests(
         assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_1, versionTwo.instructions)
         assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V3_1, versionTwo.inputs.single().inputText)
         assertEquals(branch.id, versionTwo.fromRef?.id)
-        assertEquals(branch.revision, versionTwo.fromRefRevision)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_2, versionThree.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V3_2, versionThree.inputs.single().inputText)
+        assertEquals(branch.id, versionThree.fromRef?.id)
+        assertEquals(branch.revision, versionThree.fromRefRevision)
 
         mockMvc.get("/api/v1/prompt-templates/{id}", template.id).andExpect {
             status { isOk() }
@@ -577,10 +592,47 @@ class ManagementApiIntegrationTests(
         }
     }
 
-    private fun createTemplate(name: String): Long = locationId(
+    @Test
+    fun `refId를 생략하면 기본 캐릭터 생성 프롬프트로 실행한다`() {
+        val defaultTemplate = assertNotNull(promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME))
+        val defaultBranch = assertNotNull(
+            promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndName(
+                defaultTemplate.id,
+                L0_CHARACTER_PROMPT_BRANCH_NAME,
+            ),
+        )
+
+        mockMvc.post("/api/v1/l0-characters/generations") {
+            contentType = MediaType.APPLICATION_JSON
+            content = generationRequest(null)
+        }.andExpect {
+            status { isAccepted() }
+            jsonPath("$.refId") { value(defaultBranch.id) }
+            jsonPath("$.status") { value("PREPARING") }
+        }
+    }
+
+    @Test
+    fun `용도가 다른 ref로 생성을 요청하면 400을 반환한다`() {
+        val runtimeTemplateId = createTemplate("Runtime Only Template", PromptTemplateType.CHARACTER_RUNTIME)
+        val branchId = createBranch(runtimeTemplateId, "main")
+        mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", runtimeTemplateId, "main") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"main","instructions":"런타임 지시","inputs":[{"role":"user","inputText":"입력"}],"revision":0}"""
+        }.andExpect { status { isOk() } }
+
+        mockMvc.post("/api/v1/l0-characters/generations") {
+            contentType = MediaType.APPLICATION_JSON
+            content = generationRequest(branchId)
+        }.andExpect {
+            status { isBadRequest() }
+        }
+    }
+
+    private fun createTemplate(name: String, type: PromptTemplateType): Long = locationId(
         mockMvc.post("/api/v1/prompt-templates") {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"name":"$name"}"""
+            content = """{"name":"$name","type":"$type"}"""
         }.andExpect { status { isCreated() } }.andReturn().response.getHeader("Location"),
     )
 
@@ -599,7 +651,7 @@ class ManagementApiIntegrationTests(
     private fun generationId(responseBody: String): Long =
         assertNotNull(Regex(""""id":(\d+)""").find(responseBody)).groupValues[1].toLong()
 
-    private fun generationRequest(refId: Long): String {
+    private fun generationRequest(refId: Long?): String {
         val options = l0GenerationTestOptions(
             domainRepository,
             lieRepository,
@@ -610,9 +662,11 @@ class ManagementApiIntegrationTests(
             speechArchetypeRepository,
             speechRegisterRepository,
         )
+        // refId가 null이면 필드 자체를 빼서 기본 프롬프트로 실행되는 경로를 검증한다.
+        val refIdField = refId?.let { """"refId":$it,""" } ?: ""
         return """
         {
-          "refId":$refId,
+          $refIdField
           "domainId":${options.domainId},
           "lieId":${options.lieId},
           "opennessStageId":${options.opennessStageId},

@@ -11,8 +11,10 @@ import ltmp.charactergen.api.toSimpleDto
 import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.entity.L0GenerationExecute
 import ltmp.charactergen.data.entity.PersonalityTraitStageEntity
+import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
 import ltmp.charactergen.data.repo.DomainRepository
@@ -40,6 +42,7 @@ import tools.jackson.databind.ObjectMapper
 @Service
 class L0CharacterGenerationService(
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
+    private val defaultPromptTemplateService: DefaultPromptTemplateService,
     private val generationExecuteRepository: L0GenerationExecuteRepository,
     private val domainRepository: DomainRepository,
     private val lieRepository: LieRepository,
@@ -75,8 +78,7 @@ class L0CharacterGenerationService(
 
     @Transactional
     fun requestGeneration(request: L0CharacterGenerationRequest): L0GenerationExecuteDto {
-        val ref = promptTemplateRefRepository.findOneWithDetailsById(request.refId)
-            ?: throw ResourceNotFoundException("PromptTemplateRef not found: ${request.refId}")
+        val ref = resolveGenerationRef(request.refId)
         promptTemplateRefService.validateExecutable(ref)
 
         val snapshotJson = if (ref.type == PromptTemplateRefType.BRANCH) {
@@ -252,5 +254,26 @@ class L0CharacterGenerationService(
             )
         }
         return stage
+    }
+
+    /**
+     * 실행할 캐릭터 생성 프롬프트 ref를 결정한다.
+     *
+     * refId를 생략하면 CHARACTER_GENERATION 기본 프롬프트를 쓰고,
+     * 지정하면 용도가 캐릭터 생성인 템플릿의 ref인지 검증한다.
+     */
+    private fun resolveGenerationRef(refId: Long?): PromptTemplateRef {
+        if (refId == null) {
+            return defaultPromptTemplateService.resolveDefaultRef(PromptTemplateType.CHARACTER_GENERATION)
+        }
+        val ref = promptTemplateRefRepository.findOneWithDetailsById(refId)
+            ?: throw ResourceNotFoundException("PromptTemplateRef not found: $refId")
+        if (ref.promptTemplate.type != PromptTemplateType.CHARACTER_GENERATION) {
+            throw InvalidRequestException(
+                "PromptTemplate type mismatch. expected=${PromptTemplateType.CHARACTER_GENERATION}, " +
+                    "actual=${ref.promptTemplate.type}, refId=$refId",
+            )
+        }
+        return ref
     }
 }

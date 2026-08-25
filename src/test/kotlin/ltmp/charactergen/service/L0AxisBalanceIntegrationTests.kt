@@ -5,6 +5,7 @@ import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.BigFiveVector
 import ltmp.charactergen.data.ExpressionAxis
 import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
@@ -299,7 +300,7 @@ class L0AxisBalanceIntegrationTests(
 
     private fun executableRefId(): Long {
         val template = promptTemplateRepository.saveAndFlush(
-            PromptTemplate(name = "axis-balance-${UUID.randomUUID()}"),
+            PromptTemplate(name = "axis-balance-${UUID.randomUUID()}", type = PromptTemplateType.CHARACTER_GENERATION),
         )
         val ref = PromptTemplateRef(
             promptTemplate = template,

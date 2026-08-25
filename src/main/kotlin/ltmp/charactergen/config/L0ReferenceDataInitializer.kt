@@ -4,9 +4,11 @@ import ltmp.charactergen.api.prompt.CreatePromptTemplateVersionRefRequest
 import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.BigFiveVector
 import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.entity.AttachmentStyleEntity
 import ltmp.charactergen.data.entity.AvoidanceStyleEntity
 import ltmp.charactergen.data.entity.AxisConflictEntity
+import ltmp.charactergen.data.entity.DefaultPromptTemplate
 import ltmp.charactergen.data.entity.DomainEntity
 import ltmp.charactergen.data.entity.EmotionalExpressionEntity
 import ltmp.charactergen.data.entity.LieEntity
@@ -23,6 +25,7 @@ import ltmp.charactergen.data.entity.WoundTimingEntity
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
 import ltmp.charactergen.data.repo.AxisConflictRepository
+import ltmp.charactergen.data.repo.DefaultPromptTemplateRepository
 import ltmp.charactergen.data.repo.DomainRepository
 import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.LieRepository
@@ -61,6 +64,7 @@ class L0ReferenceDataInitializer(
     private val promptTemplateRepository: PromptTemplateRepository,
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
     private val promptTemplateRefService: PromptTemplateRefService,
+    private val defaultPromptTemplateRepository: DefaultPromptTemplateRepository,
 ) : ApplicationRunner {
     @Transactional
     override fun run(args: ApplicationArguments) {
@@ -80,6 +84,7 @@ class L0ReferenceDataInitializer(
         insertMissingSpeechRegisters()
         insertInitialL0CharacterPrompt()
         insertInitialL0RuntimeInstructionPrompt()
+        insertMissingDefaultPromptTemplates()
     }
 
     private fun insertMissingDomains() {
@@ -253,6 +258,7 @@ class L0ReferenceDataInitializer(
             ?: promptTemplateRepository.saveAndFlush(
                 PromptTemplate(
                     name = L0_CHARACTER_PROMPT_TEMPLATE_NAME,
+                    type = PromptTemplateType.CHARACTER_GENERATION,
                     defaultBranch = L0_CHARACTER_PROMPT_BRANCH_NAME,
                 ),
             )
@@ -314,6 +320,7 @@ class L0ReferenceDataInitializer(
             ?: promptTemplateRepository.saveAndFlush(
                 PromptTemplate(
                     name = L0_RUNTIME_INSTRUCTION_TEMPLATE_NAME,
+                    type = PromptTemplateType.CHARACTER_RUNTIME,
                     defaultBranch = L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
                 ),
             )
@@ -336,6 +343,26 @@ class L0ReferenceDataInitializer(
             template.defaultBranch = L0_RUNTIME_INSTRUCTION_BRANCH_NAME
             promptTemplateRepository.flush()
         }
+    }
+
+    /**
+     * 용도별 기본 프롬프트를 지정한다.
+     *
+     * 아직 지정된 적이 없는 용도만 채운다. 운영자가 API로 바꾼 기본값을 재기동이 되돌리면 안 된다.
+     */
+    private fun insertMissingDefaultPromptTemplates() {
+        val defaults = mapOf(
+            PromptTemplateType.CHARACTER_GENERATION to L0_CHARACTER_PROMPT_TEMPLATE_NAME,
+            PromptTemplateType.CHARACTER_RUNTIME to L0_RUNTIME_INSTRUCTION_TEMPLATE_NAME,
+        )
+        val missing = defaults
+            .filter { (type, _) -> defaultPromptTemplateRepository.findOneWithTemplateByType(type) == null }
+            .map { (type, templateName) ->
+                val template = promptTemplateRepository.findByName(templateName)
+                    ?: error("초기 프롬프트 템플릿이 없습니다: $templateName")
+                DefaultPromptTemplate(type = type, promptTemplate = template)
+            }
+        defaultPromptTemplateRepository.saveAll(missing)
     }
 
     private fun createInitialL0CharacterPromptBranch(template: PromptTemplate): PromptTemplateRef {

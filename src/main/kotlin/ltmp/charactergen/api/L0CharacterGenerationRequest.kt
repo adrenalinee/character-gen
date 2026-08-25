@@ -7,15 +7,17 @@ import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
 import ltmp.charactergen.data.Gender
 
-@Schema(description = "L0 캐릭터 생성 프롬프트에 사용할 사용자 입력. refId 외의 필드는 모두 선택 사항이다.")
+@Schema(description = "L0 캐릭터 생성 프롬프트에 사용할 사용자 입력. 모든 필드가 선택 사항이다.")
 data class L0CharacterGenerationRequest(
     @field:Positive
     @field:Schema(
-        description = "실행할 BRANCH 또는 VERSION 프롬프트 ref 식별자",
+        description = "실행할 BRANCH 또는 VERSION 프롬프트 ref 식별자. " +
+            "생략하면 CHARACTER_GENERATION 기본 프롬프트를 사용한다. " +
+            "지정하면 용도가 CHARACTER_GENERATION인 템플릿의 ref여야 한다.",
         example = "10",
-        requiredMode = Schema.RequiredMode.REQUIRED,
+        nullable = true,
     )
-    val refId: Long,
+    val refId: Long? = null,
 
     @field:Schema(
         description = "캐릭터에 관한 운영자 설명. 비어 있으면 프롬프트에 빈 문자열을 주입한다.",

@@ -6,7 +6,9 @@ import ltmp.charactergen.api.prompt.PromptTemplateSimpleDto
 import ltmp.charactergen.api.prompt.UpdatePromptTemplateRequest
 import ltmp.charactergen.api.prompt.toDto
 import ltmp.charactergen.api.prompt.toSimpleDto
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.entity.PromptTemplate
+import ltmp.charactergen.data.repo.DefaultPromptTemplateRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import org.springframework.data.domain.Page
@@ -18,23 +20,24 @@ import org.springframework.transaction.annotation.Transactional
 class PromptTemplateService(
     private val promptTemplateRepository: PromptTemplateRepository,
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
+    private val defaultPromptTemplateRepository: DefaultPromptTemplateRepository,
 ) {
     @Transactional(readOnly = true)
-    fun searchTemplates(name: String?, pageable: Pageable): Page<PromptTemplateSimpleDto> {
-        val templates = if (name == null) {
-            promptTemplateRepository.findAll(pageable)
-        } else {
-            promptTemplateRepository.findByNameContainingIgnoreCase(name, pageable)
-        }
-        return templates.map(PromptTemplate::toSimpleDto)
-    }
+    fun searchTemplates(
+        name: String?,
+        type: PromptTemplateType?,
+        pageable: Pageable,
+    ): Page<PromptTemplateSimpleDto> =
+        promptTemplateRepository.search(name, type, pageable).map(PromptTemplate::toSimpleDto)
 
     @Transactional
     fun createTemplate(request: CreatePromptTemplateRequest): PromptTemplateDto {
         if (promptTemplateRepository.existsByName(request.name)) {
             throw ResourceConflictException("PromptTemplate name already exists: ${request.name}")
         }
-        return promptTemplateRepository.saveAndFlush(PromptTemplate(name = request.name)).toDto()
+        return promptTemplateRepository
+            .saveAndFlush(PromptTemplate(name = request.name, type = request.type))
+            .toDto()
     }
 
     @Transactional(readOnly = true)
@@ -65,6 +68,9 @@ class PromptTemplateService(
         val template = findTemplate(id)
         if (promptTemplateRefRepository.existsByPromptTemplateId(id)) {
             throw ResourceConflictException("PromptTemplate with refs cannot be deleted: $id")
+        }
+        if (defaultPromptTemplateRepository.existsByPromptTemplateId(id)) {
+            throw ResourceConflictException("PromptTemplate is a default prompt and cannot be deleted: $id")
         }
         promptTemplateRepository.delete(template)
         promptTemplateRepository.flush()

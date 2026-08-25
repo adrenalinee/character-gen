@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import ltmp.charactergen.api.ApiErrorResponse
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.service.PromptTemplateService
 import org.springdoc.core.annotations.ParameterObject
 import org.springframework.data.domain.Pageable
@@ -30,7 +31,11 @@ import org.springframework.web.util.UriComponentsBuilder
 class PromptTemplateController(
     private val promptTemplateService: PromptTemplateService,
 ) {
-    @Operation(summary = "프롬프트 템플릿 검색", description = "이름 일부로 템플릿을 검색한다. 이름을 생략하면 전체를 반환한다.")
+    @Operation(
+        summary = "프롬프트 템플릿 검색",
+        description = "이름 일부와 용도로 템플릿을 검색한다. 조건을 생략하면 전체를 반환한다. " +
+            "프롬프트를 바꿔 실행할 때는 같은 용도 안에서만 골라야 하므로 type으로 걸러서 목록을 만든다.",
+    )
     @ApiResponse(
         responseCode = "200",
         description = "검색 성공",
@@ -38,8 +43,9 @@ class PromptTemplateController(
     @GetMapping
     fun search(
         @RequestParam(required = false) name: String?,
+        @RequestParam(required = false) type: PromptTemplateType?,
         @ParameterObject pageable: Pageable,
-    ): PagedModel<PromptTemplateSimpleDto> = PagedModel(promptTemplateService.searchTemplates(name, pageable))
+    ): PagedModel<PromptTemplateSimpleDto> = PagedModel(promptTemplateService.searchTemplates(name, type, pageable))
 
     @Operation(summary = "프롬프트 템플릿 생성")
     @ApiResponses(
@@ -71,7 +77,8 @@ class PromptTemplateController(
 
     @Operation(
         summary = "프롬프트 템플릿 수정",
-        description = "템플릿 이름과 기본 BRANCH를 수정한다. 기본 BRANCH는 같은 템플릿에 존재하는 이름만 지정할 수 있다.",
+        description = "템플릿 이름과 기본 BRANCH를 수정한다. 기본 BRANCH는 같은 템플릿에 존재하는 이름만 지정할 수 있다. " +
+            "템플릿 용도(type)는 생성 후 변경할 수 없다.",
     )
     @ApiResponses(
         value = [
@@ -87,12 +94,15 @@ class PromptTemplateController(
         @Valid @RequestBody request: UpdatePromptTemplateRequest,
     ): PromptTemplateDto = promptTemplateService.updateTemplate(id, request)
 
-    @Operation(summary = "프롬프트 템플릿 삭제", description = "버전이 하나도 없는 템플릿만 삭제할 수 있다.")
+    @Operation(
+        summary = "프롬프트 템플릿 삭제",
+        description = "버전이 하나도 없고 기본 프롬프트로 지정되지 않은 템플릿만 삭제할 수 있다.",
+    )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "204", description = "삭제 성공"),
             ApiResponse(responseCode = "404", description = "템플릿 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
-            ApiResponse(responseCode = "409", description = "소속 버전이 있어 삭제 불가", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
+            ApiResponse(responseCode = "409", description = "소속 버전이 있거나 기본 프롬프트로 지정되어 삭제 불가", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
         ],
     )
     @DeleteMapping("/{id}")

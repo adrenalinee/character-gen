@@ -28,7 +28,9 @@ class CharacterChatSession(
     val characterId: Long,
     val characterName: String,
     val relationshipStage: RelationshipStage,
-    val instructionBranch: String,
+    val refId: Long,
+    // ref를 직접 지정해 VERSION으로 조립한 세션에는 브랜치 이름이 없다.
+    val instructionBranch: String?,
     val instructions: String,
     val model: String,
     val situationNote: String?,

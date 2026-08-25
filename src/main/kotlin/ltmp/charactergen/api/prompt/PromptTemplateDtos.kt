@@ -3,10 +3,13 @@ package ltmp.charactergen.api.prompt
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.PositiveOrZero
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.PromptTemplateType
+import ltmp.charactergen.data.entity.DefaultPromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import java.time.OffsetDateTime
@@ -17,9 +20,15 @@ data class CreatePromptTemplateRequest(
     @field:Size(max = 200)
     @field:Schema(description = "템플릿 이름", example = "L0 캐릭터 생성", requiredMode = Schema.RequiredMode.REQUIRED)
     val name: String,
+    @field:Schema(
+        description = "템플릿 용도. 생성 후에는 변경할 수 없다. 실행 시 이 타입과 맞지 않는 용도로는 사용할 수 없다.",
+        example = "CHARACTER_GENERATION",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val type: PromptTemplateType,
 )
 
-@Schema(description = "프롬프트 템플릿 수정 요청")
+@Schema(description = "프롬프트 템플릿 수정 요청. 템플릿 용도(type)는 변경할 수 없다.")
 data class UpdatePromptTemplateRequest(
     @field:NotBlank
     @field:Size(max = 200)
@@ -41,6 +50,8 @@ data class PromptTemplateDto(
     val id: Long,
     @field:Schema(description = "템플릿 이름", example = "L0 캐릭터 생성", requiredMode = Schema.RequiredMode.REQUIRED)
     val name: String,
+    @field:Schema(description = "템플릿 용도", example = "CHARACTER_GENERATION", requiredMode = Schema.RequiredMode.REQUIRED)
+    val type: PromptTemplateType,
     @field:Schema(description = "기본 BRANCH 이름", example = "main", nullable = true)
     val defaultBranch: String? = null,
     @field:Schema(description = "마지막으로 발급한 VERSION 번호", example = "3", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -57,6 +68,8 @@ data class PromptTemplateSimpleDto(
     val id: Long,
     @field:Schema(description = "템플릿 이름", example = "L0 캐릭터 생성", requiredMode = Schema.RequiredMode.REQUIRED)
     val name: String,
+    @field:Schema(description = "템플릿 용도", example = "CHARACTER_GENERATION", requiredMode = Schema.RequiredMode.REQUIRED)
+    val type: PromptTemplateType,
     @field:Schema(description = "기본 BRANCH 이름", example = "main", nullable = true)
     val defaultBranch: String? = null,
     @field:Schema(description = "마지막으로 발급한 VERSION 번호", example = "3", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -190,6 +203,7 @@ data class PromptTemplateInputDto(
 fun PromptTemplate.toDto() = PromptTemplateDto(
     id = id,
     name = name,
+    type = type,
     defaultBranch = defaultBranch,
     lastVersion = lastVersion,
     createdAt = createdAt,
@@ -199,6 +213,7 @@ fun PromptTemplate.toDto() = PromptTemplateDto(
 fun PromptTemplate.toSimpleDto() = PromptTemplateSimpleDto(
     id = id,
     name = name,
+    type = type,
     defaultBranch = defaultBranch,
     lastVersion = lastVersion,
     createdAt = createdAt,
@@ -233,6 +248,46 @@ fun PromptTemplateRef.toSimpleDto() = PromptTemplateRefSimpleDto(
     fromRefId = fromRef?.id,
     fromRefRevision = fromRefRevision,
     revision = revision,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+@Schema(description = "기본 프롬프트 템플릿 변경 요청")
+data class UpdateDefaultPromptTemplateRequest(
+    @field:Positive
+    @field:Schema(
+        description = "기본값으로 지정할 템플릿 식별자. 경로의 type과 같은 용도의 템플릿만 지정할 수 있다.",
+        example = "1",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val promptTemplateId: Long,
+)
+
+@Schema(description = "용도별 기본 프롬프트 템플릿 정보")
+data class DefaultPromptTemplateDto(
+    @field:Schema(description = "템플릿 용도", example = "CHARACTER_GENERATION", requiredMode = Schema.RequiredMode.REQUIRED)
+    val type: PromptTemplateType,
+    @field:Schema(description = "기본 템플릿 식별자", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    val promptTemplateId: Long,
+    @field:Schema(description = "기본 템플릿 이름", example = "L0 character generation", requiredMode = Schema.RequiredMode.REQUIRED)
+    val promptTemplateName: String,
+    @field:Schema(
+        description = "기본 템플릿의 기본 BRANCH 이름. 실제로 실행되는 ref다. null이면 실행할 ref를 결정할 수 없다.",
+        example = "main",
+        nullable = true,
+    )
+    val defaultBranch: String? = null,
+    @field:Schema(description = "생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val createdAt: OffsetDateTime,
+    @field:Schema(description = "최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val updatedAt: OffsetDateTime,
+)
+
+fun DefaultPromptTemplate.toDto() = DefaultPromptTemplateDto(
+    type = type,
+    promptTemplateId = promptTemplate.id,
+    promptTemplateName = promptTemplate.name,
+    defaultBranch = promptTemplate.defaultBranch,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

@@ -83,7 +83,9 @@ class L0CharacterGenerationController(
 
     @Operation(
         summary = "L0 캐릭터 생성",
-        description = "refId를 제외한 생성 입력은 선택 사항이며, 생략한 값은 프롬프트에서 빈 문자열로 처리한다. 실행 레코드를 PREPARING 상태로 생성하고 즉시 반환한 뒤, 트랜잭션 커밋 후 전용 executor가 프롬프트 생성과 OpenAI Responses API 호출을 비동기로 수행한다.",
+        description = "생성 입력은 모두 선택 사항이며, 생략한 값은 프롬프트에서 빈 문자열로 처리한다. " +
+            "refId를 생략하면 CHARACTER_GENERATION 기본 프롬프트를 사용하고, 지정하면 같은 용도의 템플릿에 속한 ref여야 한다. " +
+            "실행 레코드를 PREPARING 상태로 생성하고 즉시 반환한 뒤, 트랜잭션 커밋 후 전용 executor가 프롬프트 생성과 OpenAI Responses API 호출을 비동기로 수행한다.",
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponses(
         value = [
@@ -92,8 +94,8 @@ class L0CharacterGenerationController(
                 description = "생성 요청을 수락함",
                 content = [Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = Schema(implementation = L0GenerationExecuteDto::class))],
             ),
-            ApiResponse(responseCode = "400", description = "실행 불가능한 ref, Big Five 축과 맞지 않는 단계 옵션, 충돌 조합, 또는 불균형 2개 이상", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
-            ApiResponse(responseCode = "404", description = "프롬프트 ref 또는 생성 옵션 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
+            ApiResponse(responseCode = "400", description = "실행 불가능한 ref, 용도가 CHARACTER_GENERATION이 아닌 ref, 기본 프롬프트에 기본 BRANCH 없음, Big Five 축과 맞지 않는 단계 옵션, 충돌 조합, 또는 불균형 2개 이상", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
+            ApiResponse(responseCode = "404", description = "프롬프트 ref, 기본 프롬프트 지정, 또는 생성 옵션 없음", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
             ApiResponse(responseCode = "429", description = "동시 생성 실행 한도 초과", content = [Content(schema = Schema(implementation = ApiErrorResponse::class))]),
         ],
     )

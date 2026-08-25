@@ -34,6 +34,7 @@ class CharacterChatController(
     @Operation(
         summary = "캐릭터 대화 세션 생성",
         description = "캐릭터와 관계 단계로 런타임 인스트럭션을 조립해 메모리에 세션을 만든다. " +
+            "refId와 instructionBranch를 모두 생략하면 CHARACTER_RUNTIME 기본 프롬프트를 사용한다. " +
             "응답에는 실제로 주입되는 인스트럭션 전문이 포함되므로 무엇이 들어갔는지 바로 확인할 수 있다.",
     )
     @ApiResponses(
@@ -45,12 +46,12 @@ class CharacterChatController(
             ),
             ApiResponse(
                 responseCode = "400",
-                description = "요청 값이 올바르지 않음",
+                description = "요청 값이 올바르지 않거나, 용도가 CHARACTER_RUNTIME이 아닌 ref이거나, refId와 instructionBranch를 동시에 지정함",
                 content = [Content(schema = Schema(implementation = ApiErrorResponse::class))],
             ),
             ApiResponse(
                 responseCode = "404",
-                description = "캐릭터 또는 인스트럭션 템플릿 브랜치 없음",
+                description = "캐릭터, 프롬프트 ref, 인스트럭션 템플릿 브랜치, 또는 기본 프롬프트 지정 없음",
                 content = [Content(schema = Schema(implementation = ApiErrorResponse::class))],
             ),
             ApiResponse(

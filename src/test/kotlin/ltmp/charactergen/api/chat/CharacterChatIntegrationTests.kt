@@ -4,6 +4,7 @@ import ltmp.charactergen.client.openai.CharacterChatLlmClient
 import ltmp.charactergen.client.openai.CharacterChatStreamRequest
 import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.data.PromptTemplateRefType
+import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.data.entity.L0GenerationExecute
 import ltmp.charactergen.data.entity.PromptTemplate
@@ -12,6 +13,7 @@ import ltmp.charactergen.data.repo.CharacterRepository
 import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
+import ltmp.charactergen.service.DefaultPromptTemplateService
 import ltmp.charactergen.service.chat.CharacterChatSessionStore
 import ltmp.charactergen.service.chat.ChatRole
 import org.junit.jupiter.api.BeforeEach
@@ -46,6 +48,7 @@ class CharacterChatIntegrationTests(
     private val generationExecuteRepository: L0GenerationExecuteRepository,
     private val promptTemplateRepository: PromptTemplateRepository,
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
+    private val defaultPromptTemplateService: DefaultPromptTemplateService,
     private val sessionStore: CharacterChatSessionStore,
     private val fakeChatLlmClient: FakeCharacterChatLlmClient,
 ) {
@@ -231,9 +234,7 @@ class CharacterChatIntegrationTests(
     @Test
     fun `A_B 비교용 브랜치를 지정하면 그 브랜치의 템플릿으로 조립한다`() {
         val characterId = persistCharacter()
-        val template = requireNotNull(
-            promptTemplateRepository.findByName("L0 character runtime instruction"),
-        )
+        val template = defaultPromptTemplateService.resolveDefaultTemplate(PromptTemplateType.CHARACTER_RUNTIME)
         promptTemplateRefRepository.saveAndFlush(
             PromptTemplateRef(
                 promptTemplate = template,
@@ -257,6 +258,66 @@ class CharacterChatIntegrationTests(
             "실험 템플릿. 이름은 서윤이고 호칭은 기본적으로 존댓말이다.",
             response.path("instructions").asString(),
         )
+    }
+
+    @Test
+    fun `refId로 다른 런타임 브랜치를 지정하면 그 ref로 조립한다`() {
+        val characterId = persistCharacter()
+        val template = defaultPromptTemplateService.resolveDefaultTemplate(PromptTemplateType.CHARACTER_RUNTIME)
+        val ref = promptTemplateRefRepository.saveAndFlush(
+            PromptTemplateRef(
+                promptTemplate = template,
+                type = PromptTemplateRefType.BRANCH,
+                name = "variant-b",
+                instructions = "refId로 고른 템플릿. 이름은 {{NAME}}이다.",
+            ),
+        )
+
+        val response = objectMapper.readTree(
+            mockMvc.post("/api/v1/character-chat/sessions") {
+                contentType = org.springframework.http.MediaType.APPLICATION_JSON
+                content = """{"characterId":$characterId,"relationshipStage":"FIRST","refId":${ref.id}}"""
+            }.andExpect { status { isCreated() } }.andReturn().response.contentAsString,
+        )
+
+        assertEquals(ref.id.toInt(), response.path("refId").asInt())
+        assertEquals("variant-b", response.path("instructionBranch").asString())
+        assertEquals("refId로 고른 템플릿. 이름은 서윤이다.", response.path("instructions").asString())
+    }
+
+    @Test
+    fun `용도가 다른 ref를 지정하면 400을 반환한다`() {
+        val characterId = persistCharacter()
+        val generationTemplate = promptTemplateRepository.saveAndFlush(
+            PromptTemplate(name = "생성 전용 ${counter++}", type = PromptTemplateType.CHARACTER_GENERATION),
+        )
+        val ref = promptTemplateRefRepository.saveAndFlush(
+            PromptTemplateRef(
+                promptTemplate = generationTemplate,
+                type = PromptTemplateRefType.BRANCH,
+                name = "main",
+                instructions = "캐릭터 생성 지시",
+            ),
+        )
+
+        mockMvc.post("/api/v1/character-chat/sessions") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            content = """{"characterId":$characterId,"relationshipStage":"FIRST","refId":${ref.id}}"""
+        }.andExpect {
+            status { isBadRequest() }
+        }
+    }
+
+    @Test
+    fun `refId와 instructionBranch를 동시에 지정하면 400을 반환한다`() {
+        mockMvc.post("/api/v1/character-chat/sessions") {
+            contentType = org.springframework.http.MediaType.APPLICATION_JSON
+            content = """
+                {"characterId":${persistCharacter()},"relationshipStage":"FIRST","refId":1,"instructionBranch":"main"}
+            """.trimIndent()
+        }.andExpect {
+            status { isBadRequest() }
+        }
     }
 
     @Test
@@ -298,7 +359,9 @@ class CharacterChatIntegrationTests(
     }
 
     private fun persistCharacter(): Long {
-        val template = promptTemplateRepository.saveAndFlush(PromptTemplate(name = "chat test ${counter++}"))
+        val template = promptTemplateRepository.saveAndFlush(
+            PromptTemplate(name = "chat test ${counter++}", type = PromptTemplateType.CHARACTER_GENERATION),
+        )
         val ref = promptTemplateRefRepository.saveAndFlush(
             PromptTemplateRef(
                 promptTemplate = template,

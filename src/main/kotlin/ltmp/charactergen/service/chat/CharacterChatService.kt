@@ -10,12 +10,13 @@ import ltmp.charactergen.api.chat.CreateCharacterChatSessionRequest
 import ltmp.charactergen.api.chat.toDto
 import ltmp.charactergen.client.openai.CharacterChatLlmClient
 import ltmp.charactergen.client.openai.CharacterChatStreamRequest
-import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_TEMPLATE_NAME
 import ltmp.charactergen.data.ClosedTopicMode
+import ltmp.charactergen.data.PromptTemplateType
+import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.repo.CharacterRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
-import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.service.ChatSessionCapacityExceededException
+import ltmp.charactergen.service.DefaultPromptTemplateService
 import ltmp.charactergen.service.InvalidRequestException
 import ltmp.charactergen.service.ResourceConflictException
 import ltmp.charactergen.service.ResourceNotFoundException
@@ -42,8 +43,8 @@ class CharacterChatService(
     @Value("\${character-chat.stream.timeout}") private val streamTimeout: Duration,
     @Value("\${character-chat.session.max-concurrency}") maxConcurrency: Int,
     private val characterRepository: CharacterRepository,
-    private val promptTemplateRepository: PromptTemplateRepository,
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
+    private val defaultPromptTemplateService: DefaultPromptTemplateService,
     private val instructionRenderer: CharacterRuntimeInstructionRenderer,
     private val sessionStore: CharacterChatSessionStore,
     private val chatLlmClient: CharacterChatLlmClient,
@@ -74,17 +75,7 @@ class CharacterChatService(
         val character = characterRepository.findOneWithGenerationById(request.characterId)
             ?: throw ResourceNotFoundException("Character not found: ${request.characterId}")
 
-        val template = promptTemplateRepository.findByName(L0_RUNTIME_INSTRUCTION_TEMPLATE_NAME)
-            ?: throw ResourceNotFoundException(
-                "PromptTemplate not found: $L0_RUNTIME_INSTRUCTION_TEMPLATE_NAME",
-            )
-        val branchName = request.instructionBranch
-            ?: template.defaultBranch
-            ?: throw InvalidRequestException(
-                "런타임 인스트럭션 템플릿에 기본 브랜치가 없습니다. instructionBranch를 지정하세요.",
-            )
-        val branch = promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndName(template.id, branchName)
-            ?: throw ResourceNotFoundException("PromptTemplateRef branch not found: $branchName")
+        val ref = resolveRuntimeRef(request.refId, request.instructionBranch)
 
         val options = RuntimeInstructionOptions(
             relationshipStage = request.relationshipStage,
@@ -97,8 +88,9 @@ class CharacterChatService(
             characterId = character.id,
             characterName = character.name,
             relationshipStage = options.relationshipStage,
-            instructionBranch = branchName,
-            instructions = instructionRenderer.render(branch.instructions, character, options),
+            refId = ref.id,
+            instructionBranch = ref.name,
+            instructions = instructionRenderer.render(ref.instructions, character, options),
             model = request.model?.takeIf { it.isNotBlank() } ?: defaultModel,
             situationNote = options.situationNote,
             includeVoiceSamples = options.includeVoiceSamples,
@@ -230,6 +222,39 @@ class CharacterChatService(
     @PreDestroy
     fun shutdown() {
         executorService.shutdown()
+    }
+
+    /**
+     * 대화에 사용할 런타임 인스트럭션 ref를 결정한다.
+     *
+     * refId를 지정하면 용도가 CHARACTER_RUNTIME인 템플릿의 ref인지 검증하고,
+     * instructionBranch를 지정하면 기본 CHARACTER_RUNTIME 템플릿 안에서 그 브랜치를 찾는다.
+     * 둘 다 없으면 기본 프롬프트를 쓴다.
+     */
+    private fun resolveRuntimeRef(refId: Long?, instructionBranch: String?): PromptTemplateRef {
+        if (refId != null && instructionBranch != null) {
+            throw InvalidRequestException("refId와 instructionBranch는 동시에 지정할 수 없습니다.")
+        }
+        if (refId != null) {
+            val ref = promptTemplateRefRepository.findOneWithDetailsById(refId)
+                ?: throw ResourceNotFoundException("PromptTemplateRef not found: $refId")
+            if (ref.promptTemplate.type != PromptTemplateType.CHARACTER_RUNTIME) {
+                throw InvalidRequestException(
+                    "PromptTemplate type mismatch. expected=${PromptTemplateType.CHARACTER_RUNTIME}, " +
+                        "actual=${ref.promptTemplate.type}, refId=$refId",
+                )
+            }
+            return ref
+        }
+        if (instructionBranch != null) {
+            val template = defaultPromptTemplateService.resolveDefaultTemplate(PromptTemplateType.CHARACTER_RUNTIME)
+            return promptTemplateRefRepository
+                .findOneWithDetailsByPromptTemplateIdAndName(template.id, instructionBranch)
+                ?: throw ResourceNotFoundException(
+                    "PromptTemplateRef branch not found: templateId=${template.id}, branchName=$instructionBranch",
+                )
+        }
+        return defaultPromptTemplateService.resolveDefaultRef(PromptTemplateType.CHARACTER_RUNTIME)
     }
 
     private companion object {
