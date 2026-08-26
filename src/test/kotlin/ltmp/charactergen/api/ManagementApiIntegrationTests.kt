@@ -9,6 +9,8 @@ import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT_V3_1
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_1
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT_V3_2
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_2
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT_V4
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V4
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_TEMPLATE_NAME
 import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.PromptTemplateRefType
@@ -552,22 +554,23 @@ class ManagementApiIntegrationTests(
         referenceDataInitializer.run(DefaultApplicationArguments())
 
         val template = assertNotNull(promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME))
-        assertEquals(3, template.lastVersion)
+        assertEquals(4, template.lastVersion)
         assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, template.defaultBranch)
         assertEquals(PromptTemplateType.CHARACTER_GENERATION, template.type)
 
         val refs = promptTemplateRefRepository.findAll().filter { it.promptTemplate.id == template.id }
-        assertEquals(4, refs.size)
+        assertEquals(5, refs.size)
         val branch = refs.single { it.type == PromptTemplateRefType.BRANCH }
         val versionOne = refs.single { it.version == 1L }
         val versionTwo = refs.single { it.version == 2L }
         val versionThree = refs.single { it.version == 3L }
+        val versionFour = refs.single { it.version == 4L }
 
         assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, branch.name)
-        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_2, branch.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V4, branch.instructions)
         assertEquals(1, branch.inputs.size)
         assertEquals("user", branch.inputs.single().role)
-        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V3_2, branch.inputs.single().inputText)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V4, branch.inputs.single().inputText)
 
         assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS, versionOne.instructions)
         assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT, versionOne.inputs.single().inputText)
@@ -578,7 +581,10 @@ class ManagementApiIntegrationTests(
         assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V3_2, versionThree.instructions)
         assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V3_2, versionThree.inputs.single().inputText)
         assertEquals(branch.id, versionThree.fromRef?.id)
-        assertEquals(branch.revision, versionThree.fromRefRevision)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V4, versionFour.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V4, versionFour.inputs.single().inputText)
+        assertEquals(branch.id, versionFour.fromRef?.id)
+        assertEquals(branch.revision, versionFour.fromRefRevision)
 
         mockMvc.get("/api/v1/prompt-templates/{id}", template.id).andExpect {
             status { isOk() }

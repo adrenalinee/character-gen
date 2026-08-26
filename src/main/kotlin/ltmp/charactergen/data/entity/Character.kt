@@ -73,25 +73,21 @@ class Character(
     @Column(name = "identity_note", nullable = false)
     val identityNote: String,
 
-//    @Lob
-//    @Column(name = "attachment_note", nullable = false)
-//    val attachmentNote: String,
+    @Lob
+    @Column(name = "on_rejection", nullable = false)
+    val onRejection: String,
 
     @Lob
-    @Column(nullable = false)
-    val attachmentNoteEarly: String,
+    @Column(name = "on_conflict", nullable = false)
+    val onConflict: String,
 
     @Lob
-    @Column(nullable = false)
-    val attachmentNoteDeepening: String,
+    @Column(name = "on_absence", nullable = false)
+    val onAbsence: String,
 
     @Lob
-    @Column(nullable = false)
-    val attachmentNoteClose: String,
-
-    @Lob
-    @Column(nullable = false)
-    val attachmentNoteOnRejection: String,
+    @Column(name = "on_over_approach", nullable = false)
+    val onOverApproach: String,
 
     @Lob
     @Column(name = "emotional_expression_note", nullable = false)
@@ -114,10 +110,6 @@ class Character(
     val underStress: String,
 
     @Lob
-    @Column(name = "address_style", nullable = false)
-    val addressStyle: String,
-
-    @Lob
     @Column(nullable = false)
     val recognizability: String,
 
@@ -130,6 +122,8 @@ class Character(
     val imbalanceNote: String,
 
     concreteDetails: List<CharacterConcreteDetailEntity>,
+    behavioralRules: List<CharacterBehavioralRuleEntity>,
+    relationshipStages: List<CharacterRelationshipStageEntity>,
     nonNegotiables: List<CharacterNonNegotiableEntity>,
     forbiddenBehaviors: List<CharacterForbiddenBehaviorEntity>,
     verbalTics: List<CharacterVerbalTicEntity>,
@@ -143,6 +137,18 @@ class Character(
     @OrderColumn(name = "detail_order")
     @BatchSize(size = 50)
     val concreteDetails: MutableList<CharacterConcreteDetailEntity> = concreteDetails.toMutableList()
+
+    @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
+    @JoinColumn(name = "character_id", nullable = false)
+    @OrderColumn(name = "behavioral_rule_order")
+    @BatchSize(size = 50)
+    val behavioralRules: MutableList<CharacterBehavioralRuleEntity> = behavioralRules.toMutableList()
+
+    @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
+    @JoinColumn(name = "character_id", nullable = false)
+    @OrderColumn(name = "relationship_stage_order")
+    @BatchSize(size = 50)
+    val relationshipStages: MutableList<CharacterRelationshipStageEntity> = relationshipStages.toMutableList()
 
     @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true)
     @JoinColumn(name = "character_id", nullable = false)

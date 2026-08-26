@@ -3,6 +3,8 @@ package ltmp.charactergen.api.axis
 import io.swagger.v3.oas.annotations.media.Schema
 import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.BigFiveVector
+import ltmp.charactergen.data.VerbalTicSituationGroup
+import ltmp.charactergen.data.VoiceSampleSituationGroup
 
 @Schema(description = "L0 캐릭터 생성 화면에서 선택할 수 있는 전체 축 정보")
 data class L0CharacterGenerationOptionsDto(
@@ -50,6 +52,50 @@ data class L0CharacterGenerationOptionsDto(
         requiredMode = Schema.RequiredMode.REQUIRED,
     )
     val axisConflicts: List<AxisConflictOptionDto>,
+
+    @field:Schema(
+        description = "말버릇을 만들 상황 카탈로그. 실제로 프롬프트에 넣을 세 개는 생성 시점에 서버가 군 규칙에 따라 고른다.",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val verbalTicSituations: List<VerbalTicSituationOptionDto>,
+
+    @field:Schema(
+        description = "발화 샘플을 만들 상황 카탈로그. 실제로 프롬프트에 넣을 세 개는 생성 시점에 서버가 군 규칙에 따라 고른다.",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val voiceSampleSituations: List<VoiceSampleSituationOptionDto>,
+)
+
+@Schema(description = "말버릇을 만들 상황 선택지")
+data class VerbalTicSituationOptionDto(
+    @field:Schema(description = "식별자", requiredMode = Schema.RequiredMode.REQUIRED)
+    val id: Long,
+    @field:Schema(description = "상황이 속한 군", requiredMode = Schema.RequiredMode.REQUIRED)
+    val group: VerbalTicSituationGroup,
+    @field:Schema(description = "군 이름", example = "D군", requiredMode = Schema.RequiredMode.REQUIRED)
+    val groupLabel: String,
+    @field:Schema(description = "군 설명", example = "자기 영역", requiredMode = Schema.RequiredMode.REQUIRED)
+    val groupDescription: String,
+    @field:Schema(description = "프롬프트에 주입할 상황", example = "자기 과거를 캐물을 때", requiredMode = Schema.RequiredMode.REQUIRED)
+    val situation: String,
+    @field:Schema(description = "이 상황이 주로 검증하는 축", example = "회피 방식", requiredMode = Schema.RequiredMode.REQUIRED)
+    val verifiedAxis: String,
+)
+
+@Schema(description = "발화 샘플을 만들 상황 선택지")
+data class VoiceSampleSituationOptionDto(
+    @field:Schema(description = "식별자", requiredMode = Schema.RequiredMode.REQUIRED)
+    val id: Long,
+    @field:Schema(description = "상황이 속한 군", requiredMode = Schema.RequiredMode.REQUIRED)
+    val group: VoiceSampleSituationGroup,
+    @field:Schema(description = "군 이름", example = "3군", requiredMode = Schema.RequiredMode.REQUIRED)
+    val groupLabel: String,
+    @field:Schema(description = "군 설명", example = "마찰", requiredMode = Schema.RequiredMode.REQUIRED)
+    val groupDescription: String,
+    @field:Schema(description = "프롬프트에 주입할 상황", example = "깊은 이야기를 캐물었을 때", requiredMode = Schema.RequiredMode.REQUIRED)
+    val situation: String,
+    @field:Schema(description = "이 상황이 주로 검증하는 축", example = "회피 방식, 개방 사다리", requiredMode = Schema.RequiredMode.REQUIRED)
+    val verifiedAxis: String,
 )
 
 @Schema(

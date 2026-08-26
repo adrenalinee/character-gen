@@ -2,17 +2,21 @@ package ltmp.charactergen.service.generation
 
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.DisclosureLevel
+import ltmp.charactergen.data.RelationshipStageLevel
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.data.entity.CharacterBannedWordEntity
+import ltmp.charactergen.data.entity.CharacterBehavioralRuleEntity
 import ltmp.charactergen.data.entity.CharacterConcreteDetailEntity
 import ltmp.charactergen.data.entity.CharacterDisclosureItemEntity
 import ltmp.charactergen.data.entity.CharacterForbiddenBehaviorEntity
 import ltmp.charactergen.data.entity.CharacterNonNegotiableEntity
 import ltmp.charactergen.data.entity.CharacterRelationEntity
+import ltmp.charactergen.data.entity.CharacterRelationshipStageEntity
 import ltmp.charactergen.data.entity.CharacterVerbalTicEntity
 import ltmp.charactergen.data.entity.CharacterVoiceSampleEntity
 import ltmp.charactergen.data.entity.L0GenerationExecute
 import ltmp.charactergen.model.L0CharacterResponse
+import ltmp.charactergen.model.RelationshipStageNote
 
 fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Character = Character(
     generationExecute = generationExecute,
@@ -33,20 +37,25 @@ fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Charac
     contradictionSharedRoot = core.contradiction.sharedRoot,
     expressionNote = traits.expressionNote,
     identityNote = traits.identityNote,
-    attachmentNoteEarly = behavior.attachmentNote.early,
-    attachmentNoteDeepening = behavior.attachmentNote.deepening,
-    attachmentNoteClose = behavior.attachmentNote.close,
-    attachmentNoteOnRejection = behavior.attachmentNote.onRejection,
+    onRejection = relationshipEvents.onRejection,
+    onConflict = relationshipEvents.onConflict,
+    onAbsence = relationshipEvents.onAbsence,
+    onOverApproach = relationshipEvents.onOverApproach,
     emotionalExpressionNote = behavior.emotionalExpressionNote,
     avoidanceNote = behavior.avoidanceNote,
     speechArchetypeNote = voice.speechArchetypeNote,
     sentencePattern = voice.sentencePattern,
     underStress = voice.underStress,
-    addressStyle = voice.addressStyle,
     recognizability = designNote.recognizability,
     longTermViability = designNote.longTermViability,
     imbalanceNote = designNote.imbalanceNote,
     concreteDetails = identity.concreteDetails.map { CharacterConcreteDetailEntity(detailText = it) },
+    behavioralRules = core.lie.behavioralRule.map { CharacterBehavioralRuleEntity(ruleText = it) },
+    relationshipStages = listOf(
+        relationshipStages.early.toEntity(RelationshipStageLevel.EARLY),
+        relationshipStages.deepening.toEntity(RelationshipStageLevel.DEEPENING),
+        relationshipStages.close.toEntity(RelationshipStageLevel.CLOSE),
+    ),
     nonNegotiables = core.nonNegotiables.map {
         CharacterNonNegotiableEntity(
             domain = it.domain,
@@ -88,4 +97,12 @@ fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Charac
             demonstrates = it.demonstrates,
         )
     },
+)
+
+private fun RelationshipStageNote.toEntity(level: RelationshipStageLevel) = CharacterRelationshipStageEntity(
+    level = level,
+    attachment = attachment,
+    address = address,
+    emotionalRange = emotionalRange,
+    avoidance = avoidance,
 )

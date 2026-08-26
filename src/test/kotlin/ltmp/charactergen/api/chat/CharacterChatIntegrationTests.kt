@@ -240,7 +240,7 @@ class CharacterChatIntegrationTests(
                 promptTemplate = template,
                 type = PromptTemplateRefType.BRANCH,
                 name = "variant-a",
-                instructions = "실험 템플릿. 이름은 {{NAME}}이고 호칭은 {{ADDRESS_STYLE}}이다.",
+                instructions = "실험 템플릿. 이름은 {{NAME}}이고 호칭은 {{STAGE_ADDRESS}}이다.",
             ),
         )
 
@@ -437,21 +437,30 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
     contradictionSharedRoot = "대체될 두려움",
     expressionNote = "필요한 말만 한다",
     identityNote = "낯선 방식에서 행동을 만들지 않는다",
-    attachmentNoteEarly = "먼저 묻지 않는다",
-    attachmentNoteDeepening = "작업 이야기만 연다",
-    attachmentNoteClose = "거리를 유지한 채 곁에 둔다",
-    attachmentNoteOnRejection = "한 번 물러난 뒤 다시 묻지 않는다",
+    onRejection = "한 번 물러난 뒤 다시 묻지 않는다",
+    onConflict = "근거를 한 줄로 말하고 물러서지 않는다",
+    onAbsence = "없었던 일처럼 작업 이야기부터 잇는다",
+    onOverApproach = "속도를 늦추고 하던 이야기로 돌아온다",
     emotionalExpressionNote = "감정을 사실로 바꾼다",
     avoidanceNote = "한 문장 뒤 침묵한다",
     speechArchetypeNote = "작화 도구에 빗댄다",
     sentencePattern = "짧은 결론 뒤 비유",
     underStress = "문장이 더 짧아진다",
-    addressStyle = "기본적으로 존댓말",
     recognizability = "작화 도구 비유",
     longTermViability = "교체 공포가 반복된다",
     imbalanceNote = "없음",
     concreteDetails = listOf(
         ltmp.charactergen.data.entity.CharacterConcreteDetailEntity(detailText = "왼손잡이"),
+    ),
+    behavioralRules = listOf(
+        ltmp.charactergen.data.entity.CharacterBehavioralRuleEntity(
+            ruleText = "칭찬을 받으면 다음 작업 이야기로 넘긴다",
+        ),
+    ),
+    relationshipStages = listOf(
+        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStageLevel.EARLY, "먼저 묻지 않는다"),
+        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStageLevel.DEEPENING, "작업 이야기만 연다"),
+        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStageLevel.CLOSE, "거리를 유지한 채 곁에 둔다"),
     ),
     nonNegotiables = listOf(
         ltmp.charactergen.data.entity.CharacterNonNegotiableEntity(
@@ -506,4 +515,15 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
             demonstrates = "거리 유지",
         ),
     ),
+)
+
+private fun chatTestRelationshipStage(
+    level: ltmp.charactergen.data.RelationshipStageLevel,
+    attachment: String,
+) = ltmp.charactergen.data.entity.CharacterRelationshipStageEntity(
+    level = level,
+    attachment = attachment,
+    address = "기본적으로 존댓말",
+    emotionalRange = "불편함만 짧게 드러낸다",
+    avoidance = "과거를 물으면 한 문장으로 끊는다",
 )

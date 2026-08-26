@@ -4,6 +4,7 @@ import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.RelationshipStage
 import ltmp.charactergen.data.entity.Character
+import ltmp.charactergen.data.entity.CharacterRelationshipStageEntity
 import ltmp.charactergen.service.prompt.renderPlaceholders
 import org.springframework.stereotype.Component
 
@@ -18,11 +19,12 @@ data class RuntimeInstructionOptions(
 )
 
 /**
- * L0 캐릭터를 런타임 대화용 인스트럭션 한 벌로 조립한다. (L0 런타임 주입 설계 1~3절)
+ * L0 캐릭터를 런타임 대화용 인스트럭션 한 벌로 조립한다. (L0 런타임 주입 설계 1~3절, 생성 프롬프트 v4 §8.1)
  *
- * 설계 1절의 라우팅에 따라 아래 필드는 의도적으로 넣지 않는다.
- * `oneLine`, `need`, `wantNeedConflict`, `traits`(= `expressionNote`/`identityNote`),
+ * v4의 소비처 구분에 따라 아래 필드는 의도적으로 넣지 않는다.
+ * `oneLine`, `lieStatement`, `need`, `wantNeedConflict`, `contradictionSharedRoot`, `identityNote`,
  * 모든 `tieToLie`, `speechArchetypeNote`, `recognizability`, `longTermViability`, `imbalanceNote`.
+ * 특히 `lieStatement`와 `need`는 캐릭터 자신이 모르는 것이라, 주입하면 캐릭터가 자기 믿음과 결핍을 설명하게 된다.
  *
  * 호출자는 캐릭터의 지연 로딩 컬렉션이 살아 있는 트랜잭션 안에서 호출해야 한다.
  */
@@ -33,6 +35,7 @@ class CharacterRuntimeInstructionRenderer {
 
     private fun replacements(character: Character, options: RuntimeInstructionOptions): Map<String, String> {
         val stage = options.relationshipStage
+        val stageNote = stageNote(character, stage)
         return mapOf(
             "NAME" to character.name,
             "AGE" to character.age.toString(),
@@ -41,22 +44,29 @@ class CharacterRuntimeInstructionRenderer {
             "CONCRETE_DETAILS" to bulleted(
                 character.concreteDetails.take(MAX_CONCRETE_DETAILS).map { it.detailText },
             ),
+            "BEHAVIORAL_RULES" to bulleted(character.behavioralRules.map { it.ruleText }),
+            "EXPRESSION_NOTE" to character.expressionNote,
             "SENTENCE_PATTERN" to character.sentencePattern,
             "VERBAL_TICS" to character.verbalTics.joinToString("\n") { "${it.situation} → ${it.description}" },
             "UNDER_STRESS" to character.underStress,
-            "ADDRESS_STYLE" to character.addressStyle,
             "BANNED_WORDS" to character.bannedWords.joinToString(", ") { it.wordText },
             "EMOTIONAL_EXPRESSION_NOTE" to character.emotionalExpressionNote,
             "AVOIDANCE_NOTE" to character.avoidanceNote,
-            "ATTACHMENT_NOTE" to attachmentNote(character, stage),
+            "ON_REJECTION" to character.onRejection,
+            "ON_CONFLICT" to character.onConflict,
+            "ON_ABSENCE" to character.onAbsence,
+            "ON_OVER_APPROACH" to character.onOverApproach,
+            "STAGE_LABEL" to stage.label,
+            "STAGE_ATTACHMENT" to stageNote.attachment,
+            "STAGE_ADDRESS" to stageNote.address,
+            "STAGE_EMOTIONAL_RANGE" to stageNote.emotionalRange,
+            "STAGE_AVOIDANCE" to stageNote.avoidance,
             "CONTRADICTION_TRAIT_A" to character.contradictionTraitA,
             "CONTRADICTION_TRAIT_B" to character.contradictionTraitB,
-            "CONTRADICTION_SHARED_ROOT" to character.contradictionSharedRoot,
             "NON_NEGOTIABLES" to bulleted(character.nonNegotiables.map { it.statement }),
             "FORBIDDEN_BEHAVIORS" to bulleted(character.forbiddenBehaviors.map { it.behavior }),
             "WANT" to character.want,
             "RELATIONS" to bulleted(character.relations.map { "${it.name} — ${it.relation}" }),
-            "LIE_STATEMENT" to character.lieStatement,
             "OPEN_DISCLOSURE" to openDisclosure(character, stage),
             "CLOSED_TOPICS_SECTION" to closedTopicsSection(character, stage, options.closedTopicMode),
             "SITUATION_SECTION" to situationSection(options.situationNote),
@@ -66,17 +76,13 @@ class CharacterRuntimeInstructionRenderer {
     }
 
     /**
-     * 현재 단계의 애착 서술 하나를 넣는다.
-     * 거절 반응은 어느 단계에서든 일어나므로 단계와 무관하게 항상 넣는다. (설계 3절)
+     * 현재 관계 깊이에 해당하는 단계 서술 한 벌을 고른다. (v4 §8.1의 단계별 주입)
+     *
+     * 관계 사건 네 가지는 어느 단계에서든 일어나므로 여기서 고르지 않고 항상 주입한다.
      */
-    private fun attachmentNote(character: Character, stage: RelationshipStage): String {
-        val staged = when (stage) {
-            RelationshipStage.FIRST -> character.attachmentNoteEarly
-            RelationshipStage.FAMILIAR -> character.attachmentNoteDeepening
-            RelationshipStage.CLOSE, RelationshipStage.SPECIAL -> character.attachmentNoteClose
-        }
-        return "$staged\n거절당하면: ${character.attachmentNoteOnRejection}"
-    }
+    private fun stageNote(character: Character, stage: RelationshipStage): CharacterRelationshipStageEntity =
+        character.relationshipStages.firstOrNull { it.level == stage.stageLevel }
+            ?: error("캐릭터에 ${stage.stageLevel} 관계 단계 서술이 없습니다: characterId=${character.id}")
 
     private fun openDisclosure(character: Character, stage: RelationshipStage): String {
         val opened = character.disclosureItems.filter { it.level in stage.openedLevels }
@@ -119,11 +125,12 @@ class CharacterRuntimeInstructionRenderer {
     }
 
     /**
-     * Lie의 기원이 된 상처는 심층 층위가 열린 단계에서만 넣는다. (설계 1절)
+     * Lie의 기원이 된 상처는 심층 층위가 열린 단계에서만 넣는다. (설계 1절, v4의 조건부 대화 필드)
      */
     private fun woundSection(character: Character, stage: RelationshipStage): String {
         if (!stage.opensWound()) return ""
-        return "이 믿음은 다음에서 왔다: ${character.lieWound}\n" +
+        return "## 잘 꺼내지 않는 과거\n" +
+            "${character.lieWound}\n" +
             "이 일을 먼저 꺼내지 않는다. 깊이 물어올 때만 조금씩 드러난다."
     }
 

@@ -3,6 +3,7 @@ package ltmp.charactergen.api.character
 import io.swagger.v3.oas.annotations.media.Schema
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.DisclosureLevel
+import ltmp.charactergen.data.RelationshipStageLevel
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.model.NonNegotiableDomain
 import ltmp.charactergen.model.RelationPresence
@@ -68,20 +69,17 @@ data class CharacterDto(
     @field:Schema(description = "정체성 설명", requiredMode = Schema.RequiredMode.REQUIRED)
     val identityNote: String,
 
-//    @field:Schema(description = "관계 태도 설명", requiredMode = Schema.RequiredMode.REQUIRED)
-//    val attachmentNote: String,
+    @field:Schema(description = "관계 사건 반응. 도움이나 제안이 거절당했을 때", requiredMode = Schema.RequiredMode.REQUIRED)
+    val onRejection: String,
 
-    @field:Schema(description = "관계 태도 설명. 관계 형성 초기", requiredMode = Schema.RequiredMode.REQUIRED)
-    val attachmentNoteEarly: String,
+    @field:Schema(description = "관계 사건 반응. 사용자와 의견이 부딪혔을 때", requiredMode = Schema.RequiredMode.REQUIRED)
+    val onConflict: String,
 
-    @field:Schema(description = "관계 태도 설명. 관계 심화", requiredMode = Schema.RequiredMode.REQUIRED)
-    val attachmentNoteDeepening: String,
+    @field:Schema(description = "관계 사건 반응. 오래 연락이 없다가 사용자가 돌아왔을 때", requiredMode = Schema.RequiredMode.REQUIRED)
+    val onAbsence: String,
 
-    @field:Schema(description = "관계 태도 설명. 가까운 관계", requiredMode = Schema.RequiredMode.REQUIRED)
-    val attachmentNoteClose: String,
-
-    @field:Schema(description = "관계 태도 설명. 거절당했을 때", requiredMode = Schema.RequiredMode.REQUIRED)
-    val attachmentNoteOnRejection: String,
+    @field:Schema(description = "관계 사건 반응. 사용자가 관계 단계를 건너뛰어 빠르게 다가올 때", requiredMode = Schema.RequiredMode.REQUIRED)
+    val onOverApproach: String,
 
     @field:Schema(description = "정서 표출 설명", requiredMode = Schema.RequiredMode.REQUIRED)
     val emotionalExpressionNote: String,
@@ -98,9 +96,6 @@ data class CharacterDto(
     @field:Schema(description = "스트레스 상황에서의 말투", requiredMode = Schema.RequiredMode.REQUIRED)
     val underStress: String,
 
-    @field:Schema(description = "상대를 부르는 방식", requiredMode = Schema.RequiredMode.REQUIRED)
-    val addressStyle: String,
-
     @field:Schema(description = "캐릭터의 인식 가능성 평가", requiredMode = Schema.RequiredMode.REQUIRED)
     val recognizability: String,
 
@@ -112,6 +107,12 @@ data class CharacterDto(
 
     @field:Schema(description = "구체적 디테일 하위 테이블 행", requiredMode = Schema.RequiredMode.REQUIRED)
     val concreteDetails: List<CharacterConcreteDetailDto>,
+
+    @field:Schema(description = "Lie가 평상시에 만들어내는 행동 규칙 하위 테이블 행", requiredMode = Schema.RequiredMode.REQUIRED)
+    val behavioralRules: List<CharacterBehavioralRuleDto>,
+
+    @field:Schema(description = "관계 깊이 단계별 서술 하위 테이블 행", requiredMode = Schema.RequiredMode.REQUIRED)
+    val relationshipStages: List<CharacterRelationshipStageDto>,
 
     @field:Schema(description = "타협 불가능한 기준 하위 테이블 행", requiredMode = Schema.RequiredMode.REQUIRED)
     val nonNegotiables: List<CharacterNonNegotiableDto>,
@@ -174,6 +175,38 @@ data class CharacterConcreteDetailDto(
     val id: Long,
     @field:Schema(description = "구체적 디테일", requiredMode = Schema.RequiredMode.REQUIRED)
     val detailText: String,
+    @field:Schema(description = "행 생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val createdAt: OffsetDateTime,
+    @field:Schema(description = "행 최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val updatedAt: OffsetDateTime,
+)
+
+@Schema(description = "Lie가 평상시에 만들어내는 행동 규칙 테이블 행. 대화 프롬프트에 조건부 행동으로 들어간다.")
+data class CharacterBehavioralRuleDto(
+    @field:Schema(description = "행 식별자", requiredMode = Schema.RequiredMode.REQUIRED)
+    val id: Long,
+    @field:Schema(description = "'어떤 상황이 되면 무엇을 한다' 형태의 행동 규칙", requiredMode = Schema.RequiredMode.REQUIRED)
+    val ruleText: String,
+    @field:Schema(description = "행 생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val createdAt: OffsetDateTime,
+    @field:Schema(description = "행 최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
+    val updatedAt: OffsetDateTime,
+)
+
+@Schema(description = "관계 깊이 한 단계에서의 거리·호칭·감정 범위·회피 강도 테이블 행")
+data class CharacterRelationshipStageDto(
+    @field:Schema(description = "행 식별자", requiredMode = Schema.RequiredMode.REQUIRED)
+    val id: Long,
+    @field:Schema(description = "관계 깊이 단계", requiredMode = Schema.RequiredMode.REQUIRED)
+    val level: RelationshipStageLevel,
+    @field:Schema(description = "이 단계에서 사람과의 거리를 다루는 방식", requiredMode = Schema.RequiredMode.REQUIRED)
+    val attachment: String,
+    @field:Schema(description = "이 단계에서 사용자를 부르는 방식과 존댓말/반말", requiredMode = Schema.RequiredMode.REQUIRED)
+    val address: String,
+    @field:Schema(description = "이 단계에서 드러내는 감정의 범위", requiredMode = Schema.RequiredMode.REQUIRED)
+    val emotionalRange: String,
+    @field:Schema(description = "이 단계에서 회피가 작동하는 강도와 범위", requiredMode = Schema.RequiredMode.REQUIRED)
+    val avoidance: String,
     @field:Schema(description = "행 생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
     val createdAt: OffsetDateTime,
     @field:Schema(description = "행 최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -315,16 +348,15 @@ fun Character.toDto() = CharacterDto(
     contradictionSharedRoot = contradictionSharedRoot,
     expressionNote = expressionNote,
     identityNote = identityNote,
-    attachmentNoteEarly = attachmentNoteEarly,
-    attachmentNoteDeepening = attachmentNoteDeepening,
-    attachmentNoteClose = attachmentNoteClose,
-    attachmentNoteOnRejection = attachmentNoteOnRejection,
+    onRejection = onRejection,
+    onConflict = onConflict,
+    onAbsence = onAbsence,
+    onOverApproach = onOverApproach,
     emotionalExpressionNote = emotionalExpressionNote,
     avoidanceNote = avoidanceNote,
     speechArchetypeNote = speechArchetypeNote,
     sentencePattern = sentencePattern,
     underStress = underStress,
-    addressStyle = addressStyle,
     recognizability = recognizability,
     longTermViability = longTermViability,
     imbalanceNote = imbalanceNote,
@@ -332,6 +364,26 @@ fun Character.toDto() = CharacterDto(
         CharacterConcreteDetailDto(
             id = it.id,
             detailText = it.detailText,
+            createdAt = it.createdAt,
+            updatedAt = it.updatedAt,
+        )
+    },
+    behavioralRules = behavioralRules.map {
+        CharacterBehavioralRuleDto(
+            id = it.id,
+            ruleText = it.ruleText,
+            createdAt = it.createdAt,
+            updatedAt = it.updatedAt,
+        )
+    },
+    relationshipStages = relationshipStages.map {
+        CharacterRelationshipStageDto(
+            id = it.id,
+            level = it.level,
+            attachment = it.attachment,
+            address = it.address,
+            emotionalRange = it.emotionalRange,
+            avoidance = it.avoidance,
             createdAt = it.createdAt,
             updatedAt = it.updatedAt,
         )

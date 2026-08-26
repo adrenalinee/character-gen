@@ -5,6 +5,8 @@ import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.BigFiveVector
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.PromptTemplateType
+import ltmp.charactergen.data.VerbalTicSituationGroup
+import ltmp.charactergen.data.VoiceSampleSituationGroup
 import ltmp.charactergen.data.entity.AttachmentStyleEntity
 import ltmp.charactergen.data.entity.AvoidanceStyleEntity
 import ltmp.charactergen.data.entity.AxisConflictEntity
@@ -17,6 +19,8 @@ import ltmp.charactergen.data.entity.PromptTemplate
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.entity.SpeechArchetypeEntity
 import ltmp.charactergen.data.entity.SpeechRegisterEntity
+import ltmp.charactergen.data.entity.VerbalTicSituationEntity
+import ltmp.charactergen.data.entity.VoiceSampleSituationEntity
 import ltmp.charactergen.data.entity.WoundAgentEntity
 import ltmp.charactergen.data.entity.WoundDurationEntity
 import ltmp.charactergen.data.entity.WoundFormEntity
@@ -34,6 +38,8 @@ import ltmp.charactergen.data.repo.PromptTemplateRefRepository
 import ltmp.charactergen.data.repo.PromptTemplateRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.data.repo.SpeechRegisterRepository
+import ltmp.charactergen.data.repo.VerbalTicSituationRepository
+import ltmp.charactergen.data.repo.VoiceSampleSituationRepository
 import ltmp.charactergen.data.repo.WoundAgentRepository
 import ltmp.charactergen.data.repo.WoundDurationRepository
 import ltmp.charactergen.data.repo.WoundFormRepository
@@ -61,6 +67,8 @@ class L0ReferenceDataInitializer(
     private val speechArchetypeRepository: SpeechArchetypeRepository,
     private val axisConflictRepository: AxisConflictRepository,
     private val speechRegisterRepository: SpeechRegisterRepository,
+    private val verbalTicSituationRepository: VerbalTicSituationRepository,
+    private val voiceSampleSituationRepository: VoiceSampleSituationRepository,
     private val promptTemplateRepository: PromptTemplateRepository,
     private val promptTemplateRefRepository: PromptTemplateRefRepository,
     private val promptTemplateRefService: PromptTemplateRefService,
@@ -82,6 +90,8 @@ class L0ReferenceDataInitializer(
         insertMissingSpeechArchetypes()
         insertMissingAxisConflicts()
         insertMissingSpeechRegisters()
+        insertMissingVerbalTicSituations()
+        insertMissingVoiceSampleSituations()
         insertInitialL0CharacterPrompt()
         insertInitialL0RuntimeInstructionPrompt()
         insertMissingDefaultPromptTemplates()
@@ -253,6 +263,22 @@ class L0ReferenceDataInitializer(
         speechRegisterRepository.saveAll(missing)
     }
 
+    private fun insertMissingVerbalTicSituations() {
+        val existingSituations = verbalTicSituationRepository.findAll().mapTo(mutableSetOf()) { it.situation }
+        val missing = VERBAL_TIC_SITUATION_SPECS.filterNot { it.situation in existingSituations }.map {
+            VerbalTicSituationEntity(group = it.group, situation = it.situation, verifiedAxis = it.verifiedAxis)
+        }
+        verbalTicSituationRepository.saveAll(missing)
+    }
+
+    private fun insertMissingVoiceSampleSituations() {
+        val existingSituations = voiceSampleSituationRepository.findAll().mapTo(mutableSetOf()) { it.situation }
+        val missing = VOICE_SAMPLE_SITUATION_SPECS.filterNot { it.situation in existingSituations }.map {
+            VoiceSampleSituationEntity(group = it.group, situation = it.situation, verifiedAxis = it.verifiedAxis)
+        }
+        voiceSampleSituationRepository.saveAll(missing)
+    }
+
     private fun insertInitialL0CharacterPrompt() {
         val template = promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME)
             ?: promptTemplateRepository.saveAndFlush(
@@ -306,6 +332,19 @@ class L0ReferenceDataInitializer(
                 ),
             )
         }
+        if (template.lastVersion == 3L) {
+            branch.instructions = L0_CHARACTER_PROMPT_INSTRUCTIONS_V4
+            branch.replaceInputs(
+                listOf(L0_CHARACTER_PROMPT_INPUT_ROLE to L0_CHARACTER_PROMPT_INPUT_TEXT_V4),
+            )
+            promptTemplateRefRepository.flush()
+            promptTemplateRefService.createVersion(
+                template.id,
+                CreatePromptTemplateVersionRefRequest(
+                    fromRefId = branch.id,
+                ),
+            )
+        }
     }
 
     /**
@@ -314,6 +353,8 @@ class L0ReferenceDataInitializer(
      * 이 템플릿은 대화 시점에 사용자 메시지가 input이 되므로 저장된 input이 없다.
      * [PromptTemplateRefService.validateExecutable]이 input을 요구하는 VERSION은 발행하지 않고,
      * A/B 비교는 브랜치를 추가로 만들어서 한다.
+     *
+     * 그래서 버전 번호로 갱신 시점을 판단할 수 없다. 대신 브랜치 본문이 이전 기본값 그대로일 때만 새 기본값으로 올린다.
      */
     private fun insertInitialL0RuntimeInstructionPrompt() {
         val template = promptTemplateRepository.findByName(L0_RUNTIME_INSTRUCTION_TEMPLATE_NAME)
@@ -324,20 +365,24 @@ class L0ReferenceDataInitializer(
                     defaultBranch = L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
                 ),
             )
-        if (
-            promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndName(
-                template.id,
-                L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
-            ) == null
-        ) {
+        val branch = promptTemplateRefRepository.findOneWithDetailsByPromptTemplateIdAndName(
+            template.id,
+            L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
+        )
+        if (branch == null) {
             promptTemplateRefRepository.saveAndFlush(
                 PromptTemplateRef(
                     promptTemplate = template,
                     type = PromptTemplateRefType.BRANCH,
                     name = L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
-                    instructions = L0_RUNTIME_INSTRUCTION_V1,
+                    instructions = L0_RUNTIME_INSTRUCTION_V2,
                 ),
             )
+        } else if (branch.instructions == L0_RUNTIME_INSTRUCTION_V1) {
+            // v1은 v4 스키마에 없는 필드를 참조하므로 손대지 않은 브랜치만 v2로 올린다.
+            // 운영자가 고친 브랜치는 그대로 두고, 비교가 필요하면 브랜치를 따로 만든다.
+            branch.instructions = L0_RUNTIME_INSTRUCTION_V2
+            promptTemplateRefRepository.flush()
         }
         if (template.defaultBranch == null) {
             template.defaultBranch = L0_RUNTIME_INSTRUCTION_BRANCH_NAME
@@ -411,6 +456,15 @@ class L0ReferenceDataInitializer(
             neuroticism = neuroticism,
         )
     }
+
+    /**
+     * 말버릇 또는 발화 샘플을 만들 상황 하나. `verifiedAxis`는 이 상황이 주로 검증하는 축이다.
+     */
+    private data class SituationSpec<G>(
+        val group: G,
+        val situation: String,
+        val verifiedAxis: String,
+    )
 
     private data class AxisConflictSpec(
         val emotionalExpressionType: String,
@@ -584,6 +638,48 @@ class L0ReferenceDataInitializer(
                 avoidanceStyleType = "거절 명시",
                 reason = "말 대신 몸으로 나타내는 인물이 거절만 말로 분명히 하는 것은 양립하지 않는다",
             ),
+        )
+
+        // 대화 진행 중의 미시 행동. 군마다 주로 검증하는 축이 다르다. (v4 §4.1)
+        val VERBAL_TIC_SITUATION_SPECS = listOf(
+            SituationSpec(VerbalTicSituationGroup.CONVERSATION_FLOW, "대화를 먼저 열 때", "외향성, 말투 원형"),
+            SituationSpec(VerbalTicSituationGroup.CONVERSATION_FLOW, "상대의 말을 끊거나 넘길 때", "우호성, 말투 원형"),
+            SituationSpec(VerbalTicSituationGroup.CONVERSATION_FLOW, "화제를 바꿀 때", "회피 방식, 말투 원형"),
+            SituationSpec(VerbalTicSituationGroup.CONVERSATION_FLOW, "침묵이 생겼을 때", "외향성, 신경성"),
+            SituationSpec(VerbalTicSituationGroup.CONVERSATION_FLOW, "대화를 끝낼 때", "관계 태도, 외향성"),
+            SituationSpec(VerbalTicSituationGroup.REQUEST_RESPONSE, "부탁할 때", "우호성, Lie"),
+            SituationSpec(VerbalTicSituationGroup.REQUEST_RESPONSE, "거절할 때", "양보 불가, 우호성"),
+            SituationSpec(VerbalTicSituationGroup.REQUEST_RESPONSE, "동의할 때", "말투 원형"),
+            SituationSpec(VerbalTicSituationGroup.REQUEST_RESPONSE, "반대 의견을 낼 때", "우호성, 양보 불가"),
+            SituationSpec(VerbalTicSituationGroup.REQUEST_RESPONSE, "모르는 것을 질문받았을 때", "성실성, 말투 원형"),
+            SituationSpec(VerbalTicSituationGroup.REQUEST_RESPONSE, "결정을 대신 내려 달라고 요구받을 때", "관계 태도, 양보 불가"),
+            SituationSpec(VerbalTicSituationGroup.EMOTIONAL_TRIGGER, "놀랐을 때", "정서 표출"),
+            SituationSpec(VerbalTicSituationGroup.EMOTIONAL_TRIGGER, "재촉당할 때", "신경성, 정서 표출"),
+            SituationSpec(VerbalTicSituationGroup.EMOTIONAL_TRIGGER, "칭찬받을 때", "정서 표출, Lie"),
+            SituationSpec(VerbalTicSituationGroup.EMOTIONAL_TRIGGER, "자기 방식을 지적당했을 때", "정서 표출, 양보 불가"),
+            SituationSpec(VerbalTicSituationGroup.EMOTIONAL_TRIGGER, "상대가 실수했을 때", "우호성, Lie"),
+            SituationSpec(VerbalTicSituationGroup.EMOTIONAL_TRIGGER, "상대가 자기 탓을 할 때", "Lie, 정서 표출"),
+            SituationSpec(VerbalTicSituationGroup.SELF_DOMAIN, "자기 일 이야기를 할 때", "개방성, 말투 원형"),
+            SituationSpec(VerbalTicSituationGroup.SELF_DOMAIN, "자기 과거를 캐물을 때", "회피 방식"),
+            SituationSpec(VerbalTicSituationGroup.SELF_DOMAIN, "자기 상태를 물어볼 때", "정서 표출, 회피 방식"),
+            SituationSpec(VerbalTicSituationGroup.SELF_DOMAIN, "상처와 연결된 화제가 나왔을 때", "회피 방식, Lie"),
+        )
+
+        // 한 장면 전체를 보여주는 상황. 운영자 판단 근거이자 대화 프로브 시나리오가 된다. (v4 §4.2)
+        val VOICE_SAMPLE_SITUATION_SPECS = listOf(
+            SituationSpec(VoiceSampleSituationGroup.RELATIONSHIP_START, "처음 인사했을 때", "첫인상, 존댓말 정책, 말투"),
+            SituationSpec(VoiceSampleSituationGroup.RELATIONSHIP_START, "오래 연락 없다가 돌아왔을 때", "관계 태도, 관계 사건(오랜 부재)"),
+            SituationSpec(VoiceSampleSituationGroup.RELATIONSHIP_START, "사용자가 자기소개를 했을 때", "외향성, 관계 단계 early"),
+            SituationSpec(VoiceSampleSituationGroup.GOODWILL, "칭찬했을 때", "정서 표출, Lie"),
+            SituationSpec(VoiceSampleSituationGroup.GOODWILL, "배려나 선물을 받았을 때", "관계 태도, Lie"),
+            SituationSpec(VoiceSampleSituationGroup.GOODWILL, "도움을 제안했을 때", "관계 태도, 양보 불가"),
+            SituationSpec(VoiceSampleSituationGroup.FRICTION, "신념에 반대되는 의견을 냈을 때", "양보 불가(user_facing)"),
+            SituationSpec(VoiceSampleSituationGroup.FRICTION, "하지 않는 행동을 유도했을 때", "금지 행동"),
+            SituationSpec(VoiceSampleSituationGroup.FRICTION, "깊은 이야기를 캐물었을 때", "회피 방식, 개방 사다리"),
+            SituationSpec(VoiceSampleSituationGroup.FRICTION, "캐릭터의 방식이 과하다고 말했을 때", "양보 불가, 정서 표출"),
+            SituationSpec(VoiceSampleSituationGroup.VULNERABILITY, "힘든 일 직후 안부를 물었을 때", "정서 표출, 표층/심층 낙차"),
+            SituationSpec(VoiceSampleSituationGroup.VULNERABILITY, "사용자가 자기 힘든 일을 털어놓았을 때", "관계 태도, 정서 표출"),
+            SituationSpec(VoiceSampleSituationGroup.VULNERABILITY, "사용자가 무조건적인 위로를 원할 때", "양보 불가, Lie"),
         )
 
         val SPEECH_REGISTER_NAMES = listOf(

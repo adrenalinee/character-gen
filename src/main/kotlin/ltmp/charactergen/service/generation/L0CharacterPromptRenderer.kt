@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component
 @Component
 class L0CharacterPromptRenderer(
     private val axisBalanceService: L0AxisBalanceService,
+    private val situationSelectionService: L0SituationSelectionService,
 ) {
     fun render(
         prompt: GenerationPrompt,
@@ -69,7 +70,15 @@ class L0CharacterPromptRenderer(
         "EMOTION" to request.emotion?.toString().orEmpty(),
         "EXTRA_CONSTRAINTS" to request.extraConstraints.orEmpty(),
         "IMBALANCE_NOTE" to imbalanceNote(options),
+        "TIC_SITUATIONS" to bulleted(
+            situationSelectionService.selectVerbalTicSituations().map { it.situation },
+        ),
+        "SAMPLE_SITUATIONS" to bulleted(
+            situationSelectionService.selectVoiceSampleSituations().map { it.situation },
+        ),
     )
+
+    private fun bulleted(values: List<String>): String = values.joinToString("\n") { "- $it" }
 
     /**
      * 불균형 안내는 저장하지 않고 렌더 시점에 축 값으로부터 다시 계산한다.

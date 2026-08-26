@@ -8,6 +8,8 @@ import ltmp.charactergen.api.axis.PersonalityTraitStageOptionDto
 import ltmp.charactergen.api.axis.SpeechArchetypeOptionDto
 import ltmp.charactergen.api.axis.SpeechRegisterOptionDto
 import ltmp.charactergen.api.axis.TypeDescriptionOptionDto
+import ltmp.charactergen.api.axis.VerbalTicSituationOptionDto
+import ltmp.charactergen.api.axis.VoiceSampleSituationOptionDto
 import ltmp.charactergen.api.axis.WoundOptionDto
 import ltmp.charactergen.api.axis.toDto
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
@@ -19,6 +21,8 @@ import ltmp.charactergen.data.repo.LieRepository
 import ltmp.charactergen.data.repo.PersonalityTraitStageRepository
 import ltmp.charactergen.data.repo.SpeechArchetypeRepository
 import ltmp.charactergen.data.repo.SpeechRegisterRepository
+import ltmp.charactergen.data.repo.VerbalTicSituationRepository
+import ltmp.charactergen.data.repo.VoiceSampleSituationRepository
 import ltmp.charactergen.data.repo.WoundAgentRepository
 import ltmp.charactergen.data.repo.WoundDurationRepository
 import ltmp.charactergen.data.repo.WoundFormRepository
@@ -43,6 +47,8 @@ class L0CharacterGenerationOptionsService(
     private val speechArchetypeRepository: SpeechArchetypeRepository,
     private val speechRegisterRepository: SpeechRegisterRepository,
     private val axisConflictRepository: AxisConflictRepository,
+    private val verbalTicSituationRepository: VerbalTicSituationRepository,
+    private val voiceSampleSituationRepository: VoiceSampleSituationRepository,
 ) {
     @Transactional(readOnly = true)
     fun getOptions() = L0CharacterGenerationOptionsDto(
@@ -112,6 +118,26 @@ class L0CharacterGenerationOptionsService(
                 avoidanceStyleId = it.avoidanceStyle.id,
                 avoidanceStyleType = it.avoidanceStyle.type,
                 reason = it.reason,
+            )
+        },
+        verbalTicSituations = verbalTicSituationRepository.findAllByOrderByIdAsc().map {
+            VerbalTicSituationOptionDto(
+                id = it.id,
+                group = it.group,
+                groupLabel = it.group.label,
+                groupDescription = it.group.description,
+                situation = it.situation,
+                verifiedAxis = it.verifiedAxis,
+            )
+        },
+        voiceSampleSituations = voiceSampleSituationRepository.findAllByOrderByIdAsc().map {
+            VoiceSampleSituationOptionDto(
+                id = it.id,
+                group = it.group,
+                groupLabel = it.group.label,
+                groupDescription = it.group.description,
+                situation = it.situation,
+                verifiedAxis = it.verifiedAxis,
             )
         },
     )

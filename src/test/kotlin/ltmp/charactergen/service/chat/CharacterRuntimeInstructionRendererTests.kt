@@ -1,17 +1,20 @@
 package ltmp.charactergen.service.chat
 
-import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V1
+import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V2
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.RelationshipStage
+import ltmp.charactergen.data.RelationshipStageLevel
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.data.entity.CharacterBannedWordEntity
+import ltmp.charactergen.data.entity.CharacterBehavioralRuleEntity
 import ltmp.charactergen.data.entity.CharacterConcreteDetailEntity
 import ltmp.charactergen.data.entity.CharacterDisclosureItemEntity
 import ltmp.charactergen.data.entity.CharacterForbiddenBehaviorEntity
 import ltmp.charactergen.data.entity.CharacterNonNegotiableEntity
 import ltmp.charactergen.data.entity.CharacterRelationEntity
+import ltmp.charactergen.data.entity.CharacterRelationshipStageEntity
 import ltmp.charactergen.data.entity.CharacterVerbalTicEntity
 import ltmp.charactergen.data.entity.CharacterVoiceSampleEntity
 import ltmp.charactergen.data.entity.L0GenerationExecute
@@ -25,8 +28,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * L0 런타임 주입 설계 1절의 필드 라우팅과 3절의 관계 단계 분기가 실제로 지켜지는지 검증한다.
- * 여기가 깨지면 이후 프로브 수치는 의미를 잃는다.
+ * L0 런타임 주입 설계 1절의 필드 라우팅과 3절의 관계 단계 분기, 생성 프롬프트 v4 §8.1의 소비처 구분이
+ * 실제로 지켜지는지 검증한다. 여기가 깨지면 이후 프로브 수치는 의미를 잃는다.
  */
 class CharacterRuntimeInstructionRendererTests {
     private val renderer = CharacterRuntimeInstructionRenderer()
@@ -35,7 +38,7 @@ class CharacterRuntimeInstructionRendererTests {
     fun `설계 근거와 요약 필드는 인스트럭션에 주입되지 않는다`() {
         val instruction = render(RelationshipStage.SPECIAL)
 
-        // 설계 1절에서 '제외'로 분류한 필드들
+        // 설계 1절과 v4 소비처 매트릭스에서 '제외'로 분류한 필드들
         EXCLUDED_MARKERS.forEach { marker ->
             assertFalse(instruction.contains(marker), "제외되어야 할 값이 주입되었다: $marker")
         }
@@ -49,21 +52,21 @@ class CharacterRuntimeInstructionRendererTests {
             "서윤",
             "웹툰 작가",
             "밤에만 작업한다",
+            "칭찬을 받으면 다음 작업 이야기로 넘긴다",
+            "누가 자기 몫을 대신하려 하면 먼저 손을 뺀다",
+            "필요한 말만 한다",
             "짧은 결론 뒤 비유",
             "거절할 때",
             "선을 다시 긋는다고 말한다",
             "문장이 더 짧아진다",
-            "기본적으로 존댓말",
             "감정을 사실로 바꾼다",
             "한 문장 뒤 침묵한다",
             "먼저 선을 긋는다",
             "떠나면 붙잡는다",
-            "대체될 두려움",
             "비교하지 않는다",
             "상대를 시험하지 않는다",
             "자기 방식의 작품을 남긴다",
             "민호 — 전 편집자",
-            "나는 대체된다",
         ).forEach { expected ->
             assertTrue(instruction.contains(expected), "상시 주입 값이 빠졌다: $expected")
         }
@@ -86,26 +89,42 @@ class CharacterRuntimeInstructionRendererTests {
     }
 
     @Test
-    fun `관계 단계에 해당하는 애착 서술만 넣고 거절 반응은 항상 넣는다`() {
+    fun `관계 단계에 해당하는 단계 서술 한 벌만 넣는다`() {
         val first = render(RelationshipStage.FIRST)
         assertTrue(first.contains("먼저 묻지 않는다"))
+        assertTrue(first.contains("호칭: 이름 없이 존댓말로 부른다"))
+        assertTrue(first.contains("감정: EARLY 단계의 감정 범위"))
+        assertTrue(first.contains("회피: EARLY 단계의 회피 강도"))
         assertFalse(first.contains("작업 이야기만 연다"))
         assertFalse(first.contains("거리를 유지한 채 곁에 둔다"))
 
         val familiar = render(RelationshipStage.FAMILIAR)
         assertTrue(familiar.contains("작업 이야기만 연다"))
+        assertTrue(familiar.contains("호칭: 이름을 부르되 존댓말을 유지한다"))
         assertFalse(familiar.contains("먼저 묻지 않는다"))
 
         val close = render(RelationshipStage.CLOSE)
         assertTrue(close.contains("거리를 유지한 채 곁에 둔다"))
+        assertTrue(close.contains("호칭: 이름을 줄여 부르고 반말을 섞는다"))
         assertFalse(close.contains("먼저 묻지 않는다"))
 
-        // 거절은 어느 단계에서든 일어나므로 단계와 무관하게 들어간다
+        // 가까움과 특별함은 같은 단계 서술을 쓰고 열리는 개방 층위로만 갈린다
+        assertTrue(render(RelationshipStage.SPECIAL).contains("거리를 유지한 채 곁에 둔다"))
+    }
+
+    @Test
+    fun `관계 사건 반응은 단계와 무관하게 항상 넣는다`() {
+        // 거절·마찰·오랜 부재·과속 접근은 어느 단계에서든 일어난다
         RelationshipStage.entries.forEach { stage ->
-            assertTrue(
-                render(stage).contains("한 번 물러난 뒤 다시 묻지 않는다"),
-                "on_rejection이 빠졌다: $stage",
-            )
+            val instruction = render(stage)
+            listOf(
+                "한 번 물러난 뒤 다시 묻지 않는다",
+                "근거를 한 줄로 말하고 물러서지 않는다",
+                "없었던 일처럼 작업 이야기부터 잇는다",
+                "속도를 늦추고 하던 이야기로 돌아온다",
+            ).forEach { expected ->
+                assertTrue(instruction.contains(expected), "관계 사건 반응이 빠졌다: $stage / $expected")
+            }
         }
     }
 
@@ -168,6 +187,8 @@ class CharacterRuntimeInstructionRendererTests {
 
     @Test
     fun `상처는 심층 층위가 열린 단계에서만 주입된다`() {
+        assertFalse(render(RelationshipStage.FIRST).contains("## 잘 꺼내지 않는 과거"))
+        assertTrue(render(RelationshipStage.CLOSE).contains("## 잘 꺼내지 않는 과거"))
         assertFalse(render(RelationshipStage.FIRST).contains("첫 연재에서 교체됐다"))
         assertFalse(render(RelationshipStage.FAMILIAR).contains("첫 연재에서 교체됐다"))
         assertTrue(render(RelationshipStage.CLOSE).contains("첫 연재에서 교체됐다"))
@@ -194,10 +215,10 @@ class CharacterRuntimeInstructionRendererTests {
     }
 
     @Test
-    fun `조립된 인스트럭션은 캐릭터 선언으로 시작한다`() {
+    fun `조립된 인스트럭션은 머리말과 캐릭터 선언으로 시작한다`() {
         assertEquals(
-            "너는 서윤이다. 아래는 너 자신에 대한 것이며, 사용자에게 설명하지 않는다.",
-            render(RelationshipStage.FIRST).lineSequence().first(),
+            listOf("# CHARACTER_PROMPT", "너는 서윤이다. 아래는 너 자신에 대한 것이며, 사용자에게 설명하지 않는다."),
+            render(RelationshipStage.FIRST).lineSequence().take(2).toList(),
         )
     }
 
@@ -207,7 +228,7 @@ class CharacterRuntimeInstructionRendererTests {
         includeVoiceSamples: Boolean = true,
         situationNote: String? = null,
     ): String = renderer.render(
-        L0_RUNTIME_INSTRUCTION_V1,
+        L0_RUNTIME_INSTRUCTION_V2,
         character(),
         RuntimeInstructionOptions(
             relationshipStage = stage,
@@ -226,30 +247,38 @@ class CharacterRuntimeInstructionRendererTests {
         dailyLife = "밤에만 작업한다",
         oneLine = MARKER_ONE_LINE,
         lieType = "대체 가능성 공포형",
-        lieStatement = "나는 대체된다",
+        lieStatement = MARKER_LIE_STATEMENT,
         lieWound = "첫 연재에서 교체됐다",
         want = "자기 방식의 작품을 남긴다",
         need = MARKER_NEED,
         wantNeedConflict = MARKER_WANT_NEED_CONFLICT,
         contradictionTraitA = "먼저 선을 긋는다",
         contradictionTraitB = "떠나면 붙잡는다",
-        contradictionSharedRoot = "대체될 두려움",
-        expressionNote = MARKER_EXPRESSION_NOTE,
+        contradictionSharedRoot = MARKER_SHARED_ROOT,
+        expressionNote = "필요한 말만 한다",
         identityNote = MARKER_IDENTITY_NOTE,
-        attachmentNoteEarly = "먼저 묻지 않는다",
-        attachmentNoteDeepening = "작업 이야기만 연다",
-        attachmentNoteClose = "거리를 유지한 채 곁에 둔다",
-        attachmentNoteOnRejection = "한 번 물러난 뒤 다시 묻지 않는다",
+        onRejection = "한 번 물러난 뒤 다시 묻지 않는다",
+        onConflict = "근거를 한 줄로 말하고 물러서지 않는다",
+        onAbsence = "없었던 일처럼 작업 이야기부터 잇는다",
+        onOverApproach = "속도를 늦추고 하던 이야기로 돌아온다",
         emotionalExpressionNote = "감정을 사실로 바꾼다",
         avoidanceNote = "한 문장 뒤 침묵한다",
         speechArchetypeNote = MARKER_SPEECH_ARCHETYPE_NOTE,
         sentencePattern = "짧은 결론 뒤 비유",
         underStress = "문장이 더 짧아진다",
-        addressStyle = "기본적으로 존댓말",
         recognizability = MARKER_RECOGNIZABILITY,
         longTermViability = MARKER_LONG_TERM_VIABILITY,
         imbalanceNote = MARKER_IMBALANCE_NOTE,
         concreteDetails = (1..4).map { CharacterConcreteDetailEntity(detailText = "묘사$it") },
+        behavioralRules = listOf(
+            CharacterBehavioralRuleEntity(ruleText = "칭찬을 받으면 다음 작업 이야기로 넘긴다"),
+            CharacterBehavioralRuleEntity(ruleText = "누가 자기 몫을 대신하려 하면 먼저 손을 뺀다"),
+        ),
+        relationshipStages = listOf(
+            relationshipStage(RelationshipStageLevel.EARLY, "먼저 묻지 않는다", "이름 없이 존댓말로 부른다"),
+            relationshipStage(RelationshipStageLevel.DEEPENING, "작업 이야기만 연다", "이름을 부르되 존댓말을 유지한다"),
+            relationshipStage(RelationshipStageLevel.CLOSE, "거리를 유지한 채 곁에 둔다", "이름을 줄여 부르고 반말을 섞는다"),
+        ),
         nonNegotiables = listOf(
             CharacterNonNegotiableEntity(
                 domain = NonNegotiableDomain.`관계를 다루는 방식`,
@@ -296,11 +325,24 @@ class CharacterRuntimeInstructionRendererTests {
         ),
     )
 
+    private fun relationshipStage(
+        level: RelationshipStageLevel,
+        attachment: String,
+        address: String,
+    ) = CharacterRelationshipStageEntity(
+        level = level,
+        attachment = attachment,
+        address = address,
+        emotionalRange = "${level.name} 단계의 감정 범위",
+        avoidance = "${level.name} 단계의 회피 강도",
+    )
+
     private companion object {
         const val MARKER_ONE_LINE = "MARKER_ONE_LINE"
+        const val MARKER_LIE_STATEMENT = "MARKER_LIE_STATEMENT"
+        const val MARKER_SHARED_ROOT = "MARKER_SHARED_ROOT"
         const val MARKER_NEED = "MARKER_NEED"
         const val MARKER_WANT_NEED_CONFLICT = "MARKER_WANT_NEED_CONFLICT"
-        const val MARKER_EXPRESSION_NOTE = "MARKER_EXPRESSION_NOTE"
         const val MARKER_IDENTITY_NOTE = "MARKER_IDENTITY_NOTE"
         const val MARKER_SPEECH_ARCHETYPE_NOTE = "MARKER_SPEECH_ARCHETYPE_NOTE"
         const val MARKER_RECOGNIZABILITY = "MARKER_RECOGNIZABILITY"
@@ -314,9 +356,10 @@ class CharacterRuntimeInstructionRendererTests {
 
         val EXCLUDED_MARKERS = listOf(
             MARKER_ONE_LINE,
+            MARKER_LIE_STATEMENT,
+            MARKER_SHARED_ROOT,
             MARKER_NEED,
             MARKER_WANT_NEED_CONFLICT,
-            MARKER_EXPRESSION_NOTE,
             MARKER_IDENTITY_NOTE,
             MARKER_SPEECH_ARCHETYPE_NOTE,
             MARKER_RECOGNIZABILITY,
