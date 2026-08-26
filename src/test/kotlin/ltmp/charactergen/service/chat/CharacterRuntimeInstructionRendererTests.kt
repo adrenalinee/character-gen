@@ -5,7 +5,6 @@ import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.RelationshipStage
-import ltmp.charactergen.data.RelationshipStageLevel
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.data.entity.CharacterBannedWordEntity
 import ltmp.charactergen.data.entity.CharacterBehavioralRuleEntity
@@ -36,7 +35,7 @@ class CharacterRuntimeInstructionRendererTests {
 
     @Test
     fun `설계 근거와 요약 필드는 인스트럭션에 주입되지 않는다`() {
-        val instruction = render(RelationshipStage.SPECIAL)
+        val instruction = render(RelationshipStage.CLOSE, DisclosureLevel.DEEPEST)
 
         // 설계 1절과 v4 소비처 매트릭스에서 '제외'로 분류한 필드들
         EXCLUDED_MARKERS.forEach { marker ->
@@ -46,7 +45,7 @@ class CharacterRuntimeInstructionRendererTests {
 
     @Test
     fun `상시 주입 필드는 모두 인스트럭션에 들어간다`() {
-        val instruction = render(RelationshipStage.FIRST)
+        val instruction = render(RelationshipStage.EARLY)
 
         listOf(
             "서윤",
@@ -74,14 +73,14 @@ class CharacterRuntimeInstructionRendererTests {
 
     @Test
     fun `금지어는 두 출처를 병합해 한 줄로 넣는다`() {
-        val instruction = render(RelationshipStage.FIRST)
+        val instruction = render(RelationshipStage.EARLY)
 
         assertTrue(instruction.contains("쓰지 않는 말: 무조건, 당연히"))
     }
 
     @Test
     fun `구체 묘사는 세 개까지만 넣는다`() {
-        val instruction = render(RelationshipStage.FIRST)
+        val instruction = render(RelationshipStage.EARLY)
 
         assertTrue(instruction.contains("묘사1"))
         assertTrue(instruction.contains("묘사3"))
@@ -90,26 +89,35 @@ class CharacterRuntimeInstructionRendererTests {
 
     @Test
     fun `관계 단계에 해당하는 단계 서술 한 벌만 넣는다`() {
-        val first = render(RelationshipStage.FIRST)
-        assertTrue(first.contains("먼저 묻지 않는다"))
-        assertTrue(first.contains("호칭: 이름 없이 존댓말로 부른다"))
-        assertTrue(first.contains("감정: EARLY 단계의 감정 범위"))
-        assertTrue(first.contains("회피: EARLY 단계의 회피 강도"))
-        assertFalse(first.contains("작업 이야기만 연다"))
-        assertFalse(first.contains("거리를 유지한 채 곁에 둔다"))
+        val early = render(RelationshipStage.EARLY)
+        assertTrue(early.contains("먼저 묻지 않는다"))
+        assertTrue(early.contains("호칭: 이름 없이 존댓말로 부른다"))
+        assertTrue(early.contains("감정: EARLY 단계의 감정 범위"))
+        assertTrue(early.contains("회피: EARLY 단계의 회피 강도"))
+        assertFalse(early.contains("작업 이야기만 연다"))
+        assertFalse(early.contains("거리를 유지한 채 곁에 둔다"))
 
-        val familiar = render(RelationshipStage.FAMILIAR)
-        assertTrue(familiar.contains("작업 이야기만 연다"))
-        assertTrue(familiar.contains("호칭: 이름을 부르되 존댓말을 유지한다"))
-        assertFalse(familiar.contains("먼저 묻지 않는다"))
+        val deepening = render(RelationshipStage.DEEPENING)
+        assertTrue(deepening.contains("작업 이야기만 연다"))
+        assertTrue(deepening.contains("호칭: 이름을 부르되 존댓말을 유지한다"))
+        assertFalse(deepening.contains("먼저 묻지 않는다"))
 
         val close = render(RelationshipStage.CLOSE)
         assertTrue(close.contains("거리를 유지한 채 곁에 둔다"))
         assertTrue(close.contains("호칭: 이름을 줄여 부르고 반말을 섞는다"))
         assertFalse(close.contains("먼저 묻지 않는다"))
+    }
 
-        // 가까움과 특별함은 같은 단계 서술을 쓰고 열리는 개방 층위로만 갈린다
-        assertTrue(render(RelationshipStage.SPECIAL).contains("거리를 유지한 채 곁에 둔다"))
+    @Test
+    fun `단계 서술과 개방 층위는 서로 독립이다`() {
+        // 개방을 넓혀도 단계 서술은 그대로고, 좁혀도 마찬가지다
+        val earlyWideOpen = render(RelationshipStage.EARLY, DisclosureLevel.DEEPEST)
+        assertTrue(earlyWideOpen.contains("먼저 묻지 않는다"))
+        assertTrue(earlyWideOpen.contains("자기 가치에 대한 공포"))
+
+        val closeButShallow = render(RelationshipStage.CLOSE, DisclosureLevel.SURFACE)
+        assertTrue(closeButShallow.contains("거리를 유지한 채 곁에 둔다"))
+        assertFalse(closeButShallow.contains("교체 경험"))
     }
 
     @Test
@@ -130,85 +138,94 @@ class CharacterRuntimeInstructionRendererTests {
 
     @Test
     fun `열리지 않은 층위의 개인사 본문은 주입되지 않는다`() {
-        val first = render(RelationshipStage.FIRST)
-        assertTrue(first.contains("마감 습관"))
-        assertFalse(first.contains("편집자 이야기"))
-        assertFalse(first.contains("교체 경험"))
-        assertFalse(first.contains("자기 가치에 대한 공포"))
+        val early = render(RelationshipStage.EARLY)
+        assertTrue(early.contains("마감 습관"))
+        assertFalse(early.contains("편집자 이야기"))
+        assertFalse(early.contains("교체 경험"))
+        assertFalse(early.contains("자기 가치에 대한 공포"))
 
+        // 가까운 관계라도 deepest는 저절로 열리지 않는다
         val close = render(RelationshipStage.CLOSE)
         assertTrue(close.contains("교체 경험"))
         assertFalse(close.contains("자기 가치에 대한 공포"))
 
-        val special = render(RelationshipStage.SPECIAL)
-        assertTrue(special.contains("자기 가치에 대한 공포"))
+        val deepest = render(RelationshipStage.CLOSE, DisclosureLevel.DEEPEST)
+        assertTrue(deepest.contains("자기 가치에 대한 공포"))
     }
 
     @Test
     fun `닫힌 주제는 방식 A에서 통째로 빠지고 방식 B에서는 주제 이름만 남는다`() {
-        val topicOnly = render(RelationshipStage.FIRST, closedTopicMode = ClosedTopicMode.TOPIC_ONLY)
+        val topicOnly = render(RelationshipStage.EARLY, closedTopicMode = ClosedTopicMode.TOPIC_ONLY)
         assertTrue(topicOnly.contains("## 말하지 않는 것"))
         assertTrue(topicOnly.contains("쉽게 말하지 않는 과거"))
         assertFalse(topicOnly.contains("교체 경험"), "주제 이름만 넣어야 하는데 본문이 샜다")
 
-        val omit = render(RelationshipStage.FIRST, closedTopicMode = ClosedTopicMode.OMIT)
+        val omit = render(RelationshipStage.EARLY, closedTopicMode = ClosedTopicMode.OMIT)
         assertFalse(omit.contains("## 말하지 않는 것"), "방식 A에서는 헤더도 남으면 안 된다")
         assertFalse(omit.contains("쉽게 말하지 않는 과거"))
     }
 
     @Test
-    fun `모든 층위가 열린 단계에서는 닫힌 주제 구간이 사라진다`() {
-        val special = render(RelationshipStage.SPECIAL, closedTopicMode = ClosedTopicMode.TOPIC_ONLY)
+    fun `모든 층위가 열리면 닫힌 주제 구간이 사라진다`() {
+        val fullyOpen = render(
+            RelationshipStage.CLOSE,
+            DisclosureLevel.DEEPEST,
+            closedTopicMode = ClosedTopicMode.TOPIC_ONLY,
+        )
 
-        assertFalse(special.contains("## 말하지 않는 것"))
+        assertFalse(fullyOpen.contains("## 말하지 않는 것"))
     }
 
     @Test
     fun `예시 발화를 끄면 헤더까지 사라진다`() {
-        val included = render(RelationshipStage.FIRST, includeVoiceSamples = true)
+        val included = render(RelationshipStage.EARLY, includeVoiceSamples = true)
         assertTrue(included.contains("## 톤 참조"))
         assertTrue(included.contains("그 선은 제가 정할게요."))
         assertTrue(included.contains("위 문장을 그대로 쓰지 마라"))
 
-        val excluded = render(RelationshipStage.FIRST, includeVoiceSamples = false)
+        val excluded = render(RelationshipStage.EARLY, includeVoiceSamples = false)
         assertFalse(excluded.contains("## 톤 참조"), "구간을 비울 때 헤더가 남으면 안 된다")
         assertFalse(excluded.contains("그 선은 제가 정할게요."))
     }
 
     @Test
     fun `상황을 주지 않으면 상황 구간이 사라진다`() {
-        val withSituation = render(RelationshipStage.FIRST, situationNote = "오늘 원고를 크게 반려당했다")
+        val withSituation = render(RelationshipStage.EARLY, situationNote = "오늘 원고를 크게 반려당했다")
         assertTrue(withSituation.contains("## 지금 네 상황"))
         assertTrue(withSituation.contains("오늘 원고를 크게 반려당했다"))
 
-        val withoutSituation = render(RelationshipStage.FIRST, situationNote = null)
+        val withoutSituation = render(RelationshipStage.EARLY, situationNote = null)
         assertFalse(withoutSituation.contains("## 지금 네 상황"))
     }
 
     @Test
-    fun `상처는 심층 층위가 열린 단계에서만 주입된다`() {
-        assertFalse(render(RelationshipStage.FIRST).contains("## 잘 꺼내지 않는 과거"))
+    fun `상처는 심층 층위가 열렸을 때만 주입된다`() {
+        assertFalse(render(RelationshipStage.EARLY).contains("## 잘 꺼내지 않는 과거"))
+        assertFalse(render(RelationshipStage.EARLY).contains("첫 연재에서 교체됐다"))
+        assertFalse(render(RelationshipStage.DEEPENING).contains("첫 연재에서 교체됐다"))
         assertTrue(render(RelationshipStage.CLOSE).contains("## 잘 꺼내지 않는 과거"))
-        assertFalse(render(RelationshipStage.FIRST).contains("첫 연재에서 교체됐다"))
-        assertFalse(render(RelationshipStage.FAMILIAR).contains("첫 연재에서 교체됐다"))
         assertTrue(render(RelationshipStage.CLOSE).contains("첫 연재에서 교체됐다"))
-        assertTrue(render(RelationshipStage.SPECIAL).contains("첫 연재에서 교체됐다"))
+        // 단계가 아니라 개방 층위가 기준이다
+        assertTrue(render(RelationshipStage.EARLY, DisclosureLevel.DEEP).contains("첫 연재에서 교체됐다"))
+        assertFalse(render(RelationshipStage.CLOSE, DisclosureLevel.MID).contains("첫 연재에서 교체됐다"))
     }
 
     @Test
     fun `치환되지 않은 placeholder와 빈 줄이 남지 않는다`() {
         RelationshipStage.entries.forEach { stage ->
-            listOf(ClosedTopicMode.OMIT, ClosedTopicMode.TOPIC_ONLY).forEach { mode ->
-                listOf(true, false).forEach { includeSamples ->
-                    val instruction = render(stage, mode, includeSamples, situationNote = null)
-                    assertFalse(
-                        instruction.contains("{{"),
-                        "치환되지 않은 placeholder가 남았다: $stage/$mode/$includeSamples",
-                    )
-                    assertFalse(
-                        instruction.contains("\n\n\n"),
-                        "빈 구간이 연속 빈 줄을 남겼다: $stage/$mode/$includeSamples",
-                    )
+            DisclosureLevel.entries.forEach { level ->
+                listOf(ClosedTopicMode.OMIT, ClosedTopicMode.TOPIC_ONLY).forEach { mode ->
+                    listOf(true, false).forEach { includeSamples ->
+                        val instruction = render(stage, level, mode, includeSamples, situationNote = null)
+                        assertFalse(
+                            instruction.contains("{{"),
+                            "치환되지 않은 placeholder가 남았다: $stage/$level/$mode/$includeSamples",
+                        )
+                        assertFalse(
+                            instruction.contains("\n\n\n"),
+                            "빈 구간이 연속 빈 줄을 남겼다: $stage/$level/$mode/$includeSamples",
+                        )
+                    }
                 }
             }
         }
@@ -218,12 +235,14 @@ class CharacterRuntimeInstructionRendererTests {
     fun `조립된 인스트럭션은 머리말과 캐릭터 선언으로 시작한다`() {
         assertEquals(
             listOf("# CHARACTER_PROMPT", "너는 서윤이다. 아래는 너 자신에 대한 것이며, 사용자에게 설명하지 않는다."),
-            render(RelationshipStage.FIRST).lineSequence().take(2).toList(),
+            render(RelationshipStage.EARLY).lineSequence().take(2).toList(),
         )
     }
 
+    /** 개방 층위를 주지 않으면 운영 기본값과 같게 단계에서 파생한다. */
     private fun render(
         stage: RelationshipStage,
+        openedDisclosureLevel: DisclosureLevel = stage.defaultOpenedLevel,
         closedTopicMode: ClosedTopicMode = ClosedTopicMode.TOPIC_ONLY,
         includeVoiceSamples: Boolean = true,
         situationNote: String? = null,
@@ -232,6 +251,7 @@ class CharacterRuntimeInstructionRendererTests {
         character(),
         RuntimeInstructionOptions(
             relationshipStage = stage,
+            openedDisclosureLevel = openedDisclosureLevel,
             situationNote = situationNote,
             includeVoiceSamples = includeVoiceSamples,
             closedTopicMode = closedTopicMode,
@@ -275,9 +295,9 @@ class CharacterRuntimeInstructionRendererTests {
             CharacterBehavioralRuleEntity(ruleText = "누가 자기 몫을 대신하려 하면 먼저 손을 뺀다"),
         ),
         relationshipStages = listOf(
-            relationshipStage(RelationshipStageLevel.EARLY, "먼저 묻지 않는다", "이름 없이 존댓말로 부른다"),
-            relationshipStage(RelationshipStageLevel.DEEPENING, "작업 이야기만 연다", "이름을 부르되 존댓말을 유지한다"),
-            relationshipStage(RelationshipStageLevel.CLOSE, "거리를 유지한 채 곁에 둔다", "이름을 줄여 부르고 반말을 섞는다"),
+            relationshipStage(RelationshipStage.EARLY, "먼저 묻지 않는다", "이름 없이 존댓말로 부른다"),
+            relationshipStage(RelationshipStage.DEEPENING, "작업 이야기만 연다", "이름을 부르되 존댓말을 유지한다"),
+            relationshipStage(RelationshipStage.CLOSE, "거리를 유지한 채 곁에 둔다", "이름을 줄여 부르고 반말을 섞는다"),
         ),
         nonNegotiables = listOf(
             CharacterNonNegotiableEntity(
@@ -326,15 +346,15 @@ class CharacterRuntimeInstructionRendererTests {
     )
 
     private fun relationshipStage(
-        level: RelationshipStageLevel,
+        stage: RelationshipStage,
         attachment: String,
         address: String,
     ) = CharacterRelationshipStageEntity(
-        level = level,
+        stage = stage,
         attachment = attachment,
         address = address,
-        emotionalRange = "${level.name} 단계의 감정 범위",
-        avoidance = "${level.name} 단계의 회피 강도",
+        emotionalRange = "${stage.name} 단계의 감정 범위",
+        avoidance = "${stage.name} 단계의 회피 강도",
     )
 
     private companion object {

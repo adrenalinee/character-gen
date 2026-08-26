@@ -3,7 +3,7 @@ package ltmp.charactergen.api.character
 import io.swagger.v3.oas.annotations.media.Schema
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.DisclosureLevel
-import ltmp.charactergen.data.RelationshipStageLevel
+import ltmp.charactergen.data.RelationshipStage
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.model.NonNegotiableDomain
 import ltmp.charactergen.model.RelationPresence
@@ -198,7 +198,7 @@ data class CharacterRelationshipStageDto(
     @field:Schema(description = "행 식별자", requiredMode = Schema.RequiredMode.REQUIRED)
     val id: Long,
     @field:Schema(description = "관계 깊이 단계", requiredMode = Schema.RequiredMode.REQUIRED)
-    val level: RelationshipStageLevel,
+    val stage: RelationshipStage,
     @field:Schema(description = "이 단계에서 사람과의 거리를 다루는 방식", requiredMode = Schema.RequiredMode.REQUIRED)
     val attachment: String,
     @field:Schema(description = "이 단계에서 사용자를 부르는 방식과 존댓말/반말", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -379,7 +379,7 @@ fun Character.toDto() = CharacterDto(
     relationshipStages = relationshipStages.map {
         CharacterRelationshipStageDto(
             id = it.id,
-            level = it.level,
+            stage = it.stage,
             attachment = it.attachment,
             address = it.address,
             emotionalRange = it.emotionalRange,

@@ -15,8 +15,10 @@ import ltmp.charactergen.data.PromptTemplateType
 import ltmp.charactergen.data.entity.L0GenerationExecute
 import ltmp.charactergen.data.entity.PersonalityTraitStageEntity
 import ltmp.charactergen.data.entity.PromptTemplateRef
+import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.data.repo.AttachmentStyleRepository
 import ltmp.charactergen.data.repo.AvoidanceStyleRepository
+import ltmp.charactergen.data.repo.CharacterRepository
 import ltmp.charactergen.data.repo.DomainRepository
 import ltmp.charactergen.data.repo.EmotionalExpressionRepository
 import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
@@ -34,6 +36,7 @@ import ltmp.charactergen.service.generation.PromptRefInputSnapshot
 import ltmp.charactergen.service.generation.PromptRefSnapshot
 import ltmp.charactergen.service.generation.L0GenerationTaskDispatcher
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -52,6 +55,7 @@ class L0CharacterGenerationService(
     private val woundFormRepository: WoundFormRepository,
     private val woundDurationRepository: WoundDurationRepository,
     private val personalityTraitStageRepository: PersonalityTraitStageRepository,
+    private val characterRepository: CharacterRepository,
     private val attachmentStyleRepository: AttachmentStyleRepository,
     private val emotionalExpressionRepository: EmotionalExpressionRepository,
     private val avoidanceStyleRepository: AvoidanceStyleRepository,
@@ -119,30 +123,33 @@ class L0CharacterGenerationService(
             woundDurationRepository.findById(id)
                 .orElseThrow { ResourceNotFoundException("WoundDuration not found: $id") }
         }
-        val opennessStage = findTraitStage(request.opennessStageId, BigFiveTrait.OPENNESS)
-        val conscientiousnessStage = findTraitStage(
+        val opennessStage = resolveTraitStage(request.opennessStageId, BigFiveTrait.OPENNESS)
+        val conscientiousnessStage = resolveTraitStage(
             request.conscientiousnessStageId,
             BigFiveTrait.CONSCIENTIOUSNESS,
         )
-        val extraversionStage = findTraitStage(request.extraversionStageId, BigFiveTrait.EXTRAVERSION)
-        val agreeablenessStage = findTraitStage(request.agreeablenessStageId, BigFiveTrait.AGREEABLENESS)
-        val neuroticismStage = findTraitStage(request.neuroticismStageId, BigFiveTrait.NEUROTICISM)
-        val attachmentStyle = request.attachmentStyleId?.let { id ->
-            attachmentStyleRepository.findById(id)
-                .orElseThrow { ResourceNotFoundException("AttachmentStyle not found: $id") }
-        }
-        val emotionalExpression = request.emotionalExpressionId?.let { id ->
-            emotionalExpressionRepository.findById(id)
-                .orElseThrow { ResourceNotFoundException("EmotionalExpression not found: $id") }
-        }
-        val avoidanceStyle = request.avoidanceStyleId?.let { id ->
-            avoidanceStyleRepository.findById(id)
-                .orElseThrow { ResourceNotFoundException("AvoidanceStyle not found: $id") }
-        }
-        val speechArchetype = request.speechArchetypeId?.let { id ->
-            speechArchetypeRepository.findById(id)
-                .orElseThrow { ResourceNotFoundException("SpeechArchetype not found: $id") }
-        }
+        val extraversionStage = resolveTraitStage(request.extraversionStageId, BigFiveTrait.EXTRAVERSION)
+        val agreeablenessStage = resolveTraitStage(request.agreeablenessStageId, BigFiveTrait.AGREEABLENESS)
+        val neuroticismStage = resolveTraitStage(request.neuroticismStageId, BigFiveTrait.NEUROTICISM)
+        validateExtremeTraitStages(
+            listOf(
+                opennessStage,
+                conscientiousnessStage,
+                extraversionStage,
+                agreeablenessStage,
+                neuroticismStage,
+            ),
+        )
+        val attachmentStyle = attachmentStyleRepository.findById(request.attachmentStyleId)
+            .orElseThrow { ResourceNotFoundException("AttachmentStyle not found: ${request.attachmentStyleId}") }
+        val emotionalExpression = emotionalExpressionRepository.findById(request.emotionalExpressionId)
+            .orElseThrow {
+                ResourceNotFoundException("EmotionalExpression not found: ${request.emotionalExpressionId}")
+            }
+        val avoidanceStyle = avoidanceStyleRepository.findById(request.avoidanceStyleId)
+            .orElseThrow { ResourceNotFoundException("AvoidanceStyle not found: ${request.avoidanceStyleId}") }
+        val speechArchetype = speechArchetypeRepository.findById(request.speechArchetypeId)
+            .orElseThrow { ResourceNotFoundException("SpeechArchetype not found: ${request.speechArchetypeId}") }
         val speechRegister = request.speechRegisterId?.let { id ->
             speechRegisterRepository.findById(id)
                 .orElseThrow { ResourceNotFoundException("SpeechRegister not found: $id") }
@@ -187,6 +194,7 @@ class L0CharacterGenerationService(
             scale = request.scale,
             emotion = request.emotion,
             extraConstraints = request.extraConstraints,
+            existingCharactersNote = existingCharactersNote(request.existingCharacterIds),
             promptRefSnapshotJson = snapshotJson,
             userInputJson = objectMapper.writeValueAsString(request),
             status = L0GenerationExecuteStatus.PREPARING,
@@ -226,6 +234,60 @@ class L0CharacterGenerationService(
         )
         return result.toCheckDto(axisBalanceService.buildImbalanceNote(result.imbalances))
     }
+
+    /**
+     * 성향 단계를 정한다. 지정이 없으면 v4 운영 원칙의 기본값인 3단계로 채운다.
+     *
+     * 빈 값을 그대로 두면 프롬프트에 "개방성: 단계 — " 같은 줄이 들어가므로, 실행 기록에도 실제 사용한 단계를 남긴다.
+     */
+    private fun resolveTraitStage(stageId: Long?, trait: BigFiveTrait): PersonalityTraitStageEntity =
+        findTraitStage(stageId, trait)
+            ?: personalityTraitStageRepository.findByTraitAndStage(trait, DEFAULT_TRAIT_STAGE)
+            ?: throw ResourceNotFoundException("PersonalityTraitStage not found: $trait $DEFAULT_TRAIT_STAGE")
+
+    /**
+     * 양극단 단계는 최대 두 축까지만 허용한다. (v4 §3.3 운영 원칙)
+     *
+     * 세 축 이상을 극단으로 두면 축마다 파생된 행동이 서로 밀어내서 인물이 흐려진다.
+     */
+    private fun validateExtremeTraitStages(stages: List<PersonalityTraitStageEntity>) {
+        val extremes = stages.filter { it.stage == MIN_TRAIT_STAGE || it.stage == MAX_TRAIT_STAGE }
+        if (extremes.size > MAX_EXTREME_TRAIT_COUNT) {
+            throw InvalidRequestException(
+                "1단계 또는 5단계는 최대 ${MAX_EXTREME_TRAIT_COUNT}개 축까지만 지정할 수 있습니다: " +
+                    extremes.joinToString(", ") { "${it.trait.label} ${it.stage}단계" },
+            )
+        }
+    }
+
+    /**
+     * 상처 서사가 겹치지 않게 프롬프트에 알려줄 기존 캐릭터 목록. (v4 원칙 5)
+     *
+     * 지정이 없으면 최근 생성된 캐릭터를 붙이고, 빈 목록을 명시하면 아무것도 붙이지 않는다.
+     */
+    private fun existingCharactersNote(characterIds: List<Long>?): String? {
+        val characters = when {
+            characterIds == null -> characterRepository.findRecent(
+                PageRequest.of(0, DEFAULT_EXISTING_CHARACTER_COUNT),
+            )
+            characterIds.isEmpty() -> return null
+            else -> characterIds.map { id ->
+                characterRepository.findOneWithGenerationById(id)
+                    ?: throw ResourceNotFoundException("Character not found: $id")
+            }
+        }
+        if (characters.isEmpty()) return null
+        return characters.joinToString("\n") { existingCharacterLine(it) }
+    }
+
+    /** v4 §7 플레이스홀더 명세의 순서: 이름 / 분야 / Lie 유형 / wound 한 줄 / 나이 */
+    private fun existingCharacterLine(character: Character): String = listOf(
+        character.name,
+        character.generationExecute.domain?.name ?: "분야 미지정",
+        character.lieType,
+        character.lieWound,
+        "${character.age}세",
+    ).joinToString(" / ")
 
     /**
      * 충돌은 통과시키지 않고, 불균형은 한 번에 하나까지만 통과시킨다.
@@ -275,5 +337,18 @@ class L0CharacterGenerationService(
             )
         }
         return ref
+    }
+
+    private companion object {
+        /** v4 §3.3 운영 원칙: UI 기본값은 전부 3단계다. */
+        const val DEFAULT_TRAIT_STAGE = 3
+        const val MIN_TRAIT_STAGE = 1
+        const val MAX_TRAIT_STAGE = 5
+
+        /** v4 §3.3 운영 원칙: 1·5단계는 최대 2개 축까지다. */
+        const val MAX_EXTREME_TRAIT_COUNT = 2
+
+        /** 기존 캐릭터를 지정하지 않았을 때 프롬프트에 붙일 최근 캐릭터 수. */
+        const val DEFAULT_EXISTING_CHARACTER_COUNT = 10
     }
 }

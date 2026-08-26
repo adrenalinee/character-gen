@@ -79,6 +79,9 @@ class CharacterChatService(
 
         val options = RuntimeInstructionOptions(
             relationshipStage = request.relationshipStage,
+            // 개방 층위를 주지 않으면 단계에서 파생한다. deepest는 명시해야만 열린다.
+            openedDisclosureLevel = request.openedDisclosureLevel
+                ?: request.relationshipStage.defaultOpenedLevel,
             situationNote = request.situationNote?.takeIf { it.isNotBlank() },
             includeVoiceSamples = request.includeVoiceSamples ?: defaultIncludeVoiceSamples,
             closedTopicMode = request.closedTopicMode ?: ClosedTopicMode.TOPIC_ONLY,
@@ -88,6 +91,7 @@ class CharacterChatService(
             characterId = character.id,
             characterName = character.name,
             relationshipStage = options.relationshipStage,
+            openedDisclosureLevel = options.openedDisclosureLevel,
             refId = ref.id,
             instructionBranch = ref.name,
             instructions = instructionRenderer.render(ref.instructions, character, options),

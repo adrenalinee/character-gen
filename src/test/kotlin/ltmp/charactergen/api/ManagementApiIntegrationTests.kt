@@ -114,7 +114,17 @@ class ManagementApiIntegrationTests(
                 doesNotExist()
             }
             // refId까지 선택 항목이 되어 필수 필드가 하나도 없다.
-            jsonPath("$.components.schemas.L0CharacterGenerationRequest.required") { doesNotExist() }
+            // v4에서 표현 축 네 개는 반드시 지정한다
+            jsonPath("$.components.schemas.L0CharacterGenerationRequest.required") {
+                value(
+                    org.hamcrest.Matchers.containsInAnyOrder(
+                        "attachmentStyleId",
+                        "emotionalExpressionId",
+                        "avoidanceStyleId",
+                        "speechArchetypeId",
+                    ),
+                )
+            }
             jsonPath("$.components.schemas.L0CharacterGenerationRequest.properties.refId") { exists() }
             jsonPath("$.components.schemas.PromptTemplateDto.properties.type") { exists() }
             jsonPath("$.components.schemas.DefaultPromptTemplateDto.properties.promptTemplateId") { exists() }
@@ -339,8 +349,33 @@ class ManagementApiIntegrationTests(
     }
 
     @Test
-    fun `생성 요청은 refId 외의 입력을 생략할 수 있다`() {
+    fun `생성 요청은 표현 축 외의 입력을 생략할 수 있다`() {
         val templateId = createTemplate("Nullable Generation Input Template", PromptTemplateType.CHARACTER_GENERATION)
+        val branchId = createBranch(templateId, "main")
+        mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"main","instructions":"System","inputs":[{"role":"user","inputText":"{{DOMAIN}}"}],"revision":0}"""
+        }.andExpect { status { isOk() } }
+
+        val axisIds = expressionAxisIds()
+
+        mockMvc.post("/api/v1/l0-characters/generations") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"refId":$branchId,$axisIds}"""
+        }.andExpect {
+            status { isAccepted() }
+            jsonPath("$.refId") { value(branchId) }
+            jsonPath("$.status") { value("PREPARING") }
+            jsonPath("$.domainId") { doesNotExist() }
+            jsonPath("$.age") { doesNotExist() }
+            jsonPath("$.gender") { doesNotExist() }
+            jsonPath("$.speechRegisterId") { doesNotExist() }
+        }
+    }
+
+    @Test
+    fun `표현 축을 빠뜨린 생성 요청은 거절한다`() {
+        val templateId = createTemplate("Missing Axis Template", PromptTemplateType.CHARACTER_GENERATION)
         val branchId = createBranch(templateId, "main")
         mockMvc.put("/api/v1/prompt-templates/{promptTemplateId}/refs/{refName}", templateId, "main") {
             contentType = MediaType.APPLICATION_JSON
@@ -351,13 +386,7 @@ class ManagementApiIntegrationTests(
             contentType = MediaType.APPLICATION_JSON
             content = """{"refId":$branchId}"""
         }.andExpect {
-            status { isAccepted() }
-            jsonPath("$.refId") { value(branchId) }
-            jsonPath("$.status") { value("PREPARING") }
-            jsonPath("$.domainId") { doesNotExist() }
-            jsonPath("$.age") { doesNotExist() }
-            jsonPath("$.gender") { doesNotExist() }
-            jsonPath("$.speechRegisterId") { doesNotExist() }
+            status { isBadRequest() }
         }
     }
 
@@ -633,6 +662,24 @@ class ManagementApiIntegrationTests(
         }.andExpect {
             status { isBadRequest() }
         }
+    }
+
+    /** v4에서 필수가 된 표현 축 네 개. 다른 입력을 생략하는 요청에도 이건 들어가야 한다. */
+    private fun expressionAxisIds(): String {
+        val options = l0GenerationTestOptions(
+            domainRepository,
+            lieRepository,
+            personalityTraitStageRepository,
+            attachmentStyleRepository,
+            emotionalExpressionRepository,
+            avoidanceStyleRepository,
+            speechArchetypeRepository,
+            speechRegisterRepository,
+        )
+        return """"attachmentStyleId":${options.attachmentStyleId},""" +
+            """"emotionalExpressionId":${options.emotionalExpressionId},""" +
+            """"avoidanceStyleId":${options.avoidanceStyleId},""" +
+            """"speechArchetypeId":${options.speechArchetypeId}"""
     }
 
     private fun createTemplate(name: String, type: PromptTemplateType): Long = locationId(

@@ -10,9 +10,13 @@ import org.springframework.stereotype.Component
 
 /**
  * 세션 옵션 중 인스트럭션 조립에 영향을 주는 값들.
+ *
+ * 관계 단계와 개방 층위는 v4에서 서로 다른 축이다. 전자는 어떤 단계 서술을 주입할지를 정하고,
+ * 후자는 개인사를 어디까지 열지를 정한다. 그래서 둘을 따로 받는다.
  */
 data class RuntimeInstructionOptions(
     val relationshipStage: RelationshipStage,
+    val openedDisclosureLevel: DisclosureLevel,
     val situationNote: String?,
     val includeVoiceSamples: Boolean,
     val closedTopicMode: ClosedTopicMode,
@@ -35,6 +39,7 @@ class CharacterRuntimeInstructionRenderer {
 
     private fun replacements(character: Character, options: RuntimeInstructionOptions): Map<String, String> {
         val stage = options.relationshipStage
+        val openedLevel = options.openedDisclosureLevel
         val stageNote = stageNote(character, stage)
         return mapOf(
             "NAME" to character.name,
@@ -67,10 +72,10 @@ class CharacterRuntimeInstructionRenderer {
             "FORBIDDEN_BEHAVIORS" to bulleted(character.forbiddenBehaviors.map { it.behavior }),
             "WANT" to character.want,
             "RELATIONS" to bulleted(character.relations.map { "${it.name} — ${it.relation}" }),
-            "OPEN_DISCLOSURE" to openDisclosure(character, stage),
-            "CLOSED_TOPICS_SECTION" to closedTopicsSection(character, stage, options.closedTopicMode),
+            "OPEN_DISCLOSURE" to openDisclosure(character, openedLevel),
+            "CLOSED_TOPICS_SECTION" to closedTopicsSection(character, openedLevel, options.closedTopicMode),
             "SITUATION_SECTION" to situationSection(options.situationNote),
-            "WOUND_SECTION" to woundSection(character, stage),
+            "WOUND_SECTION" to woundSection(character, openedLevel),
             "VOICE_SAMPLES_SECTION" to voiceSamplesSection(character, options.includeVoiceSamples),
         )
     }
@@ -79,13 +84,15 @@ class CharacterRuntimeInstructionRenderer {
      * 현재 관계 깊이에 해당하는 단계 서술 한 벌을 고른다. (v4 §8.1의 단계별 주입)
      *
      * 관계 사건 네 가지는 어느 단계에서든 일어나므로 여기서 고르지 않고 항상 주입한다.
+     * 개방 층위도 이 단계에서 파생하지 않는다. 어디까지 열지는 서버가 따로 판정해 옵션으로 넘긴다.
      */
     private fun stageNote(character: Character, stage: RelationshipStage): CharacterRelationshipStageEntity =
-        character.relationshipStages.firstOrNull { it.level == stage.stageLevel }
-            ?: error("캐릭터에 ${stage.stageLevel} 관계 단계 서술이 없습니다: characterId=${character.id}")
+        character.relationshipStages.firstOrNull { it.stage == stage }
+            ?: error("캐릭터에 $stage 관계 단계 서술이 없습니다: characterId=${character.id}")
 
-    private fun openDisclosure(character: Character, stage: RelationshipStage): String {
-        val opened = character.disclosureItems.filter { it.level in stage.openedLevels }
+    private fun openDisclosure(character: Character, openedLevel: DisclosureLevel): String {
+        val openedLevels = openedLevel.openedThrough()
+        val opened = character.disclosureItems.filter { it.level in openedLevels }
         if (opened.isEmpty()) return "이 사람에게 아직 꺼낼 수 있는 개인사가 없다."
         return bulleted(opened.map { it.itemText })
     }
@@ -98,11 +105,11 @@ class CharacterRuntimeInstructionRenderer {
      */
     private fun closedTopicsSection(
         character: Character,
-        stage: RelationshipStage,
+        openedLevel: DisclosureLevel,
         mode: ClosedTopicMode,
     ): String {
         if (mode == ClosedTopicMode.OMIT) return ""
-        val closedLevels = stage.closedLevels()
+        val closedLevels = openedLevel.closedAbove()
         val topics = closedLevels.filter { level -> character.disclosureItems.any { it.level == level } }
         if (topics.isEmpty()) return ""
         return buildString {
@@ -125,10 +132,10 @@ class CharacterRuntimeInstructionRenderer {
     }
 
     /**
-     * Lie의 기원이 된 상처는 심층 층위가 열린 단계에서만 넣는다. (설계 1절, v4의 조건부 대화 필드)
+     * Lie의 기원이 된 상처는 심층 층위가 열렸을 때만 넣는다. (설계 1절, v4의 조건부 대화 필드)
      */
-    private fun woundSection(character: Character, stage: RelationshipStage): String {
-        if (!stage.opensWound()) return ""
+    private fun woundSection(character: Character, openedLevel: DisclosureLevel): String {
+        if (!openedLevel.opensWound()) return ""
         return "## 잘 꺼내지 않는 과거\n" +
             "${character.lieWound}\n" +
             "이 일을 먼저 꺼내지 않는다. 깊이 물어올 때만 조금씩 드러난다."

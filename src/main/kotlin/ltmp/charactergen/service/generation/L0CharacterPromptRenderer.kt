@@ -70,6 +70,7 @@ class L0CharacterPromptRenderer(
         "EMOTION" to request.emotion?.toString().orEmpty(),
         "EXTRA_CONSTRAINTS" to request.extraConstraints.orEmpty(),
         "IMBALANCE_NOTE" to imbalanceNote(options),
+        "EXISTING_CHARACTERS" to (options.existingCharactersNote ?: NO_EXISTING_CHARACTERS),
         "TIC_SITUATIONS" to bulleted(
             situationSelectionService.selectVerbalTicSituations().map { it.situation },
         ),
@@ -128,5 +129,6 @@ class L0CharacterPromptRenderer(
 
     private companion object {
         const val NO_IMBALANCE = "없음"
+        const val NO_EXISTING_CHARACTERS = "없음"
     }
 }

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
 import ltmp.charactergen.data.ClosedTopicMode
+import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.RelationshipStage
 import ltmp.charactergen.service.chat.CharacterChatMessage
 import ltmp.charactergen.service.chat.CharacterChatSession
@@ -24,11 +25,20 @@ data class CreateCharacterChatSessionRequest(
     val characterId: Long,
 
     @field:Schema(
-        description = "관계 단계. 열리는 개인사 층위와 주입할 애착 서술이 달라진다.",
-        example = "FIRST",
+        description = "관계 단계. 캐릭터가 이 단계에 대해 써 둔 거리·호칭·감정 범위·회피 강도가 주입된다.",
+        example = "EARLY",
         requiredMode = Schema.RequiredMode.REQUIRED,
     )
     val relationshipStage: RelationshipStage,
+
+    @field:Schema(
+        description = "개인사를 어디까지 열지. 지정한 층위까지 열리고 그 위는 닫힌 주제로 다룬다. " +
+            "생략하면 관계 단계에서 파생한다(EARLY=SURFACE, DEEPENING=MID, CLOSE=DEEP). " +
+            "DEEPEST는 저절로 열리지 않으므로 그 층위를 확인하려면 직접 지정해야 한다.",
+        example = "SURFACE",
+        nullable = true,
+    )
+    val openedDisclosureLevel: DisclosureLevel? = null,
 
     @field:Schema(
         description = "캐릭터에게 부여할 현재 상황. 프로브 P6처럼 특정 상황에서의 반응을 볼 때 사용한다.",
@@ -103,8 +113,15 @@ data class CharacterChatSessionDto(
     @field:Schema(description = "대화 중인 캐릭터 이름", example = "서윤", requiredMode = Schema.RequiredMode.REQUIRED)
     val characterName: String,
 
-    @field:Schema(description = "관계 단계", example = "FIRST", requiredMode = Schema.RequiredMode.REQUIRED)
+    @field:Schema(description = "관계 단계", example = "EARLY", requiredMode = Schema.RequiredMode.REQUIRED)
     val relationshipStage: RelationshipStage,
+
+    @field:Schema(
+        description = "이 세션에서 실제로 열린 개인사 층위. 요청에서 생략했으면 관계 단계에서 파생한 값이다.",
+        example = "SURFACE",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val openedDisclosureLevel: DisclosureLevel,
 
     @field:Schema(description = "사용한 인스트럭션 프롬프트 ref 식별자", example = "10", requiredMode = Schema.RequiredMode.REQUIRED)
     val refId: Long,
@@ -183,6 +200,7 @@ fun CharacterChatSession.toDto(expiresAt: OffsetDateTime): CharacterChatSessionD
     characterId = characterId,
     characterName = characterName,
     relationshipStage = relationshipStage,
+    openedDisclosureLevel = openedDisclosureLevel,
     refId = refId,
     instructionBranch = instructionBranch,
     instructions = instructions,

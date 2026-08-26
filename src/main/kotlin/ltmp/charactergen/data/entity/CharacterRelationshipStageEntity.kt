@@ -7,7 +7,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Lob
 import jakarta.persistence.Table
 import ltmp.charactergen.data.LongBaseEntity
-import ltmp.charactergen.data.RelationshipStageLevel
+import ltmp.charactergen.data.RelationshipStage
 
 /**
  * 관계 깊이 한 단계에서의 거리·호칭·감정 범위·회피 강도. 서버가 현재 단계에 해당하는 한 행만 대화에 주입한다.
@@ -16,8 +16,8 @@ import ltmp.charactergen.data.RelationshipStageLevel
 @Table(name = "character_relationship_stages")
 class CharacterRelationshipStageEntity(
     @Enumerated(EnumType.STRING)
-    @Column(name = "stage_level", nullable = false, length = 20)
-    val level: RelationshipStageLevel,
+    @Column(nullable = false, length = 20)
+    val stage: RelationshipStage,
 
     @Lob
     @Column(nullable = false)

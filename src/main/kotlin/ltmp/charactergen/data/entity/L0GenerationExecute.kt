@@ -143,6 +143,16 @@ class L0GenerationExecute(
     @Column(name = "extra_constraints", nullable = true)
     val extraConstraints: String? = null,
 
+    /**
+     * 이 실행에서 프롬프트에 알려준 기존 캐릭터 목록.
+     *
+     * 자동으로 붙는 최근 캐릭터는 시간이 지나면 달라지므로, 나중에 다시 계산하지 않고 요청 시점의 값을 남긴다.
+     * 알려준 캐릭터가 없으면 null이다.
+     */
+    @Lob
+    @Column(name = "existing_characters_note", nullable = true)
+    val existingCharactersNote: String? = null,
+
     @Lob
     @Column(name = "prompt_ref_snapshot_json")
     val promptRefSnapshotJson: String? = null,

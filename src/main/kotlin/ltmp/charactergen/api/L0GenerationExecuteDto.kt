@@ -90,6 +90,12 @@ data class L0GenerationExecuteDto(
     @field:Schema(description = "추가 생성 제약", nullable = true)
     val extraConstraints: String? = null,
 
+    @field:Schema(
+        description = "이 실행에서 프롬프트에 알려준 기존 캐릭터 목록. 한 줄에 한 명이며, 알려준 캐릭터가 없으면 null이다.",
+        nullable = true,
+    )
+    val existingCharactersNote: String? = null,
+
     @field:Schema(description = "BRANCH 실행 시점의 ref 원본 JSON. VERSION 실행이면 null", nullable = true)
     val promptRefSnapshotJson: String? = null,
 
@@ -187,6 +193,7 @@ fun L0GenerationExecute.toDto() = L0GenerationExecuteDto(
     scale = scale,
     emotion = emotion,
     extraConstraints = extraConstraints,
+    existingCharactersNote = existingCharactersNote,
     promptRefSnapshotJson = promptRefSnapshotJson,
     userInputJson = userInputJson,
     llmOutput = llmOutput,

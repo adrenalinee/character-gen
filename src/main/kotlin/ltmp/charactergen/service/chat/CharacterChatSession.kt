@@ -1,6 +1,7 @@
 package ltmp.charactergen.service.chat
 
 import ltmp.charactergen.data.ClosedTopicMode
+import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.RelationshipStage
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -28,6 +29,7 @@ class CharacterChatSession(
     val characterId: Long,
     val characterName: String,
     val relationshipStage: RelationshipStage,
+    val openedDisclosureLevel: DisclosureLevel,
     val refId: Long,
     // ref를 직접 지정해 VERSION으로 조립한 세션에는 브랜치 이름이 없다.
     val instructionBranch: String?,

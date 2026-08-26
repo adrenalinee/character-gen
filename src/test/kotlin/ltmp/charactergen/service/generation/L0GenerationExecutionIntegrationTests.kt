@@ -5,6 +5,7 @@ import ltmp.charactergen.l0GenerationTestOptions
 import ltmp.charactergen.client.openai.L0CharacterLlmClient
 import ltmp.charactergen.client.openai.L0CharacterLlmResult
 import ltmp.charactergen.data.L0GenerationExecuteStatus
+import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.Gender
 import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.PromptTemplateType
@@ -182,9 +183,9 @@ class L0GenerationExecutionIntegrationTests(
             jsonPath("$.behavioralRules.length()") { value(2) }
             jsonPath("$.behavioralRules[0].ruleText") { value("칭찬을 받으면 다음 작업 이야기로 넘긴다") }
             jsonPath("$.relationshipStages.length()") { value(3) }
-            jsonPath("$.relationshipStages[0].level") { value("EARLY") }
+            jsonPath("$.relationshipStages[0].stage") { value("EARLY") }
             jsonPath("$.relationshipStages[0].address") { value("이름 없이 존댓말로 부른다") }
-            jsonPath("$.relationshipStages[2].level") { value("CLOSE") }
+            jsonPath("$.relationshipStages[2].stage") { value("CLOSE") }
             jsonPath("$.longTermViability") { value("여러 관계에서 교체 공포가 반복된다") }
             jsonPath("$.identity") { doesNotExist() }
             jsonPath("$.core") { doesNotExist() }
@@ -236,6 +237,68 @@ class L0GenerationExecutionIntegrationTests(
     }
 
     @Test
+    fun `이미 생성된 캐릭터를 프롬프트에 알려주고 빈 목록을 주면 알려주지 않는다`() {
+        val ref = existingCharacterPromptRef("L0 existing character test")
+        fakeLlmClient.failure = null
+        fakeLlmClient.response = objectMapper.readValue(RESPONSE_JSON, L0CharacterResponse::class.java)
+
+        // 첫 실행으로 기존 캐릭터를 하나 만든다
+        val first = generationService.requestGeneration(generationRequest(ref.id))
+        executor.execute(first.id)
+
+        // 지정하지 않으면 최근 캐릭터를 서버가 붙인다
+        val second = generationService.requestGeneration(generationRequest(ref.id))
+        executor.execute(second.id)
+        val rendered = fakeLlmClient.lastPrompt.inputs.single().inputText
+        assertTrue(rendered.contains("서윤 / 웹툰 / 대체 가능성 공포형 / 첫 연재에서 교체됐다 / 29세"), rendered)
+        assertEquals(
+            "서윤 / 웹툰 / 대체 가능성 공포형 / 첫 연재에서 교체됐다 / 29세",
+            generationExecuteRepository.findById(second.id).orElseThrow().existingCharactersNote,
+        )
+
+        // 빈 목록은 "알려주지 않는다"는 지정이다
+        val third = generationService.requestGeneration(
+            generationRequest(ref.id).copy(existingCharacterIds = emptyList()),
+        )
+        executor.execute(third.id)
+        assertFalse(fakeLlmClient.lastPrompt.inputs.single().inputText.contains("서윤 / 웹툰"))
+        assertEquals(null, generationExecuteRepository.findById(third.id).orElseThrow().existingCharactersNote)
+    }
+
+    @Test
+    fun `1단계와 5단계를 세 축 이상 지정하면 실행을 생성하지 않는다`() {
+        val ref = existingCharacterPromptRef("L0 extreme trait test")
+        val extremeRequest = generationRequest(ref.id).copy(
+            opennessStageId = traitStageId(BigFiveTrait.OPENNESS, 1),
+            conscientiousnessStageId = traitStageId(BigFiveTrait.CONSCIENTIOUSNESS, 5),
+            extraversionStageId = traitStageId(BigFiveTrait.EXTRAVERSION, 1),
+        )
+
+        val failure = assertFailsWith<InvalidRequestException> {
+            generationService.requestGeneration(extremeRequest)
+        }
+
+        assertTrue(failure.detail.contains("최대 2개 축"), failure.detail)
+        assertFalse(generationExecuteRepository.findAll().any { it.promptTemplateRef.id == ref.id })
+    }
+
+    private fun existingCharacterPromptRef(templateName: String): PromptTemplateRef {
+        val template = promptTemplateRepository.save(
+            PromptTemplate(name = templateName, type = PromptTemplateType.CHARACTER_GENERATION),
+        )
+        val ref = PromptTemplateRef(
+            promptTemplate = template,
+            type = PromptTemplateRefType.BRANCH,
+            name = "main",
+            instructions = "system",
+        ).also { it.addInput("user", "{{EXISTING_CHARACTERS}}") }
+        return promptTemplateRefRepository.saveAndFlush(ref)
+    }
+
+    private fun traitStageId(trait: BigFiveTrait, stage: Int): Long =
+        assertNotNull(personalityTraitStageRepository.findByTraitAndStage(trait, stage)).id
+
+    @Test
     fun `LLM 호출 실패를 FAILED 상태와 추적 정보로 저장한다`() {
         val template = promptTemplateRepository.save(PromptTemplate(name = "L0 failure test", type = PromptTemplateType.CHARACTER_GENERATION))
         val ref = PromptTemplateRef(
@@ -283,7 +346,7 @@ class L0GenerationExecutionIntegrationTests(
     }
 
     @Test
-    fun `refId만 입력하면 나머지 값을 null로 저장하고 프롬프트에는 빈 문자열을 주입한다`() {
+    fun `필수 축만 입력하면 나머지는 null로 저장하고 성향은 3단계 기본값으로 채운다`() {
         val template = promptTemplateRepository.save(PromptTemplate(name = "L0 nullable input test", type = PromptTemplateType.CHARACTER_GENERATION))
         val placeholders = listOf(
             "DESCRIPTION",
@@ -331,7 +394,16 @@ class L0GenerationExecutionIntegrationTests(
         fakeLlmClient.failure = null
         fakeLlmClient.response = objectMapper.readValue(RESPONSE_JSON, L0CharacterResponse::class.java)
 
-        val generation = generationService.requestGeneration(L0CharacterGenerationRequest(refId = ref.id))
+        val options = testOptions()
+        val generation = generationService.requestGeneration(
+            L0CharacterGenerationRequest(
+                refId = ref.id,
+                attachmentStyleId = options.attachmentStyleId,
+                emotionalExpressionId = options.emotionalExpressionId,
+                avoidanceStyleId = options.avoidanceStyleId,
+                speechArchetypeId = options.speechArchetypeId,
+            ),
+        )
         val saved = generationExecuteRepository.findOneWithDetailsById(generation.id)!!
         assertEquals(null, saved.domain)
         assertEquals(null, saved.lie)
@@ -341,8 +413,10 @@ class L0GenerationExecutionIntegrationTests(
         assertEquals(null, saved.woundAgent)
         assertEquals(null, saved.woundForm)
         assertEquals(null, saved.woundDuration)
-        assertEquals(null, saved.opennessStage)
-        assertEquals(null, saved.attachmentStyle)
+        // 성향은 지정하지 않아도 v4 운영 기본값인 3단계로 채워진다
+        assertEquals(3, saved.opennessStage?.stage)
+        assertEquals(3, saved.neuroticismStage?.stage)
+        assertEquals(options.attachmentStyleId, saved.attachmentStyle?.id)
         assertEquals(null, saved.description)
         assertEquals(null, saved.age)
         assertEquals(null, saved.gender)
@@ -353,7 +427,10 @@ class L0GenerationExecutionIntegrationTests(
 
         executor.execute(generation.id)
 
-        assertEquals("|".repeat(placeholders.size - 1), fakeLlmClient.lastPrompt.instructions)
+        // 성향과 표현 축은 값이 채워지고, 지정하지 않은 나머지 자리만 빈 문자열로 남는다
+        val renderedInstructions = fakeLlmClient.lastPrompt.instructions
+        assertTrue(renderedInstructions.contains("3|이 축은 이 인물을 설명하는 특징이 아니다"), renderedInstructions)
+        assertFalse(renderedInstructions.contains("{{"))
         assertEquals("//", fakeLlmClient.lastPrompt.inputs.single().inputText)
         val detail = generationService.getGeneration(generation.id)
         assertEquals(null, detail.domainId)

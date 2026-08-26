@@ -210,7 +210,7 @@ class L0AxisBalanceIntegrationTests(
     fun `불균형이 있으면 렌더 시점에 IMBALANCE_NOTE를 주입한다`() {
         val rendered = promptRenderer.render(
             prompt = imbalancePlaceholderPrompt(),
-            request = L0CharacterGenerationRequest(refId = 1),
+            request = renderOnlyRequest(),
             options = L0GenerationOptions(
                 extraversionStage = 1,
                 speechArchetypeName = "장황형",
@@ -233,7 +233,7 @@ class L0AxisBalanceIntegrationTests(
     fun `불균형이 없으면 IMBALANCE_NOTE를 없음으로 채운다`() {
         val rendered = promptRenderer.render(
             prompt = imbalancePlaceholderPrompt(),
-            request = L0CharacterGenerationRequest(refId = 1),
+            request = renderOnlyRequest(),
             options = L0GenerationOptions(
                 extraversionStage = 3,
                 speechArchetypeName = "장황형",
@@ -362,4 +362,15 @@ class L0AxisBalanceIntegrationTests(
     private fun avoidanceStyle(type: String) = assertNotNull(avoidanceStyleRepository.findByType(type))
 
     private fun speechArchetype(name: String) = assertNotNull(speechArchetypeRepository.findByName(name))
+
+    /**
+     * 렌더러는 요청에서 축 식별자를 읽지 않고 options만 본다. 필수 항목을 채우기 위한 최소 요청이다.
+     */
+    private fun renderOnlyRequest() = L0CharacterGenerationRequest(
+        refId = 1,
+        attachmentStyleId = 1,
+        emotionalExpressionId = 1,
+        avoidanceStyleId = 1,
+        speechArchetypeId = 1,
+    )
 }

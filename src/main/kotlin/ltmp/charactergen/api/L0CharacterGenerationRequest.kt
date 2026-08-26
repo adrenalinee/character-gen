@@ -7,7 +7,10 @@ import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
 import ltmp.charactergen.data.Gender
 
-@Schema(description = "L0 캐릭터 생성 프롬프트에 사용할 사용자 입력. 모든 필드가 선택 사항이다.")
+@Schema(
+    description = "L0 캐릭터 생성 프롬프트에 사용할 사용자 입력. " +
+        "표현 축 네 개(관계 태도·정서 표출·회피 방식·말투 원형)는 반드시 지정해야 하고 나머지는 선택 사항이다.",
+)
 data class L0CharacterGenerationRequest(
     @field:Positive
     @field:Schema(
@@ -67,56 +70,76 @@ data class L0CharacterGenerationRequest(
     val woundDurationId: Long? = null,
 
     @field:Positive
-    @field:Schema(description = "개방성 단계 옵션 식별자", example = "3", nullable = true)
+    @field:Schema(
+        description = "개방성 단계 옵션 식별자. 생략하면 서버가 기본값인 3단계를 지정한다.",
+        example = "3",
+        nullable = true,
+    )
     val opennessStageId: Long? = null,
 
     @field:Positive
-    @field:Schema(description = "성실성 단계 옵션 식별자", example = "8", nullable = true)
+    @field:Schema(
+        description = "성실성 단계 옵션 식별자. 생략하면 서버가 기본값인 3단계를 지정한다.",
+        example = "8",
+        nullable = true,
+    )
     val conscientiousnessStageId: Long? = null,
 
     @field:Positive
-    @field:Schema(description = "외향성 단계 옵션 식별자", example = "13", nullable = true)
+    @field:Schema(
+        description = "외향성 단계 옵션 식별자. 생략하면 서버가 기본값인 3단계를 지정한다.",
+        example = "13",
+        nullable = true,
+    )
     val extraversionStageId: Long? = null,
 
     @field:Positive
-    @field:Schema(description = "우호성 단계 옵션 식별자", example = "18", nullable = true)
+    @field:Schema(
+        description = "우호성 단계 옵션 식별자. 생략하면 서버가 기본값인 3단계를 지정한다.",
+        example = "18",
+        nullable = true,
+    )
     val agreeablenessStageId: Long? = null,
 
     @field:Positive
-    @field:Schema(description = "신경성 단계 옵션 식별자", example = "23", nullable = true)
+    @field:Schema(
+        description = "신경성 단계 옵션 식별자. 생략하면 서버가 기본값인 3단계를 지정한다.",
+        example = "23",
+        nullable = true,
+    )
     val neuroticismStageId: Long? = null,
 
     @field:Positive
     @field:Schema(
         description = "관계 태도 옵션 식별자. 유형과 설명은 서버가 조회해 주입한다.",
         example = "1",
-        nullable = true,
+        requiredMode = Schema.RequiredMode.REQUIRED,
     )
-    val attachmentStyleId: Long? = null,
+    val attachmentStyleId: Long,
 
     @field:Positive
     @field:Schema(
         description = "정서 표출 옵션 식별자. 유형과 설명은 서버가 조회해 주입한다.",
         example = "1",
-        nullable = true,
+        requiredMode = Schema.RequiredMode.REQUIRED,
     )
-    val emotionalExpressionId: Long? = null,
+    val emotionalExpressionId: Long,
 
     @field:Positive
     @field:Schema(
         description = "회피 방식 옵션 식별자. 유형과 설명은 서버가 조회해 주입한다.",
         example = "1",
-        nullable = true,
+        requiredMode = Schema.RequiredMode.REQUIRED,
     )
-    val avoidanceStyleId: Long? = null,
+    val avoidanceStyleId: Long,
 
     @field:Positive
     @field:Schema(
         description = "말투 원형 옵션 식별자. 이름과 설명은 서버가 조회해 주입한다.",
         example = "1",
-        nullable = true,
+        requiredMode = Schema.RequiredMode.REQUIRED,
     )
-    val speechArchetypeId: Long? = null,
+    val speechArchetypeId: Long,
 
     @field:Positive
     @field:Schema(description = "캐릭터의 연령", example = "29", nullable = true)
@@ -152,4 +175,11 @@ data class L0CharacterGenerationRequest(
         nullable = true,
     )
     val extraConstraints: String? = null,
+
+    @field:Schema(
+        description = "상처 서사가 겹치지 않게 프롬프트에 알려줄 기존 캐릭터 식별자 목록. " +
+            "생략하면 최근 생성된 캐릭터를 서버가 자동으로 붙이고, 빈 배열을 주면 아무것도 붙이지 않는다.",
+        nullable = true,
+    )
+    val existingCharacterIds: List<@Positive Long>? = null,
 )

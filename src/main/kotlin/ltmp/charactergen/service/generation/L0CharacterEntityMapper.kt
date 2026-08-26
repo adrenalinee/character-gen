@@ -2,7 +2,7 @@ package ltmp.charactergen.service.generation
 
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.DisclosureLevel
-import ltmp.charactergen.data.RelationshipStageLevel
+import ltmp.charactergen.data.RelationshipStage
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.data.entity.CharacterBannedWordEntity
 import ltmp.charactergen.data.entity.CharacterBehavioralRuleEntity
@@ -52,9 +52,9 @@ fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Charac
     concreteDetails = identity.concreteDetails.map { CharacterConcreteDetailEntity(detailText = it) },
     behavioralRules = core.lie.behavioralRule.map { CharacterBehavioralRuleEntity(ruleText = it) },
     relationshipStages = listOf(
-        relationshipStages.early.toEntity(RelationshipStageLevel.EARLY),
-        relationshipStages.deepening.toEntity(RelationshipStageLevel.DEEPENING),
-        relationshipStages.close.toEntity(RelationshipStageLevel.CLOSE),
+        relationshipStages.early.toEntity(RelationshipStage.EARLY),
+        relationshipStages.deepening.toEntity(RelationshipStage.DEEPENING),
+        relationshipStages.close.toEntity(RelationshipStage.CLOSE),
     ),
     nonNegotiables = core.nonNegotiables.map {
         CharacterNonNegotiableEntity(
@@ -99,8 +99,8 @@ fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Charac
     },
 )
 
-private fun RelationshipStageNote.toEntity(level: RelationshipStageLevel) = CharacterRelationshipStageEntity(
-    level = level,
+private fun RelationshipStageNote.toEntity(stage: RelationshipStage) = CharacterRelationshipStageEntity(
+    stage = stage,
     attachment = attachment,
     address = address,
     emotionalRange = emotionalRange,

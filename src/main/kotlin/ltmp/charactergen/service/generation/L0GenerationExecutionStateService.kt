@@ -51,10 +51,15 @@ class L0GenerationExecutionStateService(
             extraversionStageId = execute.extraversionStage?.id,
             agreeablenessStageId = execute.agreeablenessStage?.id,
             neuroticismStageId = execute.neuroticismStage?.id,
-            attachmentStyleId = execute.attachmentStyle?.id,
-            emotionalExpressionId = execute.emotionalExpression?.id,
-            avoidanceStyleId = execute.avoidanceStyle?.id,
-            speechArchetypeId = execute.speechArchetype?.id,
+            // 표현 축 네 개는 요청에서 필수라 실행 기록에도 반드시 있다. 없으면 기록이 깨진 것이므로 실패시킨다.
+            attachmentStyleId = requiredAxisId(execute.attachmentStyle?.id, "attachmentStyle", generationId),
+            emotionalExpressionId = requiredAxisId(
+                execute.emotionalExpression?.id,
+                "emotionalExpression",
+                generationId,
+            ),
+            avoidanceStyleId = requiredAxisId(execute.avoidanceStyle?.id, "avoidanceStyle", generationId),
+            speechArchetypeId = requiredAxisId(execute.speechArchetype?.id, "speechArchetype", generationId),
             age = execute.age,
             gender = execute.gender,
             speechRegisterId = execute.speechRegister?.id,
@@ -117,9 +122,13 @@ class L0GenerationExecutionStateService(
                 speechArchetypeDescription = execute.speechArchetype?.description,
                 speechArchetypeVector = execute.speechArchetype?.bigFiveVector,
                 speechRegisterName = execute.speechRegister?.name,
+                existingCharactersNote = execute.existingCharactersNote,
             ),
         )
     }
+
+    private fun requiredAxisId(id: Long?, axisName: String, generationId: Long): Long =
+        requireNotNull(id) { "L0GenerationExecute has no $axisName: $generationId" }
 
     @Transactional
     fun complete(
@@ -204,4 +213,5 @@ data class L0GenerationOptions(
     val speechArchetypeDescription: String? = null,
     val speechArchetypeVector: BigFiveVector? = null,
     val speechRegisterName: String? = null,
+    val existingCharactersNote: String? = null,
 )

@@ -63,11 +63,13 @@ class CharacterChatIntegrationTests(
     fun `세션을 만들면 조립된 인스트럭션과 함께 반환한다`() {
         val characterId = persistCharacter()
 
-        val response = createSession(characterId, "FIRST")
+        val response = createSession(characterId, "EARLY")
 
         assertEquals(characterId.toInt(), response.path("characterId").asInt())
         assertEquals("서윤", response.path("characterName").asString())
-        assertEquals("FIRST", response.path("relationshipStage").asString())
+        assertEquals("EARLY", response.path("relationshipStage").asString())
+        // 개방 층위를 주지 않으면 단계에서 파생한다
+        assertEquals("SURFACE", response.path("openedDisclosureLevel").asString())
         assertEquals("main", response.path("instructionBranch").asString())
         assertEquals("TOPIC_ONLY", response.path("closedTopicMode").asString())
         assertTrue(response.path("messages").isEmpty)
@@ -82,11 +84,33 @@ class CharacterChatIntegrationTests(
     fun `관계 단계에 따라 조립되는 인스트럭션이 달라진다`() {
         val characterId = persistCharacter()
 
-        val first = createSession(characterId, "FIRST").path("instructions").asString()
+        val early = createSession(characterId, "EARLY").path("instructions").asString()
         val close = createSession(characterId, "CLOSE").path("instructions").asString()
 
-        assertFalse(first.contains("교체 경험"), "1단계에서 심층 개인사가 새면 안 된다")
-        assertTrue(close.contains("교체 경험"), "3단계에서는 심층 개인사가 열려야 한다")
+        assertContains(early, "먼저 묻지 않는다")
+        assertFalse(early.contains("교체 경험"), "얕은 관계에서 심층 개인사가 새면 안 된다")
+        assertContains(close, "거리를 유지한 채 곁에 둔다")
+        assertTrue(close.contains("교체 경험"), "가까운 관계에서는 심층 개인사가 열려야 한다")
+    }
+
+    @Test
+    fun `개방 층위를 직접 지정하면 관계 단계와 무관하게 그 층위까지 연다`() {
+        val characterId = persistCharacter()
+
+        val response = objectMapper.readTree(
+            mockMvc.post("/api/v1/character-chat/sessions") {
+                contentType = org.springframework.http.MediaType.APPLICATION_JSON
+                content = """
+                    {"characterId":$characterId,"relationshipStage":"EARLY","openedDisclosureLevel":"DEEP"}
+                """.trimIndent()
+            }.andReturn().response.contentAsString,
+        )
+
+        assertEquals("EARLY", response.path("relationshipStage").asString())
+        assertEquals("DEEP", response.path("openedDisclosureLevel").asString())
+        val instructions = response.path("instructions").asString()
+        assertContains(instructions, "먼저 묻지 않는다")
+        assertContains(instructions, "교체 경험")
     }
 
     @Test
@@ -96,7 +120,7 @@ class CharacterChatIntegrationTests(
         val body = """
             {
               "characterId": $characterId,
-              "relationshipStage": "FIRST",
+              "relationshipStage": "EARLY",
               "situationNote": "오늘 원고를 크게 반려당했다",
               "includeVoiceSamples": false,
               "closedTopicMode": "OMIT"
@@ -119,7 +143,7 @@ class CharacterChatIntegrationTests(
 
     @Test
     fun `대화 요청은 delta 이벤트를 흘려보내고 done으로 끝난다`() {
-        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        val sessionId = createSession(persistCharacter(), "EARLY").path("sessionId").asString()
         fakeChatLlmClient.deltas = listOf("안녕", "하세요.")
 
         val body = sendMessage(sessionId, "안녕하세요")
@@ -134,7 +158,7 @@ class CharacterChatIntegrationTests(
 
     @Test
     fun `대화 기록 조회로 오간 메시지를 순서대로 확인할 수 있다`() {
-        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        val sessionId = createSession(persistCharacter(), "EARLY").path("sessionId").asString()
         fakeChatLlmClient.deltas = listOf("네.")
         sendMessage(sessionId, "안녕하세요")
 
@@ -151,7 +175,7 @@ class CharacterChatIntegrationTests(
 
     @Test
     fun `두 번째 턴에는 앞 턴의 대화가 함께 전달된다`() {
-        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        val sessionId = createSession(persistCharacter(), "EARLY").path("sessionId").asString()
         fakeChatLlmClient.deltas = listOf("네.")
         sendMessage(sessionId, "안녕하세요")
         fakeChatLlmClient.deltas = listOf("그렇군요.")
@@ -169,7 +193,7 @@ class CharacterChatIntegrationTests(
 
     @Test
     fun `스트림이 실패하면 error 이벤트를 보내고 그 턴은 기록하지 않는다`() {
-        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        val sessionId = createSession(persistCharacter(), "EARLY").path("sessionId").asString()
         fakeChatLlmClient.failure = IllegalStateException("모델 호출 실패")
 
         val body = sendMessage(sessionId, "안녕하세요")
@@ -201,7 +225,7 @@ class CharacterChatIntegrationTests(
     fun `없는 캐릭터로 세션을 만들면 404를 반환한다`() {
         mockMvc.post("/api/v1/character-chat/sessions") {
             contentType = org.springframework.http.MediaType.APPLICATION_JSON
-            content = """{"characterId":999999,"relationshipStage":"FIRST"}"""
+            content = """{"characterId":999999,"relationshipStage":"EARLY"}"""
         }.andExpect {
             status { isNotFound() }
         }
@@ -212,7 +236,7 @@ class CharacterChatIntegrationTests(
         mockMvc.post("/api/v1/character-chat/sessions") {
             contentType = org.springframework.http.MediaType.APPLICATION_JSON
             content = """
-                {"characterId":${persistCharacter()},"relationshipStage":"FIRST","instructionBranch":"없는브랜치"}
+                {"characterId":${persistCharacter()},"relationshipStage":"EARLY","instructionBranch":"없는브랜치"}
             """.trimIndent()
         }.andExpect {
             status { isNotFound() }
@@ -221,7 +245,7 @@ class CharacterChatIntegrationTests(
 
     @Test
     fun `빈 메시지는 400을 반환한다`() {
-        val sessionId = createSession(persistCharacter(), "FIRST").path("sessionId").asString()
+        val sessionId = createSession(persistCharacter(), "EARLY").path("sessionId").asString()
 
         mockMvc.post("/api/v1/character-chat/sessions/$sessionId/messages") {
             contentType = org.springframework.http.MediaType.APPLICATION_JSON
@@ -248,7 +272,7 @@ class CharacterChatIntegrationTests(
             mockMvc.post("/api/v1/character-chat/sessions") {
                 contentType = org.springframework.http.MediaType.APPLICATION_JSON
                 content = """
-                    {"characterId":$characterId,"relationshipStage":"FIRST","instructionBranch":"variant-a"}
+                    {"characterId":$characterId,"relationshipStage":"EARLY","instructionBranch":"variant-a"}
                 """.trimIndent()
             }.andReturn().response.contentAsString,
         )
@@ -276,7 +300,7 @@ class CharacterChatIntegrationTests(
         val response = objectMapper.readTree(
             mockMvc.post("/api/v1/character-chat/sessions") {
                 contentType = org.springframework.http.MediaType.APPLICATION_JSON
-                content = """{"characterId":$characterId,"relationshipStage":"FIRST","refId":${ref.id}}"""
+                content = """{"characterId":$characterId,"relationshipStage":"EARLY","refId":${ref.id}}"""
             }.andExpect { status { isCreated() } }.andReturn().response.contentAsString,
         )
 
@@ -302,7 +326,7 @@ class CharacterChatIntegrationTests(
 
         mockMvc.post("/api/v1/character-chat/sessions") {
             contentType = org.springframework.http.MediaType.APPLICATION_JSON
-            content = """{"characterId":$characterId,"relationshipStage":"FIRST","refId":${ref.id}}"""
+            content = """{"characterId":$characterId,"relationshipStage":"EARLY","refId":${ref.id}}"""
         }.andExpect {
             status { isBadRequest() }
         }
@@ -313,7 +337,7 @@ class CharacterChatIntegrationTests(
         mockMvc.post("/api/v1/character-chat/sessions") {
             contentType = org.springframework.http.MediaType.APPLICATION_JSON
             content = """
-                {"characterId":${persistCharacter()},"relationshipStage":"FIRST","refId":1,"instructionBranch":"main"}
+                {"characterId":${persistCharacter()},"relationshipStage":"EARLY","refId":1,"instructionBranch":"main"}
             """.trimIndent()
         }.andExpect {
             status { isBadRequest() }
@@ -323,11 +347,11 @@ class CharacterChatIntegrationTests(
     @Test
     fun `유지 가능한 세션 수를 넘기면 429를 반환한다`() {
         val characterId = persistCharacter()
-        repeat(SESSION_MAX_COUNT) { createSession(characterId, "FIRST") }
+        repeat(SESSION_MAX_COUNT) { createSession(characterId, "EARLY") }
 
         mockMvc.post("/api/v1/character-chat/sessions") {
             contentType = org.springframework.http.MediaType.APPLICATION_JSON
-            content = """{"characterId":$characterId,"relationshipStage":"FIRST"}"""
+            content = """{"characterId":$characterId,"relationshipStage":"EARLY"}"""
         }.andExpect {
             status { isTooManyRequests() }
             jsonPath("$.code") { value("CHAT_SESSION_CAPACITY_EXCEEDED") }
@@ -458,9 +482,9 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
         ),
     ),
     relationshipStages = listOf(
-        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStageLevel.EARLY, "먼저 묻지 않는다"),
-        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStageLevel.DEEPENING, "작업 이야기만 연다"),
-        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStageLevel.CLOSE, "거리를 유지한 채 곁에 둔다"),
+        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStage.EARLY, "먼저 묻지 않는다"),
+        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStage.DEEPENING, "작업 이야기만 연다"),
+        chatTestRelationshipStage(ltmp.charactergen.data.RelationshipStage.CLOSE, "거리를 유지한 채 곁에 둔다"),
     ),
     nonNegotiables = listOf(
         ltmp.charactergen.data.entity.CharacterNonNegotiableEntity(
@@ -518,10 +542,10 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
 )
 
 private fun chatTestRelationshipStage(
-    level: ltmp.charactergen.data.RelationshipStageLevel,
+    stage: ltmp.charactergen.data.RelationshipStage,
     attachment: String,
 ) = ltmp.charactergen.data.entity.CharacterRelationshipStageEntity(
-    level = level,
+    stage = stage,
     attachment = attachment,
     address = "기본적으로 존댓말",
     emotionalRange = "불편함만 짧게 드러낸다",
