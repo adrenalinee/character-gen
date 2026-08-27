@@ -18,7 +18,14 @@ import ltmp.charactergen.data.entity.L0GenerationExecute
 import ltmp.charactergen.model.L0CharacterResponse
 import ltmp.charactergen.model.RelationshipStageNote
 
-fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Character = Character(
+/**
+ * @param runtimeDetailIndexes 런타임 대화 프롬프트에 넣을 `concrete_details` 인덱스.
+ *   `RuntimeConcreteDetailSelector`가 저장 직전에 판정한 결과다. (v4.1 B-10)
+ */
+fun L0CharacterResponse.toEntity(
+    generationExecute: L0GenerationExecute,
+    runtimeDetailIndexes: Set<Int>,
+): Character = Character(
     generationExecute = generationExecute,
     name = identity.name,
     age = identity.age,
@@ -35,8 +42,6 @@ fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Charac
     contradictionTraitA = core.contradiction.traitA,
     contradictionTraitB = core.contradiction.traitB,
     contradictionSharedRoot = core.contradiction.sharedRoot,
-    expressionNote = traits.expressionNote,
-    identityNote = traits.identityNote,
     onRejection = relationshipEvents.onRejection,
     onConflict = relationshipEvents.onConflict,
     onAbsence = relationshipEvents.onAbsence,
@@ -49,7 +54,10 @@ fun L0CharacterResponse.toEntity(generationExecute: L0GenerationExecute): Charac
     recognizability = designNote.recognizability,
     longTermViability = designNote.longTermViability,
     imbalanceNote = designNote.imbalanceNote,
-    concreteDetails = identity.concreteDetails.map { CharacterConcreteDetailEntity(detailText = it) },
+    traitReflection = designNote.traitReflection,
+    concreteDetails = identity.concreteDetails.mapIndexed { index, detail ->
+        CharacterConcreteDetailEntity(detailText = detail, runtimeIncluded = index in runtimeDetailIndexes)
+    },
     behavioralRules = core.lie.behavioralRule.map { CharacterBehavioralRuleEntity(ruleText = it) },
     relationshipStages = listOf(
         relationshipStages.early.toEntity(RelationshipStage.EARLY),

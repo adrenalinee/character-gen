@@ -280,14 +280,21 @@ class L0CharacterGenerationService(
         return characters.joinToString("\n") { existingCharacterLine(it) }
     }
 
-    /** v4 §7 플레이스홀더 명세의 순서: 이름 / 분야 / Lie 유형 / wound 한 줄 / 나이 */
-    private fun existingCharacterLine(character: Character): String = listOf(
-        character.name,
-        character.generationExecute.domain?.name ?: "분야 미지정",
-        character.lieType,
-        character.lieWound,
-        "${character.age}세",
-    ).joinToString(" / ")
+    /**
+     * v4.1 C-2 플레이스홀더 명세의 순서: 이름 / 분야 / Lie 유형 / wound 한 줄 / 나이 / banned_words.
+     *
+     * banned_words는 v4.1에서 추가됐다. 원칙 5가 "그들이 쓰지 않는다고 적힌 표현도 피하라"고 지시하므로
+     * 그 목록이 실제로 프롬프트에 있어야 말투 수렴을 막을 수 있다. 무엇을 나열한 것인지 알 수 있게 이름표를 붙인다.
+     */
+    private fun existingCharacterLine(character: Character): String = buildList {
+        add(character.name)
+        add(character.generationExecute.domain?.name ?: "분야 미지정")
+        add(character.lieType)
+        add(character.lieWound)
+        add("${character.age}세")
+        val bannedWords = character.bannedWords.map { it.wordText }
+        if (bannedWords.isNotEmpty()) add("안 쓰는 말: ${bannedWords.joinToString(", ")}")
+    }.joinToString(" / ")
 
     /**
      * 충돌은 통과시키지 않고, 불균형은 한 번에 하나까지만 통과시킨다.

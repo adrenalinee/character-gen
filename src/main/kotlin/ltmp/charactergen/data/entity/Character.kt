@@ -66,14 +66,6 @@ class Character(
     val contradictionSharedRoot: String,
 
     @Lob
-    @Column(name = "expression_note", nullable = false)
-    val expressionNote: String,
-
-    @Lob
-    @Column(name = "identity_note", nullable = false)
-    val identityNote: String,
-
-    @Lob
     @Column(name = "on_rejection", nullable = false)
     val onRejection: String,
 
@@ -120,6 +112,10 @@ class Character(
     @Lob
     @Column(name = "imbalance_note", nullable = false)
     val imbalanceNote: String,
+
+    @Lob
+    @Column(name = "trait_reflection", nullable = false)
+    val traitReflection: String,
 
     concreteDetails: List<CharacterConcreteDetailEntity>,
     behavioralRules: List<CharacterBehavioralRuleEntity>,

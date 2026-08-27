@@ -6,6 +6,7 @@ import ltmp.charactergen.service.generation.GenerationPromptInput
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class OpenAiResponsesL0CharacterClientTests {
@@ -32,6 +33,11 @@ class OpenAiResponsesL0CharacterClientTests {
         assertTrue(paramsDescription.contains("relationship_stages"), paramsDescription)
         assertTrue(paramsDescription.contains("relationship_events"), paramsDescription)
         assertTrue(paramsDescription.contains("behavioral_rule"), paramsDescription)
+
+        // v4.1에서 traits 블록이 사라지고 그 검토용 내용이 design_note.trait_reflection으로 옮겨졌다. (B-1)
+        assertTrue(paramsDescription.contains("trait_reflection"), paramsDescription)
+        assertFalse(paramsDescription.contains("traits="), paramsDescription)
+        assertFalse(paramsDescription.contains("identity_note"), paramsDescription)
     }
 
     /**

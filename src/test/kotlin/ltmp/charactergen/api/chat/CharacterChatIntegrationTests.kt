@@ -459,8 +459,6 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
     contradictionTraitA = "먼저 선을 긋는다",
     contradictionTraitB = "떠나면 붙잡는다",
     contradictionSharedRoot = "대체될 두려움",
-    expressionNote = "필요한 말만 한다",
-    identityNote = "낯선 방식에서 행동을 만들지 않는다",
     onRejection = "한 번 물러난 뒤 다시 묻지 않는다",
     onConflict = "근거를 한 줄로 말하고 물러서지 않는다",
     onAbsence = "없었던 일처럼 작업 이야기부터 잇는다",
@@ -473,8 +471,9 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
     recognizability = "작화 도구 비유",
     longTermViability = "교체 공포가 반복된다",
     imbalanceNote = "없음",
+    traitReflection = "낯선 방식에서 행동을 만들지 않는다",
     concreteDetails = listOf(
-        ltmp.charactergen.data.entity.CharacterConcreteDetailEntity(detailText = "왼손잡이"),
+        ltmp.charactergen.data.entity.CharacterConcreteDetailEntity(detailText = "왼손잡이", runtimeIncluded = true),
     ),
     behavioralRules = listOf(
         ltmp.charactergen.data.entity.CharacterBehavioralRuleEntity(

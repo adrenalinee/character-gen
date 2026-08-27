@@ -2,8 +2,10 @@ package ltmp.charactergen.service.generation
 
 import ltmp.charactergen.api.L0CharacterGenerationRequest
 import ltmp.charactergen.l0GenerationTestOptions
+import ltmp.charactergen.client.openai.FakeTextEmbeddingClient
 import ltmp.charactergen.client.openai.L0CharacterLlmClient
 import ltmp.charactergen.client.openai.L0CharacterLlmResult
+import ltmp.charactergen.client.openai.TextEmbeddingClient
 import ltmp.charactergen.data.L0GenerationExecuteStatus
 import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.Gender
@@ -138,7 +140,12 @@ class L0GenerationExecutionIntegrationTests(
 
         val character = characterRepository.findAll().single { it.generationExecute.id == generation.id }
         assertEquals("서윤", character.name)
-        assertEquals(2, character.concreteDetails.size)
+        assertEquals(3, character.concreteDetails.size)
+        // "마감 습관"은 disclosure_ladder.surface와 글자까지 같아 런타임에서 빠진다. (v4.1 B-10)
+        assertEquals(
+            listOf("왼손잡이" to true, "밤에 작업" to true, "마감 습관" to false),
+            character.concreteDetails.map { it.detailText to it.runtimeIncluded },
+        )
         assertEquals(2, character.behavioralRules.size)
         assertEquals(3, character.relationshipStages.size)
         assertEquals(3, character.nonNegotiables.size)
@@ -190,9 +197,13 @@ class L0GenerationExecutionIntegrationTests(
             jsonPath("$.identity") { doesNotExist() }
             jsonPath("$.core") { doesNotExist() }
             jsonPath("$.voice") { doesNotExist() }
-            jsonPath("$.concreteDetails.length()") { value(2) }
+            jsonPath("$.concreteDetails.length()") { value(3) }
             jsonPath("$.concreteDetails[0].id") { isNumber() }
             jsonPath("$.concreteDetails[0].detailText") { value("왼손잡이") }
+            jsonPath("$.concreteDetails[0].runtimeIncluded") { value(true) }
+            // surface와 겹친다고 판정된 항목은 저장은 되지만 런타임에는 들어가지 않는다. (v4.1 B-10)
+            jsonPath("$.concreteDetails[2].detailText") { value("마감 습관") }
+            jsonPath("$.concreteDetails[2].runtimeIncluded") { value(false) }
             jsonPath("$.nonNegotiables.length()") { value(3) }
             jsonPath("$.bannedWords.length()") { value(2) }
             jsonPath("$.bannedWords[0].source") { value("FROM_LIE") }
@@ -250,9 +261,9 @@ class L0GenerationExecutionIntegrationTests(
         val second = generationService.requestGeneration(generationRequest(ref.id))
         executor.execute(second.id)
         val rendered = fakeLlmClient.lastPrompt.inputs.single().inputText
-        assertTrue(rendered.contains("서윤 / 웹툰 / 대체 가능성 공포형 / 첫 연재에서 교체됐다 / 29세"), rendered)
+        assertTrue(rendered.contains("서윤 / 웹툰 / 대체 가능성 공포형 / 첫 연재에서 교체됐다 / 29세 / 안 쓰는 말: 무조건, 당연히"), rendered)
         assertEquals(
-            "서윤 / 웹툰 / 대체 가능성 공포형 / 첫 연재에서 교체됐다 / 29세",
+            "서윤 / 웹툰 / 대체 가능성 공포형 / 첫 연재에서 교체됐다 / 29세 / 안 쓰는 말: 무조건, 당연히",
             generationExecuteRepository.findById(second.id).orElseThrow().existingCharactersNote,
         )
 
@@ -493,6 +504,10 @@ class L0GenerationExecutionIntegrationTests(
         @Bean
         @Primary
         fun fakeLlmClient(): FakeL0CharacterLlmClient = FakeL0CharacterLlmClient()
+
+        @Bean
+        @Primary
+        fun fakeTextEmbeddingClient(): TextEmbeddingClient = FakeTextEmbeddingClient()
     }
 
     class FakeL0CharacterLlmClient : L0CharacterLlmClient {
@@ -511,9 +526,8 @@ class L0GenerationExecutionIntegrationTests(
         val RESPONSE_JSON =
             """
             {
-              "identity":{"name":"서윤","age":29,"gender":"여성","occupation":"웹툰 작가","daily_life":"작업한다","one_line":"선을 지킨다","concrete_details":["왼손잡이","밤에 작업"]},
+              "identity":{"name":"서윤","age":29,"gender":"여성","occupation":"웹툰 작가","daily_life":"작업한다","one_line":"선을 지킨다","concrete_details":["왼손잡이","밤에 작업","마감 습관"]},
               "core":{"lie":{"type":"대체 가능성 공포형","statement":"나는 대체된다","behavioral_rule":["칭찬을 받으면 다음 작업 이야기로 넘긴다","누가 자기 몫을 대신하려 하면 먼저 손을 뺀다"],"wound":"첫 연재에서 교체됐다"},"want":"자기 방식의 작품을 남긴다","need":"교체와 가치가 무관함을 안다","want_need_conflict":"인정을 좇을수록 자기 방식을 버린다","contradiction":{"trait_a":"먼저 선을 긋는다","trait_b":"떠나면 붙잡는다","shared_root":"대체될 두려움"},"non_negotiables":[{"domain":"관계를 다루는 방식","statement":"비교하지 않는다","tie_to_lie":"교체 공포","user_facing":true},{"domain":"세계를 보는 눈","statement":"결과를 과장하지 않는다","tie_to_lie":"교체 공포","user_facing":false},{"domain":"일을 대하는 기준","statement":"남의 선을 베끼지 않는다","tie_to_lie":"교체 공포","user_facing":false}],"forbidden_behaviors":[{"behavior":"상대를 시험하지 않는다","tie_to_lie":"교체 공포"},{"behavior":"성과로 애정을 사지 않는다","tie_to_lie":"교체 공포"}]},
-              "traits":{"expression_note":"필요한 말만 한다","identity_note":"낯선 방식에서 행동을 만들지 않는다"},
               "relationship_stages":{"early":{"attachment":"먼저 묻지 않는다","address":"이름 없이 존댓말로 부른다","emotional_range":"불편함만 짧게 드러낸다","avoidance":"과거를 물으면 한 문장으로 끊는다"},"deepening":{"attachment":"작업 이야기만 연다","address":"이름을 부르되 존댓말을 유지한다","emotional_range":"작업에 대한 감정까지 말한다","avoidance":"화제를 돌리되 이유를 한 줄 붙인다"},"close":{"attachment":"거리를 유지한 채 곁에 둔다","address":"이름을 줄여 부르고 반말을 섞는다","emotional_range":"가라앉은 상태도 숨기지 않는다","avoidance":"말하지 않겠다고 분명히 말한다"}},
               "relationship_events":{"on_rejection":"한 번 물러난 뒤 다시 묻지 않는다","on_conflict":"근거를 한 줄로 말하고 물러서지 않는다","on_absence":"없었던 일처럼 작업 이야기부터 잇는다","on_over_approach":"속도를 늦추고 하던 이야기로 돌아온다"},
               "behavior":{"emotional_expression_note":"감정을 사실로 바꾼다","avoidance_note":"한 문장 뒤 침묵한다"},
@@ -521,7 +535,7 @@ class L0GenerationExecutionIntegrationTests(
               "relations":[{"slot":"과거","name":"민호","relation":"전 편집자","description":"첫 연재에서 교체를 알렸다","presence":"부재","tie_to_lie":"대체 공포의 기원"}],
               "disclosure_ladder":{"surface":["마감 습관"],"mid":["편집자 이야기"],"deep":["교체 경험"],"deepest":["자기 가치에 대한 공포"]},
               "voice_samples":[{"situation":"의견에 반대했을 때","line":"그 선은 제가 정할게요.","demonstrates":"거리 유지"}],
-              "design_note":{"recognizability":"작화 도구 비유","long_term_viability":"여러 관계에서 교체 공포가 반복된다","imbalance_note":""}
+              "design_note":{"recognizability":"작화 도구 비유","long_term_viability":"여러 관계에서 교체 공포가 반복된다","imbalance_note":"","trait_reflection":"낯선 방식에서 행동을 만들지 않는다"}
             }
             """.trimIndent()
     }

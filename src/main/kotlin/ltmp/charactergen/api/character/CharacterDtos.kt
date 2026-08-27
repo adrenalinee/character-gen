@@ -63,12 +63,6 @@ data class CharacterDto(
     @field:Schema(description = "두 모순 특성의 공통 뿌리", requiredMode = Schema.RequiredMode.REQUIRED)
     val contradictionSharedRoot: String,
 
-    @field:Schema(description = "성향 표출 설명", requiredMode = Schema.RequiredMode.REQUIRED)
-    val expressionNote: String,
-
-    @field:Schema(description = "정체성 설명", requiredMode = Schema.RequiredMode.REQUIRED)
-    val identityNote: String,
-
     @field:Schema(description = "관계 사건 반응. 도움이나 제안이 거절당했을 때", requiredMode = Schema.RequiredMode.REQUIRED)
     val onRejection: String,
 
@@ -104,6 +98,12 @@ data class CharacterDto(
 
     @field:Schema(description = "캐릭터 설계 불균형 설명", requiredMode = Schema.RequiredMode.REQUIRED)
     val imbalanceNote: String,
+
+    @field:Schema(
+        description = "주어진 성향이 Want의 형태와 두려움에 대응하는 방식에 어떤 제약을 주었는지에 대한 운영자 검토용 설명. 대화 프롬프트에는 들어가지 않는다.",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val traitReflection: String,
 
     @field:Schema(description = "구체적 디테일 하위 테이블 행", requiredMode = Schema.RequiredMode.REQUIRED)
     val concreteDetails: List<CharacterConcreteDetailDto>,
@@ -175,6 +175,11 @@ data class CharacterConcreteDetailDto(
     val id: Long,
     @field:Schema(description = "구체적 디테일", requiredMode = Schema.RequiredMode.REQUIRED)
     val detailText: String,
+    @field:Schema(
+        description = "런타임 대화 프롬프트에 넣는 항목인지. 다른 대화용 필드와 내용이 겹친다고 판정된 항목은 false다.",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val runtimeIncluded: Boolean,
     @field:Schema(description = "행 생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
     val createdAt: OffsetDateTime,
     @field:Schema(description = "행 최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -346,8 +351,6 @@ fun Character.toDto() = CharacterDto(
     contradictionTraitA = contradictionTraitA,
     contradictionTraitB = contradictionTraitB,
     contradictionSharedRoot = contradictionSharedRoot,
-    expressionNote = expressionNote,
-    identityNote = identityNote,
     onRejection = onRejection,
     onConflict = onConflict,
     onAbsence = onAbsence,
@@ -360,10 +363,12 @@ fun Character.toDto() = CharacterDto(
     recognizability = recognizability,
     longTermViability = longTermViability,
     imbalanceNote = imbalanceNote,
+    traitReflection = traitReflection,
     concreteDetails = concreteDetails.map {
         CharacterConcreteDetailDto(
             id = it.id,
             detailText = it.detailText,
+            runtimeIncluded = it.runtimeIncluded,
             createdAt = it.createdAt,
             updatedAt = it.updatedAt,
         )

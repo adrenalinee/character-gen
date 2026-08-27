@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 
 /**
- * L0 캐릭터 생성 LLM의 구조화 출력 스키마. (L0 캐릭터 생성 프롬프트 v4)
+ * L0 캐릭터 생성 LLM의 구조화 출력 스키마. (L0 캐릭터 생성 프롬프트 v4.1)
  *
  * 각 필드 설명 앞의 대괄호는 그 값이 어디에서 소비되는지를 뜻한다.
  * `[대화]`는 런타임 대화 프롬프트에 그대로 들어가고, `[설계]`는 이후 L1 단계의 입력이며,
@@ -14,7 +14,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription
 data class L0CharacterResponse(
     val identity: CharacterIdentity,
     val core: CharacterCore,
-    val traits: CharacterTraits,
     @get:JsonPropertyDescription(
         "[대화 · 단계별] 관계가 깊어지는 정도에 따른 변화. early는 관계가 얕을 때, deepening은 가까워지는 과정, " +
             "close는 충분히 가까워진 뒤다. 서버가 현재 관계 깊이에 해당하는 단계만 대화 프롬프트에 주입한다. " +
@@ -72,6 +71,12 @@ data class CharacterCore(
     @get:JsonPropertyDescription("[설계 전용] 지금 방식대로 Want를 쫓으면 Need가 어떻게 좌절되는지 한 문장. 앞으로 만들어질 사건의 긴장이 여기서 나온다.")
     @get:JsonProperty("want_need_conflict")
     val wantNeedConflict: String,
+    @get:JsonPropertyDescription(
+        "두 행동은 서로 충돌해야 한다. 한쪽을 하면 다른 쪽을 하기 어려워야 하고, 같은 상황에 놓였을 때 이 인물이 어느 쪽을 택할지 고민하게 되어야 한다. " +
+            "서로 다른 상황에서 각각 나타나는 두 가지 특징은 모순이 아니다. " +
+            "예를 들어 '새로운 것을 시도한다'와 '꼼꼼히 확인한다'는 한 사람에게 함께 있을 수 있지만 서로를 방해하지 않으므로 모순이 아니다. " +
+            "반면 '남의 결과물에서는 버릴 뻔한 것을 살려낸다'와 '자기 결과물은 멀쩡한 것도 버린다'는 같은 기준이 대상에 따라 뒤집히므로 모순이다.",
+    )
     val contradiction: CharacterContradiction,
     @get:JsonProperty("non_negotiables")
     val nonNegotiables: List<NonNegotiable>,
@@ -84,7 +89,14 @@ data class CharacterLie(
     val type: String,
     @get:JsonPropertyDescription("[설계 전용] 이 인물이 참이라고 믿고 있는 잘못된 명제 한 문장. 본인은 이것을 의심하지 않으며, 이것이 거짓이라는 것도 모른다. 대화에는 절대 들어가지 않으므로 설계 정보로서 명확하게 쓴다. 주어진 유형의 일반 명제를 그대로 옮기지 말고 이 인물의 경험을 통과한 형태로 쓴다.")
     val statement: String,
-    @get:JsonPropertyDescription("[대화] Lie가 평상시에 만들어내는 행동 2~3개. 대화 프롬프트에 그대로 들어가는 규칙이므로 '어떤 상황이 되면 무엇을 한다' 형태의 조건문으로 쓴다. 각 한 문장. 믿음이나 이유를 적지 말고 관찰 가능한 행동만 적는다. 특별한 마찰이 없는 평범한 상황에서도 작동하는 것이어야 하며, 굽히지 않는 것이나 하지 않는 행동과 내용이 겹치면 안 된다.")
+    @get:JsonPropertyDescription(
+        "[대화] Lie가 평상시에 만들어내는 행동 2~3개. 대화 프롬프트에 그대로 들어가는 규칙이므로 '어떤 상황이 되면 무엇을 한다' 형태의 조건문으로 쓴다. " +
+            "각 한 문장. 믿음이나 이유를 적지 말고 관찰 가능한 행동만 적는다. 특별한 마찰이 없는 평범한 상황에서도 작동하는 것이어야 하며, " +
+            "굽히지 않는 것이나 하지 않는 행동과 내용이 겹치면 안 된다. " +
+            "성향에서 자연스럽게 나오는 습관을 적지 마라. 꼼꼼한 사람이 확인을 반복하는 것, 새로운 것을 좋아하는 사람이 시도해 보는 것은 성향이지 Lie가 아니다. " +
+            "이 인물이 두려워하는 일이 벌어질까 봐 하는 행동, 또는 그 두려움을 확인하지 않으려고 피하는 행동을 적어라. " +
+            "각 항목에 대해 이것이 Lie와 어떻게 연결되는지 스스로 답할 수 없다면 다시 써라.",
+    )
     @get:JsonProperty("behavioral_rule")
     val behavioralRule: List<String>,
     @get:JsonPropertyDescription("[조건부 대화 · 설계] 이 믿음이 생겨난 과거 한 문장. 관계가 충분히 깊어졌을 때만 공개되므로, 캐릭터가 실제로 말할 수 있는 내용의 요지로 쓴다. 주어진 상처 조건(시기·장소·상처를 준 사람·형태·지속 시간)을 그대로 지킨다. 지속 시간이 길게 지정된 경우 단일 사건이 아니라 반복되며 쌓인 경험으로 쓴다.")
@@ -128,15 +140,6 @@ data class ForbiddenBehavior(
     @get:JsonPropertyDescription("[설계 · 검토] Lie가 이것을 왜 금지하는가.")
     @get:JsonProperty("tie_to_lie")
     val tieToLie: String,
-)
-
-data class CharacterTraits(
-    @get:JsonPropertyDescription("[대화] 주어진 성향이 이 인물의 말과 행동에 어떻게 나타나는지. 대화 프롬프트에 들어가므로 두 문장 이내의 행동 서술로 쓴다. 3단계로 지정된 축은 언급하지 않는다.")
-    @get:JsonProperty("expression_note")
-    val expressionNote: String,
-    @get:JsonPropertyDescription("[검토 · 설계] 주어진 성향이 Want의 형태와 두려움에 대응하는 방식에 어떤 제약을 주었는지 2~3문장. 반드시 '이 성향이 반대쪽이었다면 무엇이 달라졌을지'를 한 문장 포함한다. 운영자가 성향 반영 여부를 판단하는 근거이며 대화에는 들어가지 않는다.")
-    @get:JsonProperty("identity_note")
-    val identityNote: String,
 )
 
 /**
@@ -205,9 +208,16 @@ data class CharacterVoice(
 )
 
 data class VerbalTic(
-    @get:JsonPropertyDescription("이 말버릇이 나타나는 상황.")
+    @get:JsonPropertyDescription(
+        "이 말버릇이 나타나는 상황. 네 번째 항목을 스스로 정할 때, 상처와 관련된 상황을 고르는 것은 좋지만 상처의 내용을 상황 서술에 담지 마라. " +
+            "'상처와 연결된 화제가 나왔을 때'처럼 지칭만 한다.",
+    )
     val situation: String,
-    @get:JsonPropertyDescription("그 상황에서 이 인물이 말하는 방식. 발화 예시를 그대로 적으면 그 문장만 반복되므로, '어떻게 말한다'는 서술로 쓴다. 한 문장.")
+    @get:JsonPropertyDescription(
+        "그 상황에서 이 인물이 말하는 방식. 발화 예시를 그대로 적으면 그 문장만 반복되므로, '어떻게 말한다'는 서술로 쓴다. 한 문장. " +
+            "이 필드는 관계가 얕은 사용자와의 대화에도 그대로 들어가므로, 아직 공개되지 않아야 할 정보를 담으면 안 된다. " +
+            "상처가 무엇에 관한 것인지, 과거에 누가 있었는지, 어떤 관계에서 생긴 일인지를 적지 마라. 회피하는 방식만 적는다.",
+    )
     val description: String,
 )
 
@@ -249,7 +259,11 @@ enum class RelationPresence {
 }
 
 data class DisclosureLadder(
-    @get:JsonPropertyDescription("[대화] 처음 만난 사람에게도 말하는 것. 항상 열려 있다.")
+    @get:JsonPropertyDescription(
+        "[대화] 처음 만난 사람에게도 말하는 것 3~5개. 항상 열려 있다. 최소 두 개는 일이나 직업과 무관한 것이어야 한다. " +
+            "먹는 것, 자는 시간, 자주 가는 곳, 사소한 취향, 몸에 밴 습관처럼 처음 만난 사람과도 가볍게 주고받을 수 있는 것을 포함하라. " +
+            "전부 일 이야기면 관계가 얕은 동안 나눌 대화가 없어진다.",
+    )
     val surface: List<String>,
     @get:JsonPropertyDescription("[조건부 대화] 몇 번 대화한 사람에게 말하는 것.")
     val mid: List<String>,
@@ -277,4 +291,11 @@ data class DesignNote(
     @get:JsonPropertyDescription("불균형 조합이 지정된 경우, 왜 이 인물에게서 두 축이 함께 나타나는지의 설명. 같은 행동이라도 목적이 다를 수 있다는 점을 활용한다. 이 설명은 voice.speech_archetype_note와 behavior의 해당 필드에도 반영되어야 한다. 지정되지 않았으면 '없음'이라고 적는다.")
     @get:JsonProperty("imbalance_note")
     val imbalanceNote: String,
+    @get:JsonPropertyDescription(
+        "주어진 성향이 Want의 형태와 두려움에 대응하는 방식에 어떤 제약을 주었는지 2~3문장. " +
+            "반드시 '이 성향이 반대쪽이었다면 무엇이 달라졌을지'를 한 문장 포함한다. " +
+            "운영자가 성향 반영 여부를 판단하는 근거이며 대화에는 들어가지 않는다.",
+    )
+    @get:JsonProperty("trait_reflection")
+    val traitReflection: String,
 )

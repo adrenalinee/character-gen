@@ -297,7 +297,8 @@ class L0ReferenceDataInitializer(
             promptTemplateRepository.flush()
         }
 
-        // v3을 VERSION 1로 보존한 뒤 main을 v3.1로 갱신하고 VERSION 2를 한 번만 발행한다.
+        // 이전 판을 VERSION으로 보존한 뒤 main을 다음 판으로 올리고 VERSION을 한 번만 발행한다.
+        // lastVersion이 사다리 역할을 하므로 새 판을 추가할 때는 마지막 블록 뒤에 같은 모양으로 이어 붙인다.
         if (template.lastVersion == 0L) {
             promptTemplateRefService.createVersion(
                 template.id,
@@ -345,6 +346,20 @@ class L0ReferenceDataInitializer(
                 ),
             )
         }
+        // v4.1은 시스템 프롬프트만 개정됐다. 사용자 프롬프트 템플릿은 v4와 같으므로 그대로 다시 넣는다.
+        if (template.lastVersion == 4L) {
+            branch.instructions = L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_1
+            branch.replaceInputs(
+                listOf(L0_CHARACTER_PROMPT_INPUT_ROLE to L0_CHARACTER_PROMPT_INPUT_TEXT_V4),
+            )
+            promptTemplateRefRepository.flush()
+            promptTemplateRefService.createVersion(
+                template.id,
+                CreatePromptTemplateVersionRefRequest(
+                    fromRefId = branch.id,
+                ),
+            )
+        }
     }
 
     /**
@@ -375,13 +390,17 @@ class L0ReferenceDataInitializer(
                     promptTemplate = template,
                     type = PromptTemplateRefType.BRANCH,
                     name = L0_RUNTIME_INSTRUCTION_BRANCH_NAME,
-                    instructions = L0_RUNTIME_INSTRUCTION_V2,
+                    instructions = L0_RUNTIME_INSTRUCTION_V3,
                 ),
             )
-        } else if (branch.instructions == L0_RUNTIME_INSTRUCTION_V1) {
-            // v1은 v4 스키마에 없는 필드를 참조하므로 손대지 않은 브랜치만 v2로 올린다.
+        } else if (
+            branch.instructions == L0_RUNTIME_INSTRUCTION_V1 ||
+            branch.instructions == L0_RUNTIME_INSTRUCTION_V2
+        ) {
+            // 옛 판은 지금 스키마에 없는 필드를 참조하므로(v1은 address_style·attachment_note,
+            // v2는 traits.expression_note) 손대지 않은 브랜치만 최신 기본값으로 올린다.
             // 운영자가 고친 브랜치는 그대로 두고, 비교가 필요하면 브랜치를 따로 만든다.
-            branch.instructions = L0_RUNTIME_INSTRUCTION_V2
+            branch.instructions = L0_RUNTIME_INSTRUCTION_V3
             promptTemplateRefRepository.flush()
         }
         if (template.defaultBranch == null) {

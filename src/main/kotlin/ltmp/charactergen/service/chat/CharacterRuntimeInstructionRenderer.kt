@@ -4,7 +4,9 @@ import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.RelationshipStage
 import ltmp.charactergen.data.entity.Character
+import ltmp.charactergen.data.entity.CharacterRelationEntity
 import ltmp.charactergen.data.entity.CharacterRelationshipStageEntity
+import ltmp.charactergen.model.RelationPresence
 import ltmp.charactergen.service.prompt.renderPlaceholders
 import org.springframework.stereotype.Component
 
@@ -23,11 +25,11 @@ data class RuntimeInstructionOptions(
 )
 
 /**
- * L0 캐릭터를 런타임 대화용 인스트럭션 한 벌로 조립한다. (L0 런타임 주입 설계 1~3절, 생성 프롬프트 v4 §8.1)
+ * L0 캐릭터를 런타임 대화용 인스트럭션 한 벌로 조립한다. (L0 런타임 주입 설계 1~3절, 생성 프롬프트 v4.1 B-8)
  *
- * v4의 소비처 구분에 따라 아래 필드는 의도적으로 넣지 않는다.
- * `oneLine`, `lieStatement`, `need`, `wantNeedConflict`, `contradictionSharedRoot`, `identityNote`,
- * 모든 `tieToLie`, `speechArchetypeNote`, `recognizability`, `longTermViability`, `imbalanceNote`.
+ * v4.1 B-8의 소비처 구분에 따라 아래 필드는 의도적으로 넣지 않는다.
+ * `oneLine`, `lieStatement`, `lieType`, `need`, `wantNeedConflict`, `contradictionSharedRoot`,
+ * 모든 `tieToLie`, `speechArchetypeNote`, `recognizability`, `longTermViability`, `imbalanceNote`, `traitReflection`.
  * 특히 `lieStatement`와 `need`는 캐릭터 자신이 모르는 것이라, 주입하면 캐릭터가 자기 믿음과 결핍을 설명하게 된다.
  *
  * 호출자는 캐릭터의 지연 로딩 컬렉션이 살아 있는 트랜잭션 안에서 호출해야 한다.
@@ -47,10 +49,9 @@ class CharacterRuntimeInstructionRenderer {
             "OCCUPATION" to character.occupation,
             "DAILY_LIFE" to character.dailyLife,
             "CONCRETE_DETAILS" to bulleted(
-                character.concreteDetails.take(MAX_CONCRETE_DETAILS).map { it.detailText },
+                character.concreteDetails.filter { it.runtimeIncluded }.map { it.detailText },
             ),
             "BEHAVIORAL_RULES" to bulleted(character.behavioralRules.map { it.ruleText }),
-            "EXPRESSION_NOTE" to character.expressionNote,
             "SENTENCE_PATTERN" to character.sentencePattern,
             "VERBAL_TICS" to character.verbalTics.joinToString("\n") { "${it.situation} → ${it.description}" },
             "UNDER_STRESS" to character.underStress,
@@ -71,8 +72,9 @@ class CharacterRuntimeInstructionRenderer {
             "NON_NEGOTIABLES" to bulleted(character.nonNegotiables.map { it.statement }),
             "FORBIDDEN_BEHAVIORS" to bulleted(character.forbiddenBehaviors.map { it.behavior }),
             "WANT" to character.want,
-            "RELATIONS" to bulleted(character.relations.map { "${it.name} — ${it.relation}" }),
-            "OPEN_DISCLOSURE" to openDisclosure(character, openedLevel),
+            "RELATIONS" to bulleted(activeRelations(character).map { "${it.name} — ${it.relation}" }),
+            "ABSENT_RELATIONS_SECTION" to absentRelationsSection(character, openedLevel),
+            "OPEN_DISCLOSURE" to openDisclosure(character, stage, openedLevel),
             "CLOSED_TOPICS_SECTION" to closedTopicsSection(character, openedLevel, options.closedTopicMode),
             "SITUATION_SECTION" to situationSection(options.situationNote),
             "WOUND_SECTION" to woundSection(character, openedLevel),
@@ -90,11 +92,53 @@ class CharacterRuntimeInstructionRenderer {
         character.relationshipStages.firstOrNull { it.stage == stage }
             ?: error("캐릭터에 $stage 관계 단계 서술이 없습니다: characterId=${character.id}")
 
-    private fun openDisclosure(character: Character, openedLevel: DisclosureLevel): String {
+    /**
+     * 지금 이 사용자에게 꺼낼 수 있는 개인사. (설계 2절, v4.1 D-2)
+     *
+     * 얕은 관계에서 surface만 열어 두면 초기 대화의 소재가 금방 바닥난다. v4.1 상한 모델(B-12)은
+     * early에서도 mid를 조건부로 열지만 그 조건을 판정할 로직이 아직 없다. 그래서 임시로
+     * early에서만 mid 한 항목을 무조건 연다. 개방 조건 판정이 붙으면 이 규칙은 그쪽으로 교체된다.
+     */
+    private fun openDisclosure(
+        character: Character,
+        stage: RelationshipStage,
+        openedLevel: DisclosureLevel,
+    ): String {
         val openedLevels = openedLevel.openedThrough()
-        val opened = character.disclosureItems.filter { it.level in openedLevels }
+        val opened = character.disclosureItems.filter { it.level in openedLevels }.toMutableList()
+        if (stage == RelationshipStage.EARLY && DisclosureLevel.MID !in openedLevels) {
+            character.disclosureItems
+                .firstOrNull { it.level == DisclosureLevel.MID }
+                ?.let { opened.add(it) }
+        }
         if (opened.isEmpty()) return "이 사람에게 아직 꺼낼 수 있는 개인사가 없다."
         return bulleted(opened.map { it.itemText })
+    }
+
+    /**
+     * 지금 실제로 만나는 사람만 추린다. (v4.1 B-9)
+     *
+     * `presence`가 '부재'인 인물까지 한 줄에 나열하면 캐릭터가 그 사람을 요즘도 보는 것처럼 말하게 된다.
+     * 활성 인물이 많아도 캐릭터가 누구 얘기를 할지 산만해지므로 상한을 둔다. 아크 플래너가 붙으면
+     * 여기서 현재 아크에 관여하는 인물만 고르게 된다.
+     */
+    private fun activeRelations(character: Character): List<CharacterRelationEntity> =
+        character.relations
+            .filter { it.presence == RelationPresence.현존 }
+            .take(MAX_ACTIVE_RELATIONS)
+
+    /**
+     * 지금은 만나지 않는 사람. 심층이 열린 뒤에만 꺼낼 수 있다. (v4.1 B-9)
+     */
+    private fun absentRelationsSection(character: Character, openedLevel: DisclosureLevel): String {
+        if (!openedLevel.opensWound()) return ""
+        val absent = character.relations.filter { it.presence == RelationPresence.부재 }
+        if (absent.isEmpty()) return ""
+        return buildString {
+            appendLine("## 지금은 만나지 않는 사람")
+            appendLine(bulleted(absent.map { "${it.name} — ${it.relation}" }))
+            appendLine("먼저 꺼내지 않는다. 이야기가 그쪽으로 흘렀을 때만 언급한다.")
+        }.trimEnd()
     }
 
     /**
@@ -163,7 +207,7 @@ class CharacterRuntimeInstructionRenderer {
         instruction.replace(BLANK_LINES_REGEX, "\n\n").trim()
 
     private companion object {
-        const val MAX_CONCRETE_DETAILS = 3
+        const val MAX_ACTIVE_RELATIONS = 5
         val BLANK_LINES_REGEX = Regex("\n{3,}")
     }
 }

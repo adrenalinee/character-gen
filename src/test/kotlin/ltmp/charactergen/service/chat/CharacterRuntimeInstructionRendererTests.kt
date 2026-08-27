@@ -1,6 +1,6 @@
 package ltmp.charactergen.service.chat
 
-import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V2
+import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V3
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.DisclosureLevel
@@ -53,7 +53,6 @@ class CharacterRuntimeInstructionRendererTests {
             "밤에만 작업한다",
             "칭찬을 받으면 다음 작업 이야기로 넘긴다",
             "누가 자기 몫을 대신하려 하면 먼저 손을 뺀다",
-            "필요한 말만 한다",
             "짧은 결론 뒤 비유",
             "거절할 때",
             "선을 다시 긋는다고 말한다",
@@ -65,7 +64,7 @@ class CharacterRuntimeInstructionRendererTests {
             "비교하지 않는다",
             "상대를 시험하지 않는다",
             "자기 방식의 작품을 남긴다",
-            "민호 — 전 편집자",
+            "현존1 — 동료1",
         ).forEach { expected ->
             assertTrue(instruction.contains(expected), "상시 주입 값이 빠졌다: $expected")
         }
@@ -79,12 +78,15 @@ class CharacterRuntimeInstructionRendererTests {
     }
 
     @Test
-    fun `구체 묘사는 세 개까지만 넣는다`() {
+    fun `런타임 대상으로 표시된 구체 묘사만 넣는다`() {
         val instruction = render(RelationshipStage.EARLY)
 
         assertTrue(instruction.contains("묘사1"))
         assertTrue(instruction.contains("묘사3"))
-        assertFalse(instruction.contains("묘사4"), "구체 묘사는 3개를 넘기지 않아야 한다")
+        assertFalse(
+            instruction.contains("묘사4"),
+            "runtimeIncluded가 false인 묘사는 주입되지 않아야 한다",
+        )
     }
 
     @Test
@@ -140,7 +142,6 @@ class CharacterRuntimeInstructionRendererTests {
     fun `열리지 않은 층위의 개인사 본문은 주입되지 않는다`() {
         val early = render(RelationshipStage.EARLY)
         assertTrue(early.contains("마감 습관"))
-        assertFalse(early.contains("편집자 이야기"))
         assertFalse(early.contains("교체 경험"))
         assertFalse(early.contains("자기 가치에 대한 공포"))
 
@@ -151,6 +152,39 @@ class CharacterRuntimeInstructionRendererTests {
 
         val deepest = render(RelationshipStage.CLOSE, DisclosureLevel.DEEPEST)
         assertTrue(deepest.contains("자기 가치에 대한 공포"))
+    }
+
+    @Test
+    fun `얕은 관계에서도 중간 층위 한 항목은 열어 둔다`() {
+        // 초기 대화의 소재가 surface만으로는 금방 바닥나므로 임시로 한 항목을 연다. (v4.1 D-2 C안)
+        val early = render(RelationshipStage.EARLY)
+        assertTrue(early.contains("편집자 이야기"), "early에서 mid 첫 항목이 열려야 한다")
+        assertFalse(early.contains("편집자와 틀어진 일"), "mid 두 번째 항목까지 열리면 안 된다")
+
+        // 이미 mid까지 열린 단계에서는 따로 더 붙이지 않는다.
+        val deepening = render(RelationshipStage.DEEPENING)
+        assertTrue(deepening.contains("편집자 이야기"))
+        assertTrue(deepening.contains("편집자와 틀어진 일"))
+    }
+
+    @Test
+    fun `지금 만나지 않는 사람은 심층이 열렸을 때만 따로 표시한다`() {
+        // presence가 '부재'인 인물을 현존 인물과 같은 줄에 나열하면 요즘도 만나는 사람처럼 다루게 된다. (v4.1 B-9)
+        val early = render(RelationshipStage.EARLY)
+        assertFalse(early.contains("민호"), "부재 인물은 주변 사람 목록에 들어가면 안 된다")
+        assertFalse(early.contains("지금은 만나지 않는 사람"))
+
+        val close = render(RelationshipStage.CLOSE)
+        assertTrue(close.contains("## 지금은 만나지 않는 사람"))
+        assertTrue(close.contains("민호 — 전 편집자"))
+    }
+
+    @Test
+    fun `주변 사람은 다섯 명을 넘기지 않는다`() {
+        val instruction = render(RelationshipStage.EARLY)
+
+        assertTrue(instruction.contains("현존5 — 동료5"))
+        assertFalse(instruction.contains("현존6"), "활성 인물이 많으면 캐릭터가 누구 얘기를 할지 산만해진다")
     }
 
     @Test
@@ -247,7 +281,7 @@ class CharacterRuntimeInstructionRendererTests {
         includeVoiceSamples: Boolean = true,
         situationNote: String? = null,
     ): String = renderer.render(
-        L0_RUNTIME_INSTRUCTION_V2,
+        L0_RUNTIME_INSTRUCTION_V3,
         character(),
         RuntimeInstructionOptions(
             relationshipStage = stage,
@@ -275,8 +309,6 @@ class CharacterRuntimeInstructionRendererTests {
         contradictionTraitA = "먼저 선을 긋는다",
         contradictionTraitB = "떠나면 붙잡는다",
         contradictionSharedRoot = MARKER_SHARED_ROOT,
-        expressionNote = "필요한 말만 한다",
-        identityNote = MARKER_IDENTITY_NOTE,
         onRejection = "한 번 물러난 뒤 다시 묻지 않는다",
         onConflict = "근거를 한 줄로 말하고 물러서지 않는다",
         onAbsence = "없었던 일처럼 작업 이야기부터 잇는다",
@@ -289,7 +321,11 @@ class CharacterRuntimeInstructionRendererTests {
         recognizability = MARKER_RECOGNIZABILITY,
         longTermViability = MARKER_LONG_TERM_VIABILITY,
         imbalanceNote = MARKER_IMBALANCE_NOTE,
-        concreteDetails = (1..4).map { CharacterConcreteDetailEntity(detailText = "묘사$it") },
+        traitReflection = MARKER_TRAIT_REFLECTION,
+        // 묘사4는 저장 시점에 다른 대화용 필드와 겹친다고 판정돼 런타임에서 빠진 항목이다. (v4.1 B-10)
+        concreteDetails = (1..4).map {
+            CharacterConcreteDetailEntity(detailText = "묘사$it", runtimeIncluded = it <= 3)
+        },
         behavioralRules = listOf(
             CharacterBehavioralRuleEntity(ruleText = "칭찬을 받으면 다음 작업 이야기로 넘긴다"),
             CharacterBehavioralRuleEntity(ruleText = "누가 자기 몫을 대신하려 하면 먼저 손을 뺀다"),
@@ -329,10 +365,20 @@ class CharacterRuntimeInstructionRendererTests {
                 presence = RelationPresence.`부재`,
                 tieToLie = MARKER_TIE_TO_LIE_RELATION,
             ),
-        ),
+        ) + (1..6).map {
+            CharacterRelationEntity(
+                slot = RelationSlot.`조력자`,
+                name = "현존$it",
+                relation = "동료$it",
+                description = MARKER_RELATION_DESCRIPTION,
+                presence = RelationPresence.`현존`,
+                tieToLie = MARKER_TIE_TO_LIE_RELATION,
+            )
+        },
         disclosureItems = listOf(
             CharacterDisclosureItemEntity(level = DisclosureLevel.SURFACE, itemText = "마감 습관"),
             CharacterDisclosureItemEntity(level = DisclosureLevel.MID, itemText = "편집자 이야기"),
+            CharacterDisclosureItemEntity(level = DisclosureLevel.MID, itemText = "편집자와 틀어진 일"),
             CharacterDisclosureItemEntity(level = DisclosureLevel.DEEP, itemText = "교체 경험"),
             CharacterDisclosureItemEntity(level = DisclosureLevel.DEEPEST, itemText = "자기 가치에 대한 공포"),
         ),
@@ -363,7 +409,7 @@ class CharacterRuntimeInstructionRendererTests {
         const val MARKER_SHARED_ROOT = "MARKER_SHARED_ROOT"
         const val MARKER_NEED = "MARKER_NEED"
         const val MARKER_WANT_NEED_CONFLICT = "MARKER_WANT_NEED_CONFLICT"
-        const val MARKER_IDENTITY_NOTE = "MARKER_IDENTITY_NOTE"
+        const val MARKER_TRAIT_REFLECTION = "MARKER_TRAIT_REFLECTION"
         const val MARKER_SPEECH_ARCHETYPE_NOTE = "MARKER_SPEECH_ARCHETYPE_NOTE"
         const val MARKER_RECOGNIZABILITY = "MARKER_RECOGNIZABILITY"
         const val MARKER_LONG_TERM_VIABILITY = "MARKER_LONG_TERM_VIABILITY"
@@ -380,7 +426,7 @@ class CharacterRuntimeInstructionRendererTests {
             MARKER_SHARED_ROOT,
             MARKER_NEED,
             MARKER_WANT_NEED_CONFLICT,
-            MARKER_IDENTITY_NOTE,
+            MARKER_TRAIT_REFLECTION,
             MARKER_SPEECH_ARCHETYPE_NOTE,
             MARKER_RECOGNIZABILITY,
             MARKER_LONG_TERM_VIABILITY,
