@@ -1,7 +1,6 @@
 package ltmp.charactergen.service.generation
 
 import ltmp.charactergen.data.BannedWordSource
-import ltmp.charactergen.data.DisclosureLevel
 import ltmp.charactergen.data.RelationshipStage
 import ltmp.charactergen.data.entity.Character
 import ltmp.charactergen.data.entity.CharacterBannedWordEntity
@@ -19,12 +18,12 @@ import ltmp.charactergen.model.L0CharacterResponse
 import ltmp.charactergen.model.RelationshipStageNote
 
 /**
- * @param runtimeDetailIndexes 런타임 대화 프롬프트에 넣을 `concrete_details` 인덱스.
- *   `RuntimeConcreteDetailSelector`가 저장 직전에 판정한 결과다. (v4.1 B-10)
+ * @param runtimeInclusion 런타임 대화 프롬프트에 넣을 항목.
+ *   `RuntimeDuplicateSelector`가 저장 직전에 판정한 결과다. (v4.2 B-13)
  */
 fun L0CharacterResponse.toEntity(
     generationExecute: L0GenerationExecute,
-    runtimeDetailIndexes: Set<Int>,
+    runtimeInclusion: RuntimeInclusion,
 ): Character = Character(
     generationExecute = generationExecute,
     name = identity.name,
@@ -50,13 +49,16 @@ fun L0CharacterResponse.toEntity(
     avoidanceNote = behavior.avoidanceNote,
     speechArchetypeNote = voice.speechArchetypeNote,
     sentencePattern = voice.sentencePattern,
-    underStress = voice.underStress,
+    sentencePatternRuntimeIncluded = runtimeInclusion.sentencePatternIncluded,
     recognizability = designNote.recognizability,
     longTermViability = designNote.longTermViability,
     imbalanceNote = designNote.imbalanceNote,
     traitReflection = designNote.traitReflection,
     concreteDetails = identity.concreteDetails.mapIndexed { index, detail ->
-        CharacterConcreteDetailEntity(detailText = detail, runtimeIncluded = index in runtimeDetailIndexes)
+        CharacterConcreteDetailEntity(
+            detailText = detail,
+            runtimeIncluded = index in runtimeInclusion.concreteDetailIndexes,
+        )
     },
     behavioralRules = core.lie.behavioralRule.map { CharacterBehavioralRuleEntity(ruleText = it) },
     relationshipStages = listOf(
@@ -75,8 +77,12 @@ fun L0CharacterResponse.toEntity(
     forbiddenBehaviors = core.forbiddenBehaviors.map {
         CharacterForbiddenBehaviorEntity(behavior = it.behavior, tieToLie = it.tieToLie)
     },
-    verbalTics = voice.verbalTics.map {
-        CharacterVerbalTicEntity(situation = it.situation, description = it.description)
+    verbalTics = voice.verbalTics.mapIndexed { index, tic ->
+        CharacterVerbalTicEntity(
+            situation = tic.situation,
+            description = tic.description,
+            runtimeIncluded = index in runtimeInclusion.verbalTicIndexes,
+        )
     },
     bannedWords = buildList {
         voice.bannedWords.fromLie.forEach { add(CharacterBannedWordEntity(BannedWordSource.FROM_LIE, it)) }
@@ -92,11 +98,12 @@ fun L0CharacterResponse.toEntity(
             tieToLie = it.tieToLie,
         )
     },
-    disclosureItems = buildList {
-        disclosureLadder.surface.forEach { add(CharacterDisclosureItemEntity(DisclosureLevel.SURFACE, it)) }
-        disclosureLadder.mid.forEach { add(CharacterDisclosureItemEntity(DisclosureLevel.MID, it)) }
-        disclosureLadder.deep.forEach { add(CharacterDisclosureItemEntity(DisclosureLevel.DEEP, it)) }
-        disclosureLadder.deepest.forEach { add(CharacterDisclosureItemEntity(DisclosureLevel.DEEPEST, it)) }
+    disclosureItems = disclosureLadder.runtimeOrderedItems().mapIndexed { index, (level, text) ->
+        CharacterDisclosureItemEntity(
+            level = level,
+            itemText = text,
+            runtimeIncluded = index in runtimeInclusion.disclosureItemIndexes,
+        )
     },
     voiceSamples = voiceSamples.map {
         CharacterVoiceSampleEntity(

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 
 /**
- * L0 캐릭터 생성 LLM의 구조화 출력 스키마. (L0 캐릭터 생성 프롬프트 v4.1)
+ * L0 캐릭터 생성 LLM의 구조화 출력 스키마. (L0 캐릭터 생성 프롬프트 v4.2)
  *
  * 각 필드 설명 앞의 대괄호는 그 값이 어디에서 소비되는지를 뜻한다.
  * `[대화]`는 런타임 대화 프롬프트에 그대로 들어가고, `[설계]`는 이후 L1 단계의 입력이며,
@@ -57,7 +57,7 @@ data class CharacterIdentity(
     @get:JsonPropertyDescription("[검토] 운영자가 이 인물을 한눈에 파악하기 위한 한 문장. 대화에는 쓰이지 않는다. 성격 형용사를 나열하지 말고, 서로 다른 두 상황에서의 행동으로 보여준다.")
     @get:JsonProperty("one_line")
     val oneLine: String,
-    @get:JsonPropertyDescription("[대화 일부 · 설계] 이 인물을 알아보게 하는 신변 디테일 3~5개. 각 1문장. 일상 사건을 만드는 재료로도 쓰이므로 구체적일수록 좋다. 사물과 숫자만이 아니라 사람을 대하는 버릇, 감정이 나타나는 순간, 반복하는 충동도 여기에 들어갈 수 있다. 성향과 어긋나지 않아야 한다.")
+    @get:JsonPropertyDescription("[대화 일부 · 설계] 이 인물을 알아보게 하는 신변 디테일 3~5개. 각 1문장. 일상 사건을 만드는 재료로도 쓰이므로 구체적일수록 좋다. 사물과 숫자만이 아니라 사람을 대하는 버릇, 감정이 나타나는 순간, 반복하는 충동도 여기에 들어갈 수 있다. 성향과 어긋나지 않아야 한다. disclosure_ladder의 어느 층위와도 같은 소재를 쓰지 마라. 같은 물건이나 습관을 두 곳에 적으면 이 인물은 그 얘기만 하게 된다.")
     @get:JsonProperty("concrete_details")
     val concreteDetails: List<String>,
 )
@@ -74,8 +74,11 @@ data class CharacterCore(
     @get:JsonPropertyDescription(
         "두 행동은 서로 충돌해야 한다. 한쪽을 하면 다른 쪽을 하기 어려워야 하고, 같은 상황에 놓였을 때 이 인물이 어느 쪽을 택할지 고민하게 되어야 한다. " +
             "서로 다른 상황에서 각각 나타나는 두 가지 특징은 모순이 아니다. " +
-            "예를 들어 '새로운 것을 시도한다'와 '꼼꼼히 확인한다'는 한 사람에게 함께 있을 수 있지만 서로를 방해하지 않으므로 모순이 아니다. " +
-            "반면 '남의 결과물에서는 버릴 뻔한 것을 살려낸다'와 '자기 결과물은 멀쩡한 것도 버린다'는 같은 기준이 대상에 따라 뒤집히므로 모순이다.",
+            "모순은 대개 아래 구조 중 하나를 가진다. 이 목록은 구조를 알려주는 것이며 여기 적힌 표현을 이 인물의 행동으로 옮겨 쓰지 마라. " +
+            "(1) 같은 기준이 대상에 따라 뒤집힌다 (2) 원하던 것이 손에 들어오는 순간 밀어낸다 " +
+            "(3) 한 가지를 얻으려는 두 행동이 서로를 무너뜨린다 (4) 사람들 앞에서와 혼자일 때가 정반대다 " +
+            "(5) 시작할 때와 끝낼 때의 태도가 다르다 (6) 가까워질수록 하지 못하게 되는 것이 있다 " +
+            "(7) 남에게 요구하는 것과 자신에게 적용하는 것이 어긋난다",
     )
     val contradiction: CharacterContradiction,
     @get:JsonProperty("non_negotiables")
@@ -181,7 +184,12 @@ data class RelationshipEvents(
 )
 
 data class CharacterBehavior(
-    @get:JsonPropertyDescription("[대화] 주어진 정서 표출 방식이 이 인물에게서 어떻게 나타나는가. 기쁨·분노·불안이 각각 어떤 형태로 나오는지 관찰 가능하게 쓴다. 세 문장 이내. 주어진 방식이 감정을 절제하는 쪽이 아니라면 절제된 인물로 만들지 마라.")
+    @get:JsonPropertyDescription(
+        "[대화] 주어진 정서 표출 방식이 이 인물에게서 어떻게 나타나는가. " +
+            "기쁨·분노·불안이 각각 어떤 형태로 나오는지, 그리고 감정이 격해졌을 때 말과 행동이 어떻게 변하는지를 함께 쓴다. " +
+            "세 문장 이내. 주어진 방식이 감정을 절제하는 쪽이 아니라면 절제된 인물로 만들지 마라. " +
+            "감정에 관한 서술은 이 필드에만 쓴다. 다른 필드에 같은 내용을 나눠 적지 마라.",
+    )
     @get:JsonProperty("emotional_expression_note")
     val emotionalExpressionNote: String,
     @get:JsonPropertyDescription("[대화] 주어진 회피 방식이 이 인물에게서 어떻게 나타나는가. 말하고 싶지 않은 정보를 요구받았을 때의 반응이며, 감정 처리와는 다른 축이다. 두 문장 이내. 불균형이 지정된 경우 그 설명이 여기에도 반영되어야 한다.")
@@ -193,7 +201,10 @@ data class CharacterVoice(
     @get:JsonPropertyDescription("[검토] 주어진 말투 원형이 이 인물에게 어떤 환경에서 몸에 뱄는지, 그래서 같은 원형의 다른 인물과 어떻게 다른지 1~2문장. 운영자가 읽는 배경 설명이며 대화에는 들어가지 않는다. 불균형이 지정된 경우 그 경로가 여기에 드러나야 한다.")
     @get:JsonProperty("speech_archetype_note")
     val speechArchetypeNote: String,
-    @get:JsonPropertyDescription("[대화] 문장 길이와 구조의 경향. 형용사가 아니라 관찰 가능한 형태로. 두 문장 이내.")
+    @get:JsonPropertyDescription(
+        "[대화] 평상시 문장 길이와 구조의 경향. 형용사가 아니라 관찰 가능한 형태로. 두 문장 이내. " +
+            "감정 상태에 따른 변화는 여기 적지 않는다. 그것은 감정 표출 필드가 담당한다.",
+    )
     @get:JsonProperty("sentence_pattern")
     val sentencePattern: String,
     @get:JsonPropertyDescription("[대화] 앞의 세 개는 프롬프트에서 지정된 상황에 대해, 네 번째는 이 인물에게 특히 중요한 상황을 스스로 정해 만든다.")
@@ -202,9 +213,6 @@ data class CharacterVoice(
     @get:JsonPropertyDescription("[대화] 이 인물이 쓰지 않는 실제 단어나 표현.")
     @get:JsonProperty("banned_words")
     val bannedWords: BannedWords,
-    @get:JsonPropertyDescription("[대화] 감정이 격해졌을 때 말과 행동이 어떻게 변하는지. 두 문장 이내. 주어진 정서 표출 방식과 일치해야 한다.")
-    @get:JsonProperty("under_stress")
-    val underStress: String,
 )
 
 data class VerbalTic(
@@ -265,11 +273,21 @@ data class DisclosureLadder(
             "전부 일 이야기면 관계가 얕은 동안 나눌 대화가 없어진다.",
     )
     val surface: List<String>,
-    @get:JsonPropertyDescription("[조건부 대화] 몇 번 대화한 사람에게 말하는 것.")
+    @get:JsonPropertyDescription(
+        "[조건부 대화] 몇 번 대화한 사람에게 말하는 것. surface와 같은 형식의 사실 서술로 쓴다. " +
+            "'~라고 말한다'처럼 발화 행위를 적지 말고 내용만 적는다. " +
+            "identity.concrete_details나 surface에 이미 적은 것을 여기 다시 적지 마라. 그러면 개방의 의미가 없어진다.",
+    )
     val mid: List<String>,
-    @get:JsonPropertyDescription("[조건부 대화] 조건이 갖춰져야 말하는 것. 상처와 직접 연결된 과거.")
+    @get:JsonPropertyDescription(
+        "[조건부 대화] 조건이 갖춰져야 말하는 것. 상처와 직접 연결된 과거. " +
+            "surface, mid와 같은 형식의 사실 서술로 쓴다. 앞 층위에 적은 것을 반복하지 마라.",
+    )
     val deep: List<String>,
-    @get:JsonPropertyDescription("[조건부 대화] 아직 누구에게도 말한 적 없는 단 하나. 앞 층위에서 공개된 사실을 뒤집거나 다시 보게 만드는 것이면 가장 좋다.")
+    @get:JsonPropertyDescription(
+        "[조건부 대화] 아직 누구에게도 말한 적 없는 단 하나. " +
+            "앞 층위에서 공개된 사실을 뒤집거나 다시 보게 만드는 것이면 가장 좋다. 같은 형식의 사실 서술로 쓴다.",
+    )
     val deepest: List<String>,
 )
 

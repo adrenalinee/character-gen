@@ -12,6 +12,7 @@ import ltmp.charactergen.client.openai.CharacterChatLlmClient
 import ltmp.charactergen.client.openai.CharacterChatStreamRequest
 import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.PromptTemplateType
+import ltmp.charactergen.data.RelationshipStage
 import ltmp.charactergen.data.entity.PromptTemplateRef
 import ltmp.charactergen.data.repo.CharacterRepository
 import ltmp.charactergen.data.repo.PromptTemplateRefRepository
@@ -39,7 +40,6 @@ import java.util.concurrent.Semaphore
 @Service
 class CharacterChatService(
     @Value("\${openai.chat.model}") private val defaultModel: String,
-    @Value("\${character-chat.include-voice-samples}") private val defaultIncludeVoiceSamples: Boolean,
     @Value("\${character-chat.stream.timeout}") private val streamTimeout: Duration,
     @Value("\${character-chat.session.max-concurrency}") maxConcurrency: Int,
     private val characterRepository: CharacterRepository,
@@ -83,7 +83,9 @@ class CharacterChatService(
             openedDisclosureLevel = request.openedDisclosureLevel
                 ?: request.relationshipStage.defaultOpenedLevel,
             situationNote = request.situationNote?.takeIf { it.isNotBlank() },
-            includeVoiceSamples = request.includeVoiceSamples ?: defaultIncludeVoiceSamples,
+            // 예시 발화는 관계가 얕은 사용자를 전제로 생성된다. 그래서 기본은 early에서만 넣는다. (v4.2 B-11)
+            includeVoiceSamples = request.includeVoiceSamples
+                ?: (request.relationshipStage == RelationshipStage.EARLY),
             closedTopicMode = request.closedTopicMode ?: ClosedTopicMode.TOPIC_ONLY,
         )
         val session = CharacterChatSession(

@@ -97,9 +97,14 @@ class Character(
     @Column(name = "sentence_pattern", nullable = false)
     val sentencePattern: String,
 
-    @Lob
-    @Column(name = "under_stress", nullable = false)
-    val underStress: String,
+    /**
+     * [sentencePattern]을 런타임 대화 프롬프트에 넣을지. (L0 캐릭터 생성 프롬프트 v4.2 B-13)
+     *
+     * 더 우선순위가 높은 [대화] 필드와 내용이 겹치면 캐릭터 저장 시점에 false로 판정된다.
+     * 판정은 `RuntimeDuplicateSelector`가 하고, 조립기는 이 값을 필터로만 쓴다.
+     */
+    @Column(name = "sentence_pattern_runtime_included", nullable = false)
+    val sentencePatternRuntimeIncluded: Boolean,
 
     @Lob
     @Column(nullable = false)

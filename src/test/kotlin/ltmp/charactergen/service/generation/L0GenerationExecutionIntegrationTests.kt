@@ -141,7 +141,7 @@ class L0GenerationExecutionIntegrationTests(
         val character = characterRepository.findAll().single { it.generationExecute.id == generation.id }
         assertEquals("서윤", character.name)
         assertEquals(3, character.concreteDetails.size)
-        // "마감 습관"은 disclosure_ladder.surface와 글자까지 같아 런타임에서 빠진다. (v4.1 B-10)
+        // "마감 습관"은 disclosure_ladder.surface와 글자까지 같아 런타임에서 빠진다. (v4.2 B-13)
         assertEquals(
             listOf("왼손잡이" to true, "밤에 작업" to true, "마감 습관" to false),
             character.concreteDetails.map { it.detailText to it.runtimeIncluded },
@@ -151,6 +151,10 @@ class L0GenerationExecutionIntegrationTests(
         assertEquals(3, character.nonNegotiables.size)
         assertEquals(2, character.forbiddenBehaviors.size)
         assertEquals(1, character.verbalTics.size)
+        // 겹치는 것이 없으면 나머지 [대화] 필드는 그대로 런타임에 들어간다. (v4.2 B-13)
+        assertTrue(character.verbalTics.single().runtimeIncluded)
+        assertTrue(character.sentencePatternRuntimeIncluded)
+        assertTrue(character.disclosureItems.all { it.runtimeIncluded })
         assertEquals(2, character.bannedWords.size)
         assertEquals(1, character.relations.size)
         assertEquals(4, character.disclosureItems.size)
@@ -201,7 +205,7 @@ class L0GenerationExecutionIntegrationTests(
             jsonPath("$.concreteDetails[0].id") { isNumber() }
             jsonPath("$.concreteDetails[0].detailText") { value("왼손잡이") }
             jsonPath("$.concreteDetails[0].runtimeIncluded") { value(true) }
-            // surface와 겹친다고 판정된 항목은 저장은 되지만 런타임에는 들어가지 않는다. (v4.1 B-10)
+            // surface와 겹친다고 판정된 항목은 저장은 되지만 런타임에는 들어가지 않는다. (v4.2 B-13)
             jsonPath("$.concreteDetails[2].detailText") { value("마감 습관") }
             jsonPath("$.concreteDetails[2].runtimeIncluded") { value(false) }
             jsonPath("$.nonNegotiables.length()") { value(3) }
@@ -531,7 +535,7 @@ class L0GenerationExecutionIntegrationTests(
               "relationship_stages":{"early":{"attachment":"먼저 묻지 않는다","address":"이름 없이 존댓말로 부른다","emotional_range":"불편함만 짧게 드러낸다","avoidance":"과거를 물으면 한 문장으로 끊는다"},"deepening":{"attachment":"작업 이야기만 연다","address":"이름을 부르되 존댓말을 유지한다","emotional_range":"작업에 대한 감정까지 말한다","avoidance":"화제를 돌리되 이유를 한 줄 붙인다"},"close":{"attachment":"거리를 유지한 채 곁에 둔다","address":"이름을 줄여 부르고 반말을 섞는다","emotional_range":"가라앉은 상태도 숨기지 않는다","avoidance":"말하지 않겠다고 분명히 말한다"}},
               "relationship_events":{"on_rejection":"한 번 물러난 뒤 다시 묻지 않는다","on_conflict":"근거를 한 줄로 말하고 물러서지 않는다","on_absence":"없었던 일처럼 작업 이야기부터 잇는다","on_over_approach":"속도를 늦추고 하던 이야기로 돌아온다"},
               "behavior":{"emotional_expression_note":"감정을 사실로 바꾼다","avoidance_note":"한 문장 뒤 침묵한다"},
-              "voice":{"speech_archetype_note":"작화 도구에 빗댄다","sentence_pattern":"짧은 결론 뒤 비유","verbal_tics":[{"situation":"거절할 때","description":"선을 다시 긋는다고 말한다"}],"banned_words":{"from_lie":["무조건"],"from_background":["당연히"]},"under_stress":"문장이 더 짧아진다"},
+              "voice":{"speech_archetype_note":"작화 도구에 빗댄다","sentence_pattern":"짧은 결론 뒤 비유","verbal_tics":[{"situation":"거절할 때","description":"선을 다시 긋는다고 말한다"}],"banned_words":{"from_lie":["무조건"],"from_background":["당연히"]}},
               "relations":[{"slot":"과거","name":"민호","relation":"전 편집자","description":"첫 연재에서 교체를 알렸다","presence":"부재","tie_to_lie":"대체 공포의 기원"}],
               "disclosure_ladder":{"surface":["마감 습관"],"mid":["편집자 이야기"],"deep":["교체 경험"],"deepest":["자기 가치에 대한 공포"]},
               "voice_samples":[{"situation":"의견에 반대했을 때","line":"그 선은 제가 정할게요.","demonstrates":"거리 유지"}],

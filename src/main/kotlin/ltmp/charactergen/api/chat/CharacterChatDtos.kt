@@ -75,7 +75,9 @@ data class CreateCharacterChatSessionRequest(
     val instructionBranch: String? = null,
 
     @field:Schema(
-        description = "예시 발화를 톤 참조로 주입할지 여부. 생략하면 character-chat.include-voice-samples 설정값을 사용한다.",
+        description = "예시 발화를 톤 참조로 주입할지 여부. 생략하면 relationshipStage가 EARLY일 때만 주입한다. " +
+            "예시 발화는 관계가 얕은 사용자를 전제로 생성되므로 그 이후 단계에서는 캐릭터를 얕은 관계 때의 태도로 되돌린다. " +
+            "A/B 비교가 필요할 때만 명시한다.",
         example = "true",
         nullable = true,
     )

@@ -25,9 +25,9 @@ data class RuntimeInstructionOptions(
 )
 
 /**
- * L0 캐릭터를 런타임 대화용 인스트럭션 한 벌로 조립한다. (L0 런타임 주입 설계 1~3절, 생성 프롬프트 v4.1 B-8)
+ * L0 캐릭터를 런타임 대화용 인스트럭션 한 벌로 조립한다. (L0 런타임 주입 설계 1~3절, 생성 프롬프트 v4.2 C-6, C-7)
  *
- * v4.1 B-8의 소비처 구분에 따라 아래 필드는 의도적으로 넣지 않는다.
+ * v4.2 C-6의 소비처 구분에 따라 아래 필드는 의도적으로 넣지 않는다.
  * `oneLine`, `lieStatement`, `lieType`, `need`, `wantNeedConflict`, `contradictionSharedRoot`,
  * 모든 `tieToLie`, `speechArchetypeNote`, `recognizability`, `longTermViability`, `imbalanceNote`, `traitReflection`.
  * 특히 `lieStatement`와 `need`는 캐릭터 자신이 모르는 것이라, 주입하면 캐릭터가 자기 믿음과 결핍을 설명하게 된다.
@@ -52,9 +52,10 @@ class CharacterRuntimeInstructionRenderer {
                 character.concreteDetails.filter { it.runtimeIncluded }.map { it.detailText },
             ),
             "BEHAVIORAL_RULES" to bulleted(character.behavioralRules.map { it.ruleText }),
-            "SENTENCE_PATTERN" to character.sentencePattern,
-            "VERBAL_TICS" to character.verbalTics.joinToString("\n") { "${it.situation} → ${it.description}" },
-            "UNDER_STRESS" to character.underStress,
+            "SENTENCE_PATTERN_LINE" to sentencePatternLine(character),
+            "VERBAL_TICS" to character.verbalTics
+                .filter { it.runtimeIncluded }
+                .joinToString("\n") { "${it.situation} → ${it.description}" },
             "BANNED_WORDS" to character.bannedWords.joinToString(", ") { it.wordText },
             "EMOTIONAL_EXPRESSION_NOTE" to character.emotionalExpressionNote,
             "AVOIDANCE_NOTE" to character.avoidanceNote,
@@ -74,7 +75,8 @@ class CharacterRuntimeInstructionRenderer {
             "WANT" to character.want,
             "RELATIONS" to bulleted(activeRelations(character).map { "${it.name} — ${it.relation}" }),
             "ABSENT_RELATIONS_SECTION" to absentRelationsSection(character, openedLevel),
-            "OPEN_DISCLOSURE" to openDisclosure(character, stage, openedLevel),
+            "SURFACE_DISCLOSURE" to surfaceDisclosure(character),
+            "OPENED_DISCLOSURE_SECTION" to openedDisclosureSection(character, stage, openedLevel),
             "CLOSED_TOPICS_SECTION" to closedTopicsSection(character, openedLevel, options.closedTopicMode),
             "SITUATION_SECTION" to situationSection(options.situationNote),
             "WOUND_SECTION" to woundSection(character, openedLevel),
@@ -93,26 +95,48 @@ class CharacterRuntimeInstructionRenderer {
             ?: error("캐릭터에 $stage 관계 단계 서술이 없습니다: characterId=${character.id}")
 
     /**
-     * 지금 이 사용자에게 꺼낼 수 있는 개인사. (설계 2절, v4.1 D-2)
+     * 처음 만난 사람에게도 말하는 것. 관계 깊이와 무관하게 항상 열려 있다.
+     */
+    private fun surfaceDisclosure(character: Character): String {
+        val surface = character.disclosureItems.filter { it.level == DisclosureLevel.SURFACE }
+        if (surface.isEmpty()) return "이 사람에게 아직 꺼낼 수 있는 개인사가 없다."
+        return bulleted(surface.map { it.itemText })
+    }
+
+    /**
+     * 관계가 깊어지면서 열린 개인사. (v4.2 B-12, C-8)
      *
-     * 얕은 관계에서 surface만 열어 두면 초기 대화의 소재가 금방 바닥난다. v4.1 상한 모델(B-12)은
+     * v4.1에서는 이 항목들이 surface와 한 목록에 섞여 층위 구분이 사라졌다. 그래서 섹션을 따로 둔다.
+     * 열린 항목이 하나도 없으면 섹션 자체를 만들지 않는다.
+     *
+     * 얕은 관계에서 surface만 열어 두면 초기 대화의 소재가 금방 바닥난다. 상한 모델(C-8)은
      * early에서도 mid를 조건부로 열지만 그 조건을 판정할 로직이 아직 없다. 그래서 임시로
      * early에서만 mid 한 항목을 무조건 연다. 개방 조건 판정이 붙으면 이 규칙은 그쪽으로 교체된다.
      */
-    private fun openDisclosure(
+    private fun openedDisclosureSection(
         character: Character,
         stage: RelationshipStage,
         openedLevel: DisclosureLevel,
     ): String {
-        val openedLevels = openedLevel.openedThrough()
-        val opened = character.disclosureItems.filter { it.level in openedLevels }.toMutableList()
+        val openedLevels = openedLevel.openedThrough() - DisclosureLevel.SURFACE
+        val opened = character.disclosureItems
+            .filter { it.level in openedLevels && it.runtimeIncluded }
+            .toMutableList()
         if (stage == RelationshipStage.EARLY && DisclosureLevel.MID !in openedLevels) {
             character.disclosureItems
-                .firstOrNull { it.level == DisclosureLevel.MID }
+                .firstOrNull { it.level == DisclosureLevel.MID && it.runtimeIncluded }
                 ?.let { opened.add(it) }
         }
-        if (opened.isEmpty()) return "이 사람에게 아직 꺼낼 수 있는 개인사가 없다."
-        return bulleted(opened.map { it.itemText })
+        if (opened.isEmpty()) return ""
+        return "## 가까워지면서 말하게 된 것\n" + bulleted(opened.map { it.itemText })
+    }
+
+    /**
+     * 평상시 문장 경향. 더 우선순위가 높은 필드와 겹친다고 판정되면(v4.2 B-13) 라벨째로 빠진다.
+     */
+    private fun sentencePatternLine(character: Character): String {
+        if (!character.sentencePatternRuntimeIncluded) return ""
+        return "문장: ${character.sentencePattern}"
     }
 
     /**
@@ -186,7 +210,10 @@ class CharacterRuntimeInstructionRenderer {
     }
 
     /**
-     * 예시 발화는 톤 참조로만 쓴다. 그대로 재사용하는 경향이 있어 명시적으로 막는다. (설계 1절)
+     * 예시 발화는 톤 참조로만 쓴다. 그대로 재사용하는 경향이 있어 명시적으로 막는다. (설계 1절, v4.2 B-11)
+     *
+     * `situation` 라벨은 넣지 않는다. 상황과 문장이 짝지어져 있으면 같은 상황에서 그 문장을 그대로 쓴다.
+     * 라벨을 떼면 톤·길이·온도만 전달된다.
      */
     private fun voiceSamplesSection(character: Character, include: Boolean): String {
         if (!include || character.voiceSamples.isEmpty()) return ""

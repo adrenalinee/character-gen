@@ -87,8 +87,11 @@ data class CharacterDto(
     @field:Schema(description = "문장 패턴", requiredMode = Schema.RequiredMode.REQUIRED)
     val sentencePattern: String,
 
-    @field:Schema(description = "스트레스 상황에서의 말투", requiredMode = Schema.RequiredMode.REQUIRED)
-    val underStress: String,
+    @field:Schema(
+        description = "문장 패턴을 런타임 대화 프롬프트에 넣는 항목인지. 더 우선순위가 높은 대화용 필드와 내용이 겹친다고 판정된 항목은 false다.",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val sentencePatternRuntimeIncluded: Boolean,
 
     @field:Schema(description = "캐릭터의 인식 가능성 평가", requiredMode = Schema.RequiredMode.REQUIRED)
     val recognizability: String,
@@ -176,7 +179,7 @@ data class CharacterConcreteDetailDto(
     @field:Schema(description = "구체적 디테일", requiredMode = Schema.RequiredMode.REQUIRED)
     val detailText: String,
     @field:Schema(
-        description = "런타임 대화 프롬프트에 넣는 항목인지. 다른 대화용 필드와 내용이 겹친다고 판정된 항목은 false다.",
+        description = "런타임 대화 프롬프트에 넣는 항목인지. 더 우선순위가 높은 대화용 필드와 내용이 겹친다고 판정된 항목은 false다.",
         requiredMode = Schema.RequiredMode.REQUIRED,
     )
     val runtimeIncluded: Boolean,
@@ -258,6 +261,11 @@ data class CharacterVerbalTicDto(
     val situation: String,
     @field:Schema(description = "언어 습관 설명", requiredMode = Schema.RequiredMode.REQUIRED)
     val description: String,
+    @field:Schema(
+        description = "런타임 대화 프롬프트에 넣는 항목인지. 더 우선순위가 높은 대화용 필드와 내용이 겹친다고 판정된 항목은 false다.",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val runtimeIncluded: Boolean,
     @field:Schema(description = "행 생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
     val createdAt: OffsetDateTime,
     @field:Schema(description = "행 최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -311,6 +319,11 @@ data class CharacterDisclosureItemDto(
     val level: DisclosureLevel,
     @field:Schema(description = "공개 정보", requiredMode = Schema.RequiredMode.REQUIRED)
     val itemText: String,
+    @field:Schema(
+        description = "런타임 대화 프롬프트에 넣는 항목인지. 더 우선순위가 높은 대화용 필드와 내용이 겹친다고 판정된 항목은 false다. 이 층위가 열렸을 때만 의미가 있다.",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val runtimeIncluded: Boolean,
     @field:Schema(description = "행 생성 시각", requiredMode = Schema.RequiredMode.REQUIRED)
     val createdAt: OffsetDateTime,
     @field:Schema(description = "행 최종 수정 시각", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -359,7 +372,7 @@ fun Character.toDto() = CharacterDto(
     avoidanceNote = avoidanceNote,
     speechArchetypeNote = speechArchetypeNote,
     sentencePattern = sentencePattern,
-    underStress = underStress,
+    sentencePatternRuntimeIncluded = sentencePatternRuntimeIncluded,
     recognizability = recognizability,
     longTermViability = longTermViability,
     imbalanceNote = imbalanceNote,
@@ -418,6 +431,7 @@ fun Character.toDto() = CharacterDto(
             id = it.id,
             situation = it.situation,
             description = it.description,
+            runtimeIncluded = it.runtimeIncluded,
             createdAt = it.createdAt,
             updatedAt = it.updatedAt,
         )
@@ -449,6 +463,7 @@ fun Character.toDto() = CharacterDto(
             id = it.id,
             level = it.level,
             itemText = it.itemText,
+            runtimeIncluded = it.runtimeIncluded,
             createdAt = it.createdAt,
             updatedAt = it.updatedAt,
         )

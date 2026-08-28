@@ -38,6 +38,13 @@ class OpenAiResponsesL0CharacterClientTests {
         assertTrue(paramsDescription.contains("trait_reflection"), paramsDescription)
         assertFalse(paramsDescription.contains("traits="), paramsDescription)
         assertFalse(paramsDescription.contains("identity_note"), paramsDescription)
+
+        // v4.2에서 under_stress가 emotional_expression_note로 흡수됐다. (B-2, B-3)
+        assertFalse(paramsDescription.contains("under_stress"), paramsDescription)
+        assertTrue(
+            paramsDescription.contains("감정이 격해졌을 때 말과 행동이 어떻게 변하는지를 함께 쓴다"),
+            paramsDescription,
+        )
     }
 
     /**

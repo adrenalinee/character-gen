@@ -467,7 +467,7 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
     avoidanceNote = "한 문장 뒤 침묵한다",
     speechArchetypeNote = "작화 도구에 빗댄다",
     sentencePattern = "짧은 결론 뒤 비유",
-    underStress = "문장이 더 짧아진다",
+    sentencePatternRuntimeIncluded = true,
     recognizability = "작화 도구 비유",
     longTermViability = "교체 공포가 반복된다",
     imbalanceNote = "없음",
@@ -503,6 +503,7 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
         ltmp.charactergen.data.entity.CharacterVerbalTicEntity(
             situation = "거절할 때",
             description = "선을 다시 긋는다고 말한다",
+            runtimeIncluded = true,
         ),
     ),
     bannedWords = listOf(
@@ -525,10 +526,12 @@ private fun chatTestCharacter(execute: L0GenerationExecute): Character = Charact
         ltmp.charactergen.data.entity.CharacterDisclosureItemEntity(
             level = ltmp.charactergen.data.DisclosureLevel.SURFACE,
             itemText = "마감 습관",
+            runtimeIncluded = true,
         ),
         ltmp.charactergen.data.entity.CharacterDisclosureItemEntity(
             level = ltmp.charactergen.data.DisclosureLevel.DEEP,
             itemText = "교체 경험",
+            runtimeIncluded = true,
         ),
     ),
     voiceSamples = listOf(

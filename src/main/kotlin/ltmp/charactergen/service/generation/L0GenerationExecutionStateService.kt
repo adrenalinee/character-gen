@@ -135,7 +135,7 @@ class L0GenerationExecutionStateService(
         generationId: Long,
         response: L0CharacterResponse,
         rawJson: String,
-        runtimeDetailIndexes: Set<Int>,
+        runtimeInclusion: RuntimeInclusion,
         elapsedMillis: Long,
     ) {
         val execute = generationExecuteRepository.findById(generationId).orElseThrow {
@@ -148,7 +148,7 @@ class L0GenerationExecutionStateService(
             "Character already exists for L0GenerationExecute: $generationId"
         }
 
-        val character = characterRepository.save(response.toEntity(execute, runtimeDetailIndexes))
+        val character = characterRepository.save(response.toEntity(execute, runtimeInclusion))
         execute.character = character
         execute.llmOutput = rawJson
         execute.status = L0GenerationExecuteStatus.COMPLETED

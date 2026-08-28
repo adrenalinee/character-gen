@@ -1,6 +1,6 @@
 package ltmp.charactergen.service.chat
 
-import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V3
+import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V4
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.DisclosureLevel
@@ -27,7 +27,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * L0 런타임 주입 설계 1절의 필드 라우팅과 3절의 관계 단계 분기, 생성 프롬프트 v4 §8.1의 소비처 구분이
+ * L0 런타임 주입 설계 1절의 필드 라우팅과 3절의 관계 단계 분기, 생성 프롬프트 v4.2 C-6의 소비처 구분이
  * 실제로 지켜지는지 검증한다. 여기가 깨지면 이후 프로브 수치는 의미를 잃는다.
  */
 class CharacterRuntimeInstructionRendererTests {
@@ -56,7 +56,6 @@ class CharacterRuntimeInstructionRendererTests {
             "짧은 결론 뒤 비유",
             "거절할 때",
             "선을 다시 긋는다고 말한다",
-            "문장이 더 짧아진다",
             "감정을 사실로 바꾼다",
             "한 문장 뒤 침묵한다",
             "먼저 선을 긋는다",
@@ -78,7 +77,7 @@ class CharacterRuntimeInstructionRendererTests {
     }
 
     @Test
-    fun `런타임 대상으로 표시된 구체 묘사만 넣는다`() {
+    fun `런타임 대상으로 표시된 구체 묘사와 말버릇만 넣는다`() {
         val instruction = render(RelationshipStage.EARLY)
 
         assertTrue(instruction.contains("묘사1"))
@@ -87,6 +86,44 @@ class CharacterRuntimeInstructionRendererTests {
             instruction.contains("묘사4"),
             "runtimeIncluded가 false인 묘사는 주입되지 않아야 한다",
         )
+        assertFalse(
+            instruction.contains(MARKER_EXCLUDED_VERBAL_TIC),
+            "runtimeIncluded가 false인 말버릇은 주입되지 않아야 한다",
+        )
+    }
+
+    @Test
+    fun `겹친다고 판정된 문장 패턴은 라벨째로 빠진다`() {
+        // 라벨만 남으면 "문장:" 뒤가 빈 줄이 된다. (v4.2 B-13)
+        val included = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V4,
+            character(),
+            options(RelationshipStage.EARLY),
+        )
+        assertTrue(included.contains("문장: 짧은 결론 뒤 비유"))
+
+        val excluded = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V4,
+            character(sentencePatternRuntimeIncluded = false),
+            options(RelationshipStage.EARLY),
+        )
+        assertFalse(excluded.contains("짧은 결론 뒤 비유"))
+        assertFalse(excluded.contains("문장:"), "값이 빠지면 라벨도 남으면 안 된다")
+    }
+
+    @Test
+    fun `개방된 항목은 surface와 다른 섹션에 넣는다`() {
+        // 한 목록에 섞이면 층위 구분이 사라진다. (v4.2 B-12)
+        val early = render(RelationshipStage.EARLY)
+        val surfaceSection = early.substringAfter("## 말할 수 있는 개인사").substringBefore("##")
+        assertTrue(surfaceSection.contains("마감 습관"))
+        assertFalse(surfaceSection.contains("편집자 이야기"), "개방 항목이 surface 목록에 섞였다")
+
+        assertTrue(early.contains("## 가까워지면서 말하게 된 것"))
+        assertTrue(
+            early.substringAfter("## 가까워지면서 말하게 된 것").contains("편집자 이야기"),
+        )
+        assertTrue(early.contains("여기에 없는 개인사는 지어내지 않는다"))
     }
 
     @Test
@@ -211,6 +248,18 @@ class CharacterRuntimeInstructionRendererTests {
     }
 
     @Test
+    fun `개방된 항목이 없으면 섹션 자체가 사라진다`() {
+        val instruction = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V4,
+            character(openedDisclosureRuntimeIncluded = false),
+            options(RelationshipStage.EARLY),
+        )
+
+        assertFalse(instruction.contains("## 가까워지면서 말하게 된 것"))
+        assertTrue(instruction.contains("마감 습관"))
+    }
+
+    @Test
     fun `예시 발화를 끄면 헤더까지 사라진다`() {
         val included = render(RelationshipStage.EARLY, includeVoiceSamples = true)
         assertTrue(included.contains("## 톤 참조"))
@@ -281,18 +330,29 @@ class CharacterRuntimeInstructionRendererTests {
         includeVoiceSamples: Boolean = true,
         situationNote: String? = null,
     ): String = renderer.render(
-        L0_RUNTIME_INSTRUCTION_V3,
+        L0_RUNTIME_INSTRUCTION_V4,
         character(),
-        RuntimeInstructionOptions(
-            relationshipStage = stage,
-            openedDisclosureLevel = openedDisclosureLevel,
-            situationNote = situationNote,
-            includeVoiceSamples = includeVoiceSamples,
-            closedTopicMode = closedTopicMode,
-        ),
+        options(stage, openedDisclosureLevel, closedTopicMode, includeVoiceSamples, situationNote),
     )
 
-    private fun character(): Character = Character(
+    private fun options(
+        stage: RelationshipStage,
+        openedDisclosureLevel: DisclosureLevel = stage.defaultOpenedLevel,
+        closedTopicMode: ClosedTopicMode = ClosedTopicMode.TOPIC_ONLY,
+        includeVoiceSamples: Boolean = true,
+        situationNote: String? = null,
+    ) = RuntimeInstructionOptions(
+        relationshipStage = stage,
+        openedDisclosureLevel = openedDisclosureLevel,
+        situationNote = situationNote,
+        includeVoiceSamples = includeVoiceSamples,
+        closedTopicMode = closedTopicMode,
+    )
+
+    private fun character(
+        sentencePatternRuntimeIncluded: Boolean = true,
+        openedDisclosureRuntimeIncluded: Boolean = true,
+    ): Character = Character(
         generationExecute = mock(L0GenerationExecute::class.java),
         name = "서윤",
         age = 29,
@@ -317,12 +377,12 @@ class CharacterRuntimeInstructionRendererTests {
         avoidanceNote = "한 문장 뒤 침묵한다",
         speechArchetypeNote = MARKER_SPEECH_ARCHETYPE_NOTE,
         sentencePattern = "짧은 결론 뒤 비유",
-        underStress = "문장이 더 짧아진다",
+        sentencePatternRuntimeIncluded = sentencePatternRuntimeIncluded,
         recognizability = MARKER_RECOGNIZABILITY,
         longTermViability = MARKER_LONG_TERM_VIABILITY,
         imbalanceNote = MARKER_IMBALANCE_NOTE,
         traitReflection = MARKER_TRAIT_REFLECTION,
-        // 묘사4는 저장 시점에 다른 대화용 필드와 겹친다고 판정돼 런타임에서 빠진 항목이다. (v4.1 B-10)
+        // 묘사4는 저장 시점에 다른 대화용 필드와 겹친다고 판정돼 런타임에서 빠진 항목이다. (v4.2 B-13)
         concreteDetails = (1..4).map {
             CharacterConcreteDetailEntity(detailText = "묘사$it", runtimeIncluded = it <= 3)
         },
@@ -349,8 +409,18 @@ class CharacterRuntimeInstructionRendererTests {
                 tieToLie = MARKER_TIE_TO_LIE_FORBIDDEN,
             ),
         ),
+        // 두 번째 말버릇은 겹침으로 판정돼 런타임에서 빠진 항목이다. (v4.2 B-13)
         verbalTics = listOf(
-            CharacterVerbalTicEntity(situation = "거절할 때", description = "선을 다시 긋는다고 말한다"),
+            CharacterVerbalTicEntity(
+                situation = "거절할 때",
+                description = "선을 다시 긋는다고 말한다",
+                runtimeIncluded = true,
+            ),
+            CharacterVerbalTicEntity(
+                situation = "칭찬을 들을 때",
+                description = MARKER_EXCLUDED_VERBAL_TIC,
+                runtimeIncluded = false,
+            ),
         ),
         bannedWords = listOf(
             CharacterBannedWordEntity(source = BannedWordSource.FROM_LIE, wordText = "무조건"),
@@ -376,11 +446,15 @@ class CharacterRuntimeInstructionRendererTests {
             )
         },
         disclosureItems = listOf(
-            CharacterDisclosureItemEntity(level = DisclosureLevel.SURFACE, itemText = "마감 습관"),
-            CharacterDisclosureItemEntity(level = DisclosureLevel.MID, itemText = "편집자 이야기"),
-            CharacterDisclosureItemEntity(level = DisclosureLevel.MID, itemText = "편집자와 틀어진 일"),
-            CharacterDisclosureItemEntity(level = DisclosureLevel.DEEP, itemText = "교체 경험"),
-            CharacterDisclosureItemEntity(level = DisclosureLevel.DEEPEST, itemText = "자기 가치에 대한 공포"),
+            CharacterDisclosureItemEntity(DisclosureLevel.SURFACE, "마감 습관", runtimeIncluded = true),
+            CharacterDisclosureItemEntity(DisclosureLevel.MID, "편집자 이야기", openedDisclosureRuntimeIncluded),
+            CharacterDisclosureItemEntity(DisclosureLevel.MID, "편집자와 틀어진 일", openedDisclosureRuntimeIncluded),
+            CharacterDisclosureItemEntity(DisclosureLevel.DEEP, "교체 경험", openedDisclosureRuntimeIncluded),
+            CharacterDisclosureItemEntity(
+                DisclosureLevel.DEEPEST,
+                "자기 가치에 대한 공포",
+                openedDisclosureRuntimeIncluded,
+            ),
         ),
         voiceSamples = listOf(
             CharacterVoiceSampleEntity(
@@ -419,6 +493,7 @@ class CharacterRuntimeInstructionRendererTests {
         const val MARKER_TIE_TO_LIE_RELATION = "MARKER_TIE_TO_LIE_RELATION"
         const val MARKER_RELATION_DESCRIPTION = "MARKER_RELATION_DESCRIPTION"
         const val MARKER_VOICE_SAMPLE_DEMONSTRATES = "MARKER_VOICE_SAMPLE_DEMONSTRATES"
+        const val MARKER_EXCLUDED_VERBAL_TIC = "MARKER_EXCLUDED_VERBAL_TIC"
 
         val EXCLUDED_MARKERS = listOf(
             MARKER_ONE_LINE,
