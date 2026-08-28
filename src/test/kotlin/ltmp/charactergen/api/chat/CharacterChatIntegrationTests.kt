@@ -168,7 +168,8 @@ class CharacterChatIntegrationTests(
 
         assertEquals(2, messages.size())
         assertEquals(ChatRole.USER.name, messages[0].path("role").asString())
-        assertEquals("안녕하세요", messages[0].path("content").asString())
+        // 사용자 메시지 앞에는 전송 시각이 붙는다. 시각은 매번 달라지므로 뒷부분만 확인한다.
+        assertTrue(messages[0].path("content").asString().endsWith("user: 안녕하세요"))
         assertEquals(ChatRole.ASSISTANT.name, messages[1].path("role").asString())
         assertEquals("네.", messages[1].path("content").asString())
     }
@@ -183,9 +184,9 @@ class CharacterChatIntegrationTests(
 
         val lastRequest = requireNotNull(fakeChatLlmClient.lastRequest)
         assertEquals(3, lastRequest.messages.size)
-        assertEquals("안녕하세요", lastRequest.messages[0].content)
+        assertTrue(lastRequest.messages[0].content.endsWith("user: 안녕하세요"))
         assertEquals("네.", lastRequest.messages[1].content)
-        assertEquals("오늘 어땠어요?", lastRequest.messages[2].content)
+        assertTrue(lastRequest.messages[2].content.endsWith("user: 오늘 어땠어요?"))
 
         // 인스트럭션은 매 턴 다시 전달된다.
         assertContains(lastRequest.instructions, "너는 서윤이다")

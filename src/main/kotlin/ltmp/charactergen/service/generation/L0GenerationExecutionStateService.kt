@@ -7,6 +7,7 @@ import ltmp.charactergen.data.PromptTemplateRefType
 import ltmp.charactergen.data.repo.CharacterRepository
 import ltmp.charactergen.data.repo.L0GenerationExecuteRepository
 import ltmp.charactergen.model.L0CharacterResponse
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.ObjectMapper
@@ -18,6 +19,8 @@ class L0GenerationExecutionStateService(
     private val characterRepository: CharacterRepository,
     private val objectMapper: ObjectMapper,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @Transactional
     fun markRunning(generationId: Long): Boolean {
         val execute = generationExecuteRepository.findById(generationId).orElse(null) ?: return false
@@ -136,6 +139,7 @@ class L0GenerationExecutionStateService(
         response: L0CharacterResponse,
         rawJson: String,
         runtimeInclusion: RuntimeInclusion,
+        warnings: List<String>,
         elapsedMillis: Long,
     ) {
         val execute = generationExecuteRepository.findById(generationId).orElseThrow {
@@ -153,6 +157,14 @@ class L0GenerationExecutionStateService(
         execute.llmOutput = rawJson
         execute.status = L0GenerationExecuteStatus.COMPLETED
         execute.message = "캐릭터 생성 완료"
+        execute.runtimeWarnings = warnings.takeIf { it.isNotEmpty() }?.joinToString("\n")
+        if (warnings.isNotEmpty()) {
+            log.warn(
+                "캐릭터 데이터 경고. generationId={}, warnings=\n{}",
+                generationId,
+                warnings.joinToString("\n"),
+            )
+        }
         execute.elapsed = elapsedMillis
         execute.completedAt = OffsetDateTime.now()
     }

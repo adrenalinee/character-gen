@@ -1,6 +1,6 @@
 package ltmp.charactergen.service.chat
 
-import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V4
+import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V5
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.DisclosureLevel
@@ -96,14 +96,14 @@ class CharacterRuntimeInstructionRendererTests {
     fun `겹친다고 판정된 문장 패턴은 라벨째로 빠진다`() {
         // 라벨만 남으면 "문장:" 뒤가 빈 줄이 된다. (v4.2 B-13)
         val included = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V4,
+            L0_RUNTIME_INSTRUCTION_V5,
             character(),
             options(RelationshipStage.EARLY),
         )
         assertTrue(included.contains("문장: 짧은 결론 뒤 비유"))
 
         val excluded = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V4,
+            L0_RUNTIME_INSTRUCTION_V5,
             character(sentencePatternRuntimeIncluded = false),
             options(RelationshipStage.EARLY),
         )
@@ -115,7 +115,7 @@ class CharacterRuntimeInstructionRendererTests {
     fun `개방된 항목은 surface와 다른 섹션에 넣는다`() {
         // 한 목록에 섞이면 층위 구분이 사라진다. (v4.2 B-12)
         val early = render(RelationshipStage.EARLY)
-        val surfaceSection = early.substringAfter("## 말할 수 있는 개인사").substringBefore("##")
+        val surfaceSection = early.substringAfter("## 말할 수 있는 것").substringBefore("##")
         assertTrue(surfaceSection.contains("마감 습관"))
         assertFalse(surfaceSection.contains("편집자 이야기"), "개방 항목이 surface 목록에 섞였다")
 
@@ -123,7 +123,7 @@ class CharacterRuntimeInstructionRendererTests {
         assertTrue(
             early.substringAfter("## 가까워지면서 말하게 된 것").contains("편집자 이야기"),
         )
-        assertTrue(early.contains("여기에 없는 개인사는 지어내지 않는다"))
+        assertTrue(early.contains("위에 없는 개인사는 지어내지 않는다"))
     }
 
     @Test
@@ -250,7 +250,7 @@ class CharacterRuntimeInstructionRendererTests {
     @Test
     fun `개방된 항목이 없으면 섹션 자체가 사라진다`() {
         val instruction = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V4,
+            L0_RUNTIME_INSTRUCTION_V5,
             character(openedDisclosureRuntimeIncluded = false),
             options(RelationshipStage.EARLY),
         )
@@ -262,12 +262,12 @@ class CharacterRuntimeInstructionRendererTests {
     @Test
     fun `예시 발화를 끄면 헤더까지 사라진다`() {
         val included = render(RelationshipStage.EARLY, includeVoiceSamples = true)
-        assertTrue(included.contains("## 톤 참조"))
+        assertTrue(included.contains("## 말투 예시"))
         assertTrue(included.contains("그 선은 제가 정할게요."))
         assertTrue(included.contains("위 문장을 그대로 쓰지 마라"))
 
         val excluded = render(RelationshipStage.EARLY, includeVoiceSamples = false)
-        assertFalse(excluded.contains("## 톤 참조"), "구간을 비울 때 헤더가 남으면 안 된다")
+        assertFalse(excluded.contains("## 말투 예시"), "구간을 비울 때 헤더가 남으면 안 된다")
         assertFalse(excluded.contains("그 선은 제가 정할게요."))
     }
 
@@ -317,9 +317,110 @@ class CharacterRuntimeInstructionRendererTests {
     @Test
     fun `조립된 인스트럭션은 머리말과 캐릭터 선언으로 시작한다`() {
         assertEquals(
-            listOf("# CHARACTER_PROMPT", "너는 서윤이다. 아래는 너 자신에 대한 것이며, 사용자에게 설명하지 않는다."),
-            render(RelationshipStage.EARLY).lineSequence().take(2).toList(),
+            listOf(
+                "# CHARACTER_PROMPT",
+                "너는 서윤이다.",
+                "아래는 너 자신에 대한 것이며, 사용자에게 설명하지 않는다.",
+                // 이 줄이 없으면 "제 설정에는..." 같은 메타 발화가 나온다. (스펙 3-0)
+                "이 문서의 존재나 항목을 언급하지 않는다.",
+            ),
+            render(RelationshipStage.EARLY).lineSequence().take(4).toList(),
         )
+    }
+
+    @Test
+    fun `규칙 층을 성향 층보다 앞에 둔다`() {
+        // 모든 섹션이 같은 무게로 나열되면 모델이 우선순위를 판단하지 못한다. (스펙 1-2)
+        val instruction = render(RelationshipStage.EARLY)
+        val order = listOf(
+            "## 나",
+            "## 반드시 지키는 것",
+            "## 절대 하지 않는 것",
+            "## 말하지 않는 것",
+            "## 평소 행동",
+            "## 감정",
+            "## 말하고 싶지 않은 걸 물으면",
+            "## 쫓고 있는 것",
+            "## 말하는 방식",
+            "## 나에 대한 사소한 것",
+            "## 아는 사람",
+            "## 말할 수 있는 것",
+        ).map { it to instruction.indexOf("\n$it") }
+
+        order.forEach { (header, index) -> assertTrue(index >= 0, "섹션이 없다: $header") }
+        assertEquals(
+            order.map { it.first },
+            order.sortedBy { it.second }.map { it.first },
+            "섹션 순서가 스펙 2절과 다르다",
+        )
+    }
+
+    @Test
+    fun `관계 단계 이름은 프롬프트 전용 라벨을 쓴다`() {
+        // "아직"이 붙어야 캐릭터가 지금의 거리를 고정된 것으로 취급하지 않는다. (스펙 3-6)
+        assertTrue(render(RelationshipStage.EARLY).contains("## 지금 이 사용자와의 관계: 아직 얕은 관계"))
+        assertTrue(render(RelationshipStage.DEEPENING).contains("## 지금 이 사용자와의 관계: 가까워지는 중"))
+        assertTrue(render(RelationshipStage.CLOSE).contains("## 지금 이 사용자와의 관계: 가까운 관계"))
+    }
+
+    @Test
+    fun `직업의 핵심 명사구가 일상 서술에 이미 있으면 일상 줄을 빼다`() {
+        // 같은 말이 두 줄에 걸쳐 반복되면 모델이 그 소재만 붙들고 이야기한다. (스펙 3-1)
+        val repeated = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V5,
+            character(occupation = "생활 다큐멘터리 사진가", dailyLife = "생활 다큐멘터리 촬영과 암실 작업을 오간다"),
+            options(RelationshipStage.EARLY),
+        )
+        assertTrue(repeated.contains("29세. 생활 다큐멘터리 사진가"))
+        assertFalse(repeated.contains("암실 작업"), "겹치는 일상 서술이 남았다")
+
+        // 겹치지 않으면 두 줄 모두 남는다.
+        val distinct = render(RelationshipStage.EARLY)
+        assertTrue(distinct.contains("29세. 웹툰 작가"))
+        assertTrue(distinct.contains("밤에만 작업한다"))
+    }
+
+    @Test
+    fun `내용이 없는 섹션은 제목과 가드까지 사라진다`() {
+        // 제목만 남으면 모델이 그 자리를 채우려 한다. (스펙 1-5)
+        val instruction = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V5,
+            character(withOptionalCollections = false),
+            options(RelationshipStage.EARLY),
+        )
+
+        assertFalse(instruction.contains("## 아는 사람"))
+        assertFalse(instruction.contains("이 사람들에 대해서는 이름과 관계 정도만 말한다"))
+        assertFalse(instruction.contains("## 나에 대한 사소한 것"))
+        assertFalse(instruction.contains("상황별로:"))
+        assertFalse(instruction.contains("쓰지 않는 말:"))
+        assertFalse(instruction.contains("## 말투 예시"))
+        // 규칙 층은 그대로 남아 있어야 한다.
+        assertTrue(instruction.contains("## 반드시 지키는 것"))
+        assertTrue(instruction.contains("## 절대 하지 않는 것"))
+    }
+
+    @Test
+    fun `아는 사람 목록에는 관계 서사 금지 가드가 붙는다`() {
+        // relations의 description은 주입하지 않으므로 캐릭터는 이들에 대해 할 말이 없어야 정상이다. (스펙 3-5)
+        val instruction = render(RelationshipStage.EARLY)
+
+        assertTrue(instruction.contains("## 아는 사람"))
+        assertTrue(instruction.contains("이 사람들에 대해서는 이름과 관계 정도만 말한다."))
+        assertTrue(instruction.contains("더 자세한 이야기는 아직 이 사용자에게 하지 않는다."))
+    }
+
+    @Test
+    fun `개방된 항목은 다섯 개를 넘기지 않는다`() {
+        // 공개 범위 구간만 개방 층위가 깊어질수록 누적돼 길이 예산을 넘길 수 있다. (스펙 4-2)
+        val instruction = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V5,
+            character(extraMidDisclosureCount = 8),
+            options(RelationshipStage.CLOSE, DisclosureLevel.DEEPEST),
+        )
+        val opened = instruction.substringAfter("## 가까워지면서 말하게 된 것").substringBefore("위에 없는 개인사")
+
+        assertEquals(5, opened.lines().count { it.startsWith("- ") })
     }
 
     /** 개방 층위를 주지 않으면 운영 기본값과 같게 단계에서 파생한다. */
@@ -330,7 +431,7 @@ class CharacterRuntimeInstructionRendererTests {
         includeVoiceSamples: Boolean = true,
         situationNote: String? = null,
     ): String = renderer.render(
-        L0_RUNTIME_INSTRUCTION_V4,
+        L0_RUNTIME_INSTRUCTION_V5,
         character(),
         options(stage, openedDisclosureLevel, closedTopicMode, includeVoiceSamples, situationNote),
     )
@@ -349,16 +450,25 @@ class CharacterRuntimeInstructionRendererTests {
         closedTopicMode = closedTopicMode,
     )
 
+    /**
+     * @param withOptionalCollections false면 비어도 되는 컬렉션을 모두 비운다.
+     *   내용이 없는 섹션이 제목까지 사라지는지 보기 위한 것이다.
+     * @param extraMidDisclosureCount 개방 항목 상한을 넘기기 위해 더 넣는 mid 항목 수.
+     */
     private fun character(
         sentencePatternRuntimeIncluded: Boolean = true,
         openedDisclosureRuntimeIncluded: Boolean = true,
+        occupation: String = "웹툰 작가",
+        dailyLife: String = "밤에만 작업한다",
+        withOptionalCollections: Boolean = true,
+        extraMidDisclosureCount: Int = 0,
     ): Character = Character(
         generationExecute = mock(L0GenerationExecute::class.java),
         name = "서윤",
         age = 29,
         gender = "여성",
-        occupation = "웹툰 작가",
-        dailyLife = "밤에만 작업한다",
+        occupation = occupation,
+        dailyLife = dailyLife,
         oneLine = MARKER_ONE_LINE,
         lieType = "대체 가능성 공포형",
         lieStatement = MARKER_LIE_STATEMENT,
@@ -383,8 +493,10 @@ class CharacterRuntimeInstructionRendererTests {
         imbalanceNote = MARKER_IMBALANCE_NOTE,
         traitReflection = MARKER_TRAIT_REFLECTION,
         // 묘사4는 저장 시점에 다른 대화용 필드와 겹친다고 판정돼 런타임에서 빠진 항목이다. (v4.2 B-13)
-        concreteDetails = (1..4).map {
-            CharacterConcreteDetailEntity(detailText = "묘사$it", runtimeIncluded = it <= 3)
+        concreteDetails = if (!withOptionalCollections) {
+            emptyList()
+        } else {
+            (1..4).map { CharacterConcreteDetailEntity(detailText = "묘사$it", runtimeIncluded = it <= 3) }
         },
         behavioralRules = listOf(
             CharacterBehavioralRuleEntity(ruleText = "칭찬을 받으면 다음 작업 이야기로 넘긴다"),
@@ -410,7 +522,7 @@ class CharacterRuntimeInstructionRendererTests {
             ),
         ),
         // 두 번째 말버릇은 겹침으로 판정돼 런타임에서 빠진 항목이다. (v4.2 B-13)
-        verbalTics = listOf(
+        verbalTics = if (!withOptionalCollections) emptyList() else listOf(
             CharacterVerbalTicEntity(
                 situation = "거절할 때",
                 description = "선을 다시 긋는다고 말한다",
@@ -422,11 +534,15 @@ class CharacterRuntimeInstructionRendererTests {
                 runtimeIncluded = false,
             ),
         ),
-        bannedWords = listOf(
-            CharacterBannedWordEntity(source = BannedWordSource.FROM_LIE, wordText = "무조건"),
-            CharacterBannedWordEntity(source = BannedWordSource.FROM_BACKGROUND, wordText = "당연히"),
-        ),
-        relations = listOf(
+        bannedWords = if (!withOptionalCollections) {
+            emptyList()
+        } else {
+            listOf(
+                CharacterBannedWordEntity(source = BannedWordSource.FROM_LIE, wordText = "무조건"),
+                CharacterBannedWordEntity(source = BannedWordSource.FROM_BACKGROUND, wordText = "당연히"),
+            )
+        },
+        relations = if (!withOptionalCollections) emptyList() else listOf(
             CharacterRelationEntity(
                 slot = RelationSlot.`과거`,
                 name = "민호",
@@ -455,8 +571,10 @@ class CharacterRuntimeInstructionRendererTests {
                 "자기 가치에 대한 공포",
                 openedDisclosureRuntimeIncluded,
             ),
-        ),
-        voiceSamples = listOf(
+        ) + (1..extraMidDisclosureCount).map {
+            CharacterDisclosureItemEntity(DisclosureLevel.MID, "추가 중간 항목$it", runtimeIncluded = true)
+        },
+        voiceSamples = if (!withOptionalCollections) emptyList() else listOf(
             CharacterVoiceSampleEntity(
                 situation = "의견에 반대했을 때",
                 line = "그 선은 제가 정할게요.",

@@ -1,27 +1,7 @@
 package ltmp.charactergen.service.generation
 
 import ltmp.charactergen.client.openai.TextEmbeddingClient
-import ltmp.charactergen.model.BannedWords
-import ltmp.charactergen.model.CharacterBehavior
-import ltmp.charactergen.model.CharacterContradiction
-import ltmp.charactergen.model.CharacterCore
-import ltmp.charactergen.model.CharacterIdentity
-import ltmp.charactergen.model.CharacterLie
-import ltmp.charactergen.model.CharacterRelation
-import ltmp.charactergen.model.CharacterVoice
-import ltmp.charactergen.model.DesignNote
-import ltmp.charactergen.model.DisclosureLadder
-import ltmp.charactergen.model.ForbiddenBehavior
 import ltmp.charactergen.model.L0CharacterResponse
-import ltmp.charactergen.model.NonNegotiable
-import ltmp.charactergen.model.NonNegotiableDomain
-import ltmp.charactergen.model.RelationPresence
-import ltmp.charactergen.model.RelationSlot
-import ltmp.charactergen.model.RelationshipEvents
-import ltmp.charactergen.model.RelationshipStageNote
-import ltmp.charactergen.model.RelationshipStages
-import ltmp.charactergen.model.VerbalTic
-import ltmp.charactergen.model.VoiceSample
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -64,26 +44,29 @@ class RuntimeDuplicateSelectorTests {
     }
 
     @Test
-    fun `신변 디테일이 전부 겹친다고 판정돼도 가장 덜 겹치는 두 개는 남긴다`() {
-        // 세 묘사 모두 평소 행동 규칙과 임계값 이상으로 겹치되, 겹치는 정도는 서로 다르게 둔다.
+    fun `신변 디테일이 전부 겹친다고 판정돼도 하한만큼은 남기고 경고한다`() {
+        // 세 묘사 모두 평소 행동 규칙과 겹치지만 하한 2개 때문에 하나만 빠진다. (스펙 4-1)
         val selector = selector(
-            "묘사1" to vector(0.90f, 0.44f, 0f),
-            "묘사2" to vector(1f, 0f, 0f),
-            "묘사3" to vector(0.95f, 0.31f, 0f),
+            "묘사1" to axis(0),
+            "묘사2" to axis(0),
+            "묘사3" to axis(0),
             "평소 행동 규칙" to axis(0),
         )
 
         val inclusion = selector.select(character(concreteDetails = listOf("묘사1", "묘사2", "묘사3")))
 
         assertEquals(
-            setOf(0, 2),
+            setOf(1, 2),
             inclusion.concreteDetailIndexes,
-            "런타임에 신변 디테일이 하나도 남지 않으면 안 된다",
+            "런타임에 신변 디테일이 하한보다 적게 남으면 안 된다",
         )
+        assertEquals(2, inclusion.warnings.count { it.contains("신변 디테일") })
+        assertTrue(inclusion.warnings.any { it.contains("묘사2") })
     }
 
     @Test
-    fun `상위 필드와 겹치는 말버릇과 문장 패턴은 제외한다`() {
+    fun `상위 필드와 겹치는 말버릇은 제외하고 문장 패턴은 남긴다`() {
+        // 문장 패턴은 스펙 4-1에서 비교 기준으로 옮겨져 겹침 판정으로는 빠지지 않는다.
         val selector = selector(
             "말버릇2" to axis(0),
             "정서 표출 서술" to axis(0),
@@ -94,26 +77,58 @@ class RuntimeDuplicateSelectorTests {
         val inclusion = selector.select(character())
 
         assertEquals(setOf(0, 2, 3), inclusion.verbalTicIndexes)
-        assertFalse(inclusion.sentencePatternIncluded)
+        assertTrue(inclusion.sentencePatternIncluded)
     }
 
     @Test
-    fun `상위 필드와 겹치는 개방 항목은 제외하고 surface는 남긴다`() {
+    fun `상위 필드와 겹치는 surface는 제외하고 개방 항목은 남긴다`() {
+        // 스펙 4-1에서 제거 대상과 비교 기준이 뒤집혔다. surface가 후보, 비surface 항목이 기준이다.
         val selector = selector(
             "surface1" to axis(0),
             "회피 서술" to axis(0),
-            "mid1" to axis(1),
-            "관계 단계 애착" to axis(1),
+        )
+
+        val inclusion = selector.select(
+            character(surface = listOf("surface1", "surface2", "surface3", "surface4")),
+        )
+
+        assertFalse(0 in inclusion.disclosureItemIndexes, "겹치는 surface 항목은 빠져야 한다")
+        assertTrue(setOf(1, 2, 3).all { it in inclusion.disclosureItemIndexes })
+    }
+
+    @Test
+    fun `surface는 하한 세 개 아래로 내려가지 않는다`() {
+        val selector = selector(
+            "surface1" to axis(0),
+            "surface2" to axis(0),
+            "surface3" to axis(0),
+            "회피 서술" to axis(0),
+        )
+
+        val inclusion = selector.select(
+            character(surface = listOf("surface1", "surface2", "surface3", "surface4")),
+        )
+
+        assertEquals(
+            setOf(1, 2, 3),
+            inclusion.disclosureItemIndexes.filter { it < 4 }.toSet(),
+            "surface가 하한 아래로 내려가면 관계가 얕은 동안 나눌 대화가 없어진다",
+        )
+        assertEquals(2, inclusion.warnings.count { it.contains("가벼운 개인사") })
+    }
+
+    @Test
+    fun `개수 제약이 있는 배열은 겹쳐도 건드리지 않는다`() {
+        // non_negotiables, forbidden_behaviors, behavioral_rule은 후보에도 기준에도 없다. (스펙 4-1)
+        val selector = selector(
+            "굽히지 않는 것1" to axis(0),
+            "하지 않는 것1" to axis(0),
+            "평소 행동 규칙" to axis(0),
         )
 
         val inclusion = selector.select(character())
 
-        assertTrue(
-            0 in inclusion.disclosureItemIndexes,
-            "surface는 관계가 얕은 동안의 유일한 대화 소재라 겹쳐도 빼지 않는다",
-        )
-        assertFalse(2 in inclusion.disclosureItemIndexes, "겹치는 mid 항목은 빠져야 한다")
-        assertTrue(3 in inclusion.disclosureItemIndexes)
+        assertTrue(inclusion.warnings.isEmpty(), "제거 대상이 아닌 필드로 경고가 나오면 안 된다")
     }
 
     @Test
@@ -122,7 +137,8 @@ class RuntimeDuplicateSelectorTests {
 
         assertEquals(setOf(0, 1, 2, 3), inclusion.verbalTicIndexes)
         assertTrue(inclusion.sentencePatternIncluded)
-        assertEquals((0..4).toSet(), inclusion.disclosureItemIndexes)
+        assertEquals((0..5).toSet(), inclusion.disclosureItemIndexes)
+        assertTrue(inclusion.warnings.isEmpty())
     }
 
     private fun selector(vararg vectors: Pair<String, FloatArray>): RuntimeDuplicateSelector {
@@ -138,77 +154,10 @@ class RuntimeDuplicateSelectorTests {
     /** 지정한 축만 1인 단위 벡터. 서로 다른 축끼리는 코사인 0이다. */
     private fun axis(index: Int): FloatArray = FloatArray(DIMENSION).also { it[index] = 1f }
 
-    private fun vector(vararg values: Float): FloatArray =
-        FloatArray(DIMENSION).also { values.forEachIndexed { index, value -> it[index] = value } }
-
     private fun character(
         concreteDetails: List<String> = listOf("묘사1", "묘사2", "묘사3"),
-    ): L0CharacterResponse = L0CharacterResponse(
-        identity = CharacterIdentity(
-            name = "서윤",
-            age = 29,
-            gender = "여성",
-            occupation = "웹툰 작가",
-            dailyLife = "새벽에 작업하고 낮에 잔다",
-            oneLine = "한 줄 요약",
-            concreteDetails = concreteDetails,
-        ),
-        core = CharacterCore(
-            lie = CharacterLie(
-                type = "대체 가능성 공포형",
-                statement = "믿음",
-                behavioralRule = listOf("평소 행동 규칙"),
-                wound = "상처",
-            ),
-            want = "쫓는 것",
-            need = "필요한 것",
-            wantNeedConflict = "충돌",
-            contradiction = CharacterContradiction("특성 A", "특성 B", "공통 뿌리"),
-            nonNegotiables = listOf(
-                NonNegotiable(NonNegotiableDomain.`관계를 다루는 방식`, "굽히지 않는 것", "연결", true),
-            ),
-            forbiddenBehaviors = listOf(ForbiddenBehavior("하지 않는 것", "연결")),
-        ),
-        relationshipStages = RelationshipStages(
-            early = stageNote("관계 단계 애착"),
-            deepening = stageNote("깊어질 때 애착"),
-            close = stageNote("가까울 때 애착"),
-        ),
-        relationshipEvents = RelationshipEvents(
-            onRejection = "거절당했을 때",
-            onConflict = "부딪혔을 때",
-            onAbsence = "오랜만일 때",
-            onOverApproach = "너무 다가올 때",
-        ),
-        behavior = CharacterBehavior(
-            emotionalExpressionNote = "정서 표출 서술",
-            avoidanceNote = "회피 서술",
-        ),
-        voice = CharacterVoice(
-            speechArchetypeNote = "말투 원형 설명",
-            sentencePattern = "문장 패턴",
-            verbalTics = (1..4).map { VerbalTic("상황$it", "말버릇$it") },
-            bannedWords = BannedWords(fromLie = listOf("무조건"), fromBackground = listOf("당연히")),
-        ),
-        relations = listOf(
-            CharacterRelation(RelationSlot.과거, "이름", "관계", "설명", RelationPresence.부재, "연결"),
-        ),
-        disclosureLadder = DisclosureLadder(
-            surface = listOf("surface1", "surface2"),
-            mid = listOf("mid1", "mid2"),
-            deep = listOf("deep1"),
-            deepest = emptyList(),
-        ),
-        voiceSamples = listOf(VoiceSample("상황", "발화", "무엇을 보여주는가")),
-        designNote = DesignNote("판별", "장기", "없음", "성향 반영"),
-    )
-
-    private fun stageNote(attachment: String) = RelationshipStageNote(
-        attachment = attachment,
-        address = "$attachment 호칭",
-        emotionalRange = "$attachment 감정",
-        avoidance = "$attachment 회피",
-    )
+        surface: List<String> = listOf("surface1", "surface2", "surface3"),
+    ) = l0CharacterResponse(concreteDetails = concreteDetails, surface = surface)
 
     private companion object {
         const val DIMENSION = 8

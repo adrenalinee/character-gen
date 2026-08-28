@@ -114,6 +114,15 @@ data class L0GenerationExecuteDto(
     @field:Schema(description = "실패 시 오류 추적 정보", nullable = true)
     val errorTrace: String? = null,
 
+    @field:Schema(
+        description = "저장 시점에 발견한 캐릭터 데이터 경고. 한 줄에 하나이며, 경고가 없으면 null이다. " +
+            "개수 규정 미달과, 다른 필드와 겹치는데도 최소 개수 때문에 런타임에서 빼지 못한 항목이 여기 담긴다. " +
+            "경고가 있어도 캐릭터는 그대로 저장되며 대화도 가능하다.",
+        nullable = true,
+        example = "절대 하지 않는 것(forbidden_behaviors) 개수가 규정과 다릅니다: 규정 3~5개, 실제 2개",
+    )
+    val runtimeWarnings: String? = null,
+
     @field:Schema(description = "실행 상태에 관한 부가 메시지", nullable = true)
     val message: String? = null,
 
@@ -200,6 +209,7 @@ fun L0GenerationExecute.toDto() = L0GenerationExecuteDto(
     characterId = character?.id,
     status = status,
     errorTrace = errorTrace,
+    runtimeWarnings = runtimeWarnings,
     message = message,
     elapsed = elapsed,
     completedAt = completedAt,

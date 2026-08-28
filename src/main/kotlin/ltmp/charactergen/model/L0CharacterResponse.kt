@@ -2,6 +2,7 @@ package ltmp.charactergen.model
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
+import io.swagger.v3.oas.annotations.media.ArraySchema
 
 /**
  * L0 캐릭터 생성 LLM의 구조화 출력 스키마. (L0 캐릭터 생성 프롬프트 v4.2)
@@ -31,11 +32,13 @@ data class L0CharacterResponse(
     val relationshipEvents: RelationshipEvents,
     val behavior: CharacterBehavior,
     val voice: CharacterVoice,
+    @get:ArraySchema(minItems = 5, maxItems = 5)
     val relations: List<CharacterRelation>,
     @get:JsonPropertyDescription("서버가 관계 깊이와 상황을 판정해 열린 층위만 대화에 주입한다. 각 항목은 캐릭터가 실제로 발화할 수 있는 내용의 요지로 쓴다.")
     @get:JsonProperty("disclosure_ladder")
     val disclosureLadder: DisclosureLadder,
     @get:JsonProperty("voice_samples")
+    @get:ArraySchema(minItems = 3, maxItems = 3)
     val voiceSamples: List<VoiceSample>,
     @get:JsonPropertyDescription("[검토] 운영자 전용. 대화에도 사건 설계에도 들어가지 않는다.")
     @get:JsonProperty("design_note")
@@ -59,6 +62,7 @@ data class CharacterIdentity(
     val oneLine: String,
     @get:JsonPropertyDescription("[대화 일부 · 설계] 이 인물을 알아보게 하는 신변 디테일 3~5개. 각 1문장. 일상 사건을 만드는 재료로도 쓰이므로 구체적일수록 좋다. 사물과 숫자만이 아니라 사람을 대하는 버릇, 감정이 나타나는 순간, 반복하는 충동도 여기에 들어갈 수 있다. 성향과 어긋나지 않아야 한다. disclosure_ladder의 어느 층위와도 같은 소재를 쓰지 마라. 같은 물건이나 습관을 두 곳에 적으면 이 인물은 그 얘기만 하게 된다.")
     @get:JsonProperty("concrete_details")
+    @get:ArraySchema(minItems = 3, maxItems = 5)
     val concreteDetails: List<String>,
 )
 
@@ -82,8 +86,10 @@ data class CharacterCore(
     )
     val contradiction: CharacterContradiction,
     @get:JsonProperty("non_negotiables")
+    @get:ArraySchema(minItems = 3, maxItems = 3)
     val nonNegotiables: List<NonNegotiable>,
     @get:JsonProperty("forbidden_behaviors")
+    @get:ArraySchema(minItems = 3, maxItems = 5)
     val forbiddenBehaviors: List<ForbiddenBehavior>,
 )
 
@@ -101,6 +107,7 @@ data class CharacterLie(
             "각 항목에 대해 이것이 Lie와 어떻게 연결되는지 스스로 답할 수 없다면 다시 써라.",
     )
     @get:JsonProperty("behavioral_rule")
+    @get:ArraySchema(minItems = 2, maxItems = 3)
     val behavioralRule: List<String>,
     @get:JsonPropertyDescription("[조건부 대화 · 설계] 이 믿음이 생겨난 과거 한 문장. 관계가 충분히 깊어졌을 때만 공개되므로, 캐릭터가 실제로 말할 수 있는 내용의 요지로 쓴다. 주어진 상처 조건(시기·장소·상처를 준 사람·형태·지속 시간)을 그대로 지킨다. 지속 시간이 길게 지정된 경우 단일 사건이 아니라 반복되며 쌓인 경험으로 쓴다.")
     val wound: String,
@@ -209,6 +216,7 @@ data class CharacterVoice(
     val sentencePattern: String,
     @get:JsonPropertyDescription("[대화] 앞의 세 개는 프롬프트에서 지정된 상황에 대해, 네 번째는 이 인물에게 특히 중요한 상황을 스스로 정해 만든다.")
     @get:JsonProperty("verbal_tics")
+    @get:ArraySchema(minItems = 4, maxItems = 4)
     val verbalTics: List<VerbalTic>,
     @get:JsonPropertyDescription("[대화] 이 인물이 쓰지 않는 실제 단어나 표현.")
     @get:JsonProperty("banned_words")
@@ -232,9 +240,11 @@ data class VerbalTic(
 data class BannedWords(
     @get:JsonPropertyDescription("Lie 때문에 쓸 수 없는 표현.")
     @get:JsonProperty("from_lie")
+    @get:ArraySchema(minItems = 2, maxItems = 3)
     val fromLie: List<String>,
     @get:JsonPropertyDescription("이 인물의 일, 자란 환경, 말투가 몸에 밴 자리에서만 나올 법한 표현. 다른 캐릭터와 겹치면 안 된다. 일반적인 과장 표현을 여기에 넣지 마라.")
     @get:JsonProperty("from_background")
+    @get:ArraySchema(minItems = 2, maxItems = 4)
     val fromBackground: List<String>,
 )
 
@@ -272,22 +282,26 @@ data class DisclosureLadder(
             "먹는 것, 자는 시간, 자주 가는 곳, 사소한 취향, 몸에 밴 습관처럼 처음 만난 사람과도 가볍게 주고받을 수 있는 것을 포함하라. " +
             "전부 일 이야기면 관계가 얕은 동안 나눌 대화가 없어진다.",
     )
+    @get:ArraySchema(minItems = 3, maxItems = 5)
     val surface: List<String>,
     @get:JsonPropertyDescription(
         "[조건부 대화] 몇 번 대화한 사람에게 말하는 것. surface와 같은 형식의 사실 서술로 쓴다. " +
             "'~라고 말한다'처럼 발화 행위를 적지 말고 내용만 적는다. " +
             "identity.concrete_details나 surface에 이미 적은 것을 여기 다시 적지 마라. 그러면 개방의 의미가 없어진다.",
     )
+    @get:ArraySchema(minItems = 3, maxItems = 4)
     val mid: List<String>,
     @get:JsonPropertyDescription(
         "[조건부 대화] 조건이 갖춰져야 말하는 것. 상처와 직접 연결된 과거. " +
             "surface, mid와 같은 형식의 사실 서술로 쓴다. 앞 층위에 적은 것을 반복하지 마라.",
     )
+    @get:ArraySchema(minItems = 2, maxItems = 3)
     val deep: List<String>,
     @get:JsonPropertyDescription(
         "[조건부 대화] 아직 누구에게도 말한 적 없는 단 하나. " +
             "앞 층위에서 공개된 사실을 뒤집거나 다시 보게 만드는 것이면 가장 좋다. 같은 형식의 사실 서술로 쓴다.",
     )
+    @get:ArraySchema(minItems = 1, maxItems = 1)
     val deepest: List<String>,
 )
 

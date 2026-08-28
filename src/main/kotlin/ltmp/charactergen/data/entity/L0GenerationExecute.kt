@@ -178,6 +178,17 @@ class L0GenerationExecute(
     @Column(name = "error_trace")
     var errorTrace: String? = null,
 
+    /**
+     * 저장 시점에 발견한 캐릭터 데이터 경고. 한 줄에 하나이며, 경고가 없으면 null이다.
+     *
+     * 개수 규정 미달과, 겹치는데도 최소 개수 때문에 빼지 못한 항목이 여기 쌓인다.
+     * 값은 고치지 않으므로 캐릭터는 그대로 저장되고, 이 기록은 반복 생성에서 생성 프롬프트를
+     * 고칠 근거로만 쓴다. (런타임 프롬프트 조립 스펙 v1 4-1)
+     */
+    @Lob
+    @Column(name = "runtime_warnings")
+    var runtimeWarnings: String? = null,
+
     @Lob
     @Column
     var message: String? = null,

@@ -48,6 +48,35 @@ class OpenAiResponsesL0CharacterClientTests {
     }
 
     /**
+     * 개수 제약은 프롬프트 본문이 아니라 스키마로 나가야 지켜진다. (런타임 프롬프트 조립 스펙 v1 6절 11번)
+     *
+     * 스펙은 `forbidden_behaviors`가 3개 미만으로 줄어드는 원인을 중복 제거로 보지만,
+     * [ltmp.charactergen.service.generation.RuntimeDuplicateSelector]는 이 필드를 후보에도 기준에도
+     * 넣지 않아 애초에 건드리지 않는다. 실제 원인은 이 클래스에서 만들어지는 스키마에 개수 제약이
+     * 하나도 없었다는 것이다. 참고용 `l0_character_schema_v4.2.json`의 minItems는 전송되지 않는다.
+     *
+     * SDK는 victools에 Swagger2Module을 등록하므로 `@ArraySchema`가 스키마로 옮겨지고,
+     * SDK의 로컬 검증기도 배열 하위 스키마에서 minItems/maxItems를 허용한다.
+     * 둘 중 하나라도 깨지면 이 테스트가 먼저 실패한다.
+     */
+    @Test
+    fun `배열 필드의 개수 제약이 구조화 출력 스키마에 실린다`() {
+        val params = OpenAiResponsesL0CharacterClient(
+            model = "gpt-5.5",
+            openAIClient = mock(),
+        ).createParams(
+            GenerationPrompt(
+                instructions = "system instructions",
+                inputs = listOf(GenerationPromptInput(role = "user", inputText = "user prompt")),
+            ),
+        )
+
+        val paramsDescription = params.rawParams.toString()
+        assertTrue(paramsDescription.contains("minItems"), paramsDescription)
+        assertTrue(paramsDescription.contains("maxItems"), paramsDescription)
+    }
+
+    /**
      * 여러 번 참조되는 타입은 `${'$'}defs`로 빠지고 그 자리에는 `${'$'}ref`만 남는다.
      * strict 스키마는 `${'$'}ref` 노드에 description 같은 다른 키워드가 함께 있으면 요청 자체를 거부하므로,
      * 그런 타입의 필드에는 설명을 붙이면 안 된다. 이 규칙은 스키마를 만들어봐야만 드러나서 여기서 막는다.
