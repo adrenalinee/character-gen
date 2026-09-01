@@ -6,6 +6,7 @@ import ltmp.charactergen.api.chat.CharacterChatDeltaEventDto
 import ltmp.charactergen.api.chat.CharacterChatDoneEventDto
 import ltmp.charactergen.api.chat.CharacterChatMessageRequest
 import ltmp.charactergen.api.chat.CharacterChatSessionDto
+import ltmp.charactergen.api.chat.CharacterRuntimeInstructionPreviewDto
 import ltmp.charactergen.api.chat.CreateCharacterChatSessionRequest
 import ltmp.charactergen.api.chat.toDto
 import ltmp.charactergen.client.openai.CharacterChatLlmClient
@@ -66,12 +67,61 @@ class CharacterChatService(
 
     /**
      * 캐릭터를 런타임 인스트럭션으로 조립해 대화 세션을 만든다.
-     *
-     * 조립은 이 트랜잭션 안에서 끝내고 결과를 문자열로 보관한다.
-     * 이후 스트리밍 스레드는 DB에 접근하지 않는다.
      */
     @Transactional(readOnly = true)
     fun createSession(request: CreateCharacterChatSessionRequest): CharacterChatSessionDto {
+        val assembled = assembleRuntimeInstruction(request)
+        val session = CharacterChatSession(
+            id = UUID.randomUUID().toString(),
+            characterId = assembled.characterId,
+            characterName = assembled.characterName,
+            relationshipStage = assembled.options.relationshipStage,
+            openedDisclosureLevel = assembled.options.openedDisclosureLevel,
+            refId = assembled.refId,
+            instructionBranch = assembled.instructionBranch,
+            instructions = assembled.instructions,
+            model = request.model?.takeIf { it.isNotBlank() } ?: defaultModel,
+            situationNote = assembled.options.situationNote,
+            includeVoiceSamples = assembled.options.includeVoiceSamples,
+            closedTopicMode = assembled.options.closedTopicMode,
+            createdAt = OffsetDateTime.now(),
+        )
+        sessionStore.put(session)
+        return session.toDto(expiresAt(session))
+    }
+
+    /**
+     * 세션을 만들지 않고 런타임 인스트럭션만 조립해 돌려준다.
+     *
+     * 조립 경로는 [createSession]과 같은 [assembleRuntimeInstruction]을 쓰므로
+     * 여기서 본 전문이 같은 요청으로 세션을 만들었을 때 실제로 주입되는 전문과 같다.
+     */
+    @Transactional(readOnly = true)
+    fun previewRuntimeInstruction(
+        request: CreateCharacterChatSessionRequest,
+    ): CharacterRuntimeInstructionPreviewDto {
+        val assembled = assembleRuntimeInstruction(request)
+        return CharacterRuntimeInstructionPreviewDto(
+            characterId = assembled.characterId,
+            characterName = assembled.characterName,
+            relationshipStage = assembled.options.relationshipStage,
+            openedDisclosureLevel = assembled.options.openedDisclosureLevel,
+            refId = assembled.refId,
+            instructionBranch = assembled.instructionBranch,
+            instructions = assembled.instructions,
+            situationNote = assembled.options.situationNote,
+            includeVoiceSamples = assembled.options.includeVoiceSamples,
+            closedTopicMode = assembled.options.closedTopicMode,
+        )
+    }
+
+    /**
+     * 요청에서 캐릭터와 ref를 찾아 런타임 인스트럭션을 조립한다.
+     *
+     * 조립은 호출한 트랜잭션 안에서 끝내고 결과를 문자열로 보관한다.
+     * 이후 스트리밍 스레드는 DB에 접근하지 않는다.
+     */
+    private fun assembleRuntimeInstruction(request: CreateCharacterChatSessionRequest): AssembledRuntimeInstruction {
         val character = characterRepository.findOneWithGenerationById(request.characterId)
             ?: throw ResourceNotFoundException("Character not found: ${request.characterId}")
 
@@ -88,23 +138,14 @@ class CharacterChatService(
                 ?: (request.relationshipStage == RelationshipStage.EARLY),
             closedTopicMode = request.closedTopicMode ?: ClosedTopicMode.TOPIC_ONLY,
         )
-        val session = CharacterChatSession(
-            id = UUID.randomUUID().toString(),
+        return AssembledRuntimeInstruction(
             characterId = character.id,
             characterName = character.name,
-            relationshipStage = options.relationshipStage,
-            openedDisclosureLevel = options.openedDisclosureLevel,
             refId = ref.id,
             instructionBranch = ref.name,
+            options = options,
             instructions = instructionRenderer.render(ref.instructions, character, options),
-            model = request.model?.takeIf { it.isNotBlank() } ?: defaultModel,
-            situationNote = options.situationNote,
-            includeVoiceSamples = options.includeVoiceSamples,
-            closedTopicMode = options.closedTopicMode,
-            createdAt = OffsetDateTime.now(),
         )
-        sessionStore.put(session)
-        return session.toDto(expiresAt(session))
     }
 
     fun getSession(sessionId: String): CharacterChatSessionDto {
@@ -262,6 +303,15 @@ class CharacterChatService(
         }
         return defaultPromptTemplateService.resolveDefaultRef(PromptTemplateType.CHARACTER_RUNTIME)
     }
+
+    private class AssembledRuntimeInstruction(
+        val characterId: Long,
+        val characterName: String,
+        val refId: Long,
+        val instructionBranch: String?,
+        val options: RuntimeInstructionOptions,
+        val instructions: String,
+    )
 
     private companion object {
         const val EVENT_DELTA = "delta"

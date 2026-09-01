@@ -220,3 +220,47 @@ fun CharacterChatMessage.toDto(): CharacterChatMessageDto = CharacterChatMessage
     content = content,
     createdAt = createdAt,
 )
+
+@Schema(
+    description = "세션을 만들지 않고 조립만 해 본 런타임 인스트럭션. " +
+        "같은 요청으로 세션을 만들면 여기 담긴 전문이 그대로 주입된다.",
+)
+data class CharacterRuntimeInstructionPreviewDto(
+    @field:Schema(description = "대상 캐릭터 식별자", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    val characterId: Long,
+
+    @field:Schema(description = "대상 캐릭터 이름", example = "서윤", requiredMode = Schema.RequiredMode.REQUIRED)
+    val characterName: String,
+
+    @field:Schema(description = "관계 단계", example = "EARLY", requiredMode = Schema.RequiredMode.REQUIRED)
+    val relationshipStage: RelationshipStage,
+
+    @field:Schema(
+        description = "이 조립에서 실제로 열린 개인사 층위. 요청에서 생략했으면 관계 단계에서 파생한 값이다.",
+        example = "SURFACE",
+        requiredMode = Schema.RequiredMode.REQUIRED,
+    )
+    val openedDisclosureLevel: DisclosureLevel,
+
+    @field:Schema(description = "조립에 사용한 인스트럭션 프롬프트 ref 식별자", example = "10", requiredMode = Schema.RequiredMode.REQUIRED)
+    val refId: Long,
+
+    @field:Schema(
+        description = "조립에 사용한 인스트럭션 템플릿 브랜치. VERSION ref로 조립했으면 null이다.",
+        example = "main",
+        nullable = true,
+    )
+    val instructionBranch: String? = null,
+
+    @field:Schema(description = "조립된 런타임 인스트럭션 전문", requiredMode = Schema.RequiredMode.REQUIRED)
+    val instructions: String,
+
+    @field:Schema(description = "캐릭터에게 부여한 현재 상황", nullable = true)
+    val situationNote: String?,
+
+    @field:Schema(description = "예시 발화 주입 여부", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
+    val includeVoiceSamples: Boolean,
+
+    @field:Schema(description = "닫힌 개인사 층위 처리 방식", example = "TOPIC_ONLY", requiredMode = Schema.RequiredMode.REQUIRED)
+    val closedTopicMode: ClosedTopicMode,
+)

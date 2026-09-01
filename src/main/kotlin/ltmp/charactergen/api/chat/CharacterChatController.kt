@@ -68,6 +68,36 @@ class CharacterChatController(
     ): CharacterChatSessionDto = characterChatService.createSession(request)
 
     @Operation(
+        summary = "런타임 인스트럭션 조립 결과만 조회",
+        description = "세션을 만들지 않고, 세션 생성과 똑같은 요청으로 조립되는 런타임 인스트럭션 전문만 돌려준다. " +
+            "세션을 남기지 않으므로 프롬프트나 브랜치를 바꿔가며 조립 결과만 비교할 때 쓴다. " +
+            "요청 본문은 세션 생성과 같으며 model은 조립에 관여하지 않으므로 무시한다.",
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200",
+                description = "조립 성공",
+                content = [Content(schema = Schema(implementation = CharacterRuntimeInstructionPreviewDto::class))],
+            ),
+            ApiResponse(
+                responseCode = "400",
+                description = "요청 값이 올바르지 않거나, 용도가 CHARACTER_RUNTIME이 아닌 ref이거나, refId와 instructionBranch를 동시에 지정함",
+                content = [Content(schema = Schema(implementation = ApiErrorResponse::class))],
+            ),
+            ApiResponse(
+                responseCode = "404",
+                description = "캐릭터, 프롬프트 ref, 인스트럭션 템플릿 브랜치, 또는 기본 프롬프트 지정 없음",
+                content = [Content(schema = Schema(implementation = ApiErrorResponse::class))],
+            ),
+        ],
+    )
+    @PostMapping("/runtime-instructions")
+    fun previewRuntimeInstruction(
+        @Valid @RequestBody request: CreateCharacterChatSessionRequest,
+    ): CharacterRuntimeInstructionPreviewDto = characterChatService.previewRuntimeInstruction(request)
+
+    @Operation(
         summary = "캐릭터와 대화 (SSE 스트리밍)",
         description = """
             사용자 메시지를 보내고 캐릭터 응답을 SSE로 받는다. 세션에 쌓인 대화 기록이 매 턴 함께 전달된다.

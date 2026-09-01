@@ -81,6 +81,35 @@ class CharacterChatIntegrationTests(
     }
 
     @Test
+    fun `런타임 인스트럭션 조회는 세션을 만들지 않고 세션 생성과 같은 전문을 돌려준다`() {
+        val characterId = persistCharacter()
+
+        val preview = objectMapper.readTree(
+            mockMvc.post("/api/v1/character-chat/runtime-instructions") {
+                contentType = org.springframework.http.MediaType.APPLICATION_JSON
+                content = """{"characterId":$characterId,"relationshipStage":"EARLY"}"""
+            }.andExpect {
+                status { isOk() }
+            }.andReturn().response.contentAsString,
+        )
+
+        assertEquals(characterId.toInt(), preview.path("characterId").asInt())
+        assertEquals("서윤", preview.path("characterName").asString())
+        assertEquals("EARLY", preview.path("relationshipStage").asString())
+        assertEquals("SURFACE", preview.path("openedDisclosureLevel").asString())
+        assertEquals("main", preview.path("instructionBranch").asString())
+        assertEquals("TOPIC_ONLY", preview.path("closedTopicMode").asString())
+        assertTrue(preview.path("sessionId").isMissingNode, "조회 결과에는 세션이 없다")
+
+        val session = createSession(characterId, "EARLY")
+        assertEquals(
+            session.path("instructions").asString(),
+            preview.path("instructions").asString(),
+            "조회한 전문은 같은 요청으로 만든 세션에 주입되는 전문과 같아야 한다",
+        )
+    }
+
+    @Test
     fun `관계 단계에 따라 조립되는 인스트럭션이 달라진다`() {
         val characterId = persistCharacter()
 
