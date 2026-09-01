@@ -13,6 +13,7 @@ import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INPUT_TEXT_V4
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V4
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_1
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_2
+import ltmp.charactergen.config.L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_3
 import ltmp.charactergen.config.L0_CHARACTER_PROMPT_TEMPLATE_NAME
 import ltmp.charactergen.data.BigFiveTrait
 import ltmp.charactergen.data.PromptTemplateRefType
@@ -586,12 +587,12 @@ class ManagementApiIntegrationTests(
         referenceDataInitializer.run(DefaultApplicationArguments())
 
         val template = assertNotNull(promptTemplateRepository.findByName(L0_CHARACTER_PROMPT_TEMPLATE_NAME))
-        assertEquals(6, template.lastVersion)
+        assertEquals(7, template.lastVersion)
         assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, template.defaultBranch)
         assertEquals(PromptTemplateType.CHARACTER_GENERATION, template.type)
 
         val refs = promptTemplateRefRepository.findAll().filter { it.promptTemplate.id == template.id }
-        assertEquals(7, refs.size)
+        assertEquals(8, refs.size)
         val branch = refs.single { it.type == PromptTemplateRefType.BRANCH }
         val versionOne = refs.single { it.version == 1L }
         val versionTwo = refs.single { it.version == 2L }
@@ -599,9 +600,10 @@ class ManagementApiIntegrationTests(
         val versionFour = refs.single { it.version == 4L }
         val versionFive = refs.single { it.version == 5L }
         val versionSix = refs.single { it.version == 6L }
+        val versionSeven = refs.single { it.version == 7L }
 
         assertEquals(L0_CHARACTER_PROMPT_BRANCH_NAME, branch.name)
-        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_2, branch.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_3, branch.instructions)
         assertEquals(1, branch.inputs.size)
         assertEquals("user", branch.inputs.single().role)
         assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V4, branch.inputs.single().inputText)
@@ -618,13 +620,16 @@ class ManagementApiIntegrationTests(
         assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V4, versionFour.instructions)
         assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V4, versionFour.inputs.single().inputText)
         assertEquals(branch.id, versionFour.fromRef?.id)
-        // v4.1과 v4.2는 시스템 프롬프트만 바뀌었으므로 사용자 프롬프트는 v4와 같다.
+        // v4.1부터 v4.3까지는 시스템 프롬프트만 바뀌었으므로 사용자 프롬프트는 v4와 같다.
         assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_1, versionFive.instructions)
         assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V4, versionFive.inputs.single().inputText)
         assertEquals(branch.id, versionFive.fromRef?.id)
         assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_2, versionSix.instructions)
         assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V4, versionSix.inputs.single().inputText)
         assertEquals(branch.id, versionSix.fromRef?.id)
+        assertEquals(L0_CHARACTER_PROMPT_INSTRUCTIONS_V4_3, versionSeven.instructions)
+        assertEquals(L0_CHARACTER_PROMPT_INPUT_TEXT_V4, versionSeven.inputs.single().inputText)
+        assertEquals(branch.id, versionSeven.fromRef?.id)
         assertTrue(
             branch.instructions.contains("## 아직 공개되지 않은 것"),
             "v4.1의 누설 차단 문단이 브랜치 본문에 있어야 한다",
@@ -638,7 +643,12 @@ class ManagementApiIntegrationTests(
                 branch.instructions.contains("## 필드끼리 겹치지 않게"),
             "v4.2의 예시 복사·필드 중복 차단 문단이 브랜치 본문에 있어야 한다",
         )
-        assertEquals(branch.revision, versionSix.fromRefRevision)
+        assertTrue(
+            branch.instructions.contains("관계 단계 네 필드는 정도가 아니라 행동으로 쓴다.") &&
+                branch.instructions.contains("관계 단계 네 필드가 정도가 아니라 행동으로 쓰여 있는가"),
+            "v4.3의 관계 단계 행동 서술 문단과 자기 점검 항목이 브랜치 본문에 있어야 한다",
+        )
+        assertEquals(branch.revision, versionSeven.fromRefRevision)
 
         mockMvc.get("/api/v1/prompt-templates/{id}", template.id).andExpect {
             status { isOk() }

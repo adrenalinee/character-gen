@@ -1,6 +1,6 @@
 package ltmp.charactergen.service.chat
 
-import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V5
+import ltmp.charactergen.config.L0_RUNTIME_INSTRUCTION_V6
 import ltmp.charactergen.data.BannedWordSource
 import ltmp.charactergen.data.ClosedTopicMode
 import ltmp.charactergen.data.DisclosureLevel
@@ -96,14 +96,14 @@ class CharacterRuntimeInstructionRendererTests {
     fun `겹친다고 판정된 문장 패턴은 라벨째로 빠진다`() {
         // 라벨만 남으면 "문장:" 뒤가 빈 줄이 된다. (v4.2 B-13)
         val included = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V5,
+            L0_RUNTIME_INSTRUCTION_V6,
             character(),
             options(RelationshipStage.EARLY),
         )
         assertTrue(included.contains("문장: 짧은 결론 뒤 비유"))
 
         val excluded = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V5,
+            L0_RUNTIME_INSTRUCTION_V6,
             character(sentencePatternRuntimeIncluded = false),
             options(RelationshipStage.EARLY),
         )
@@ -124,6 +124,50 @@ class CharacterRuntimeInstructionRendererTests {
             early.substringAfter("## 가까워지면서 말하게 된 것").contains("편집자 이야기"),
         )
         assertTrue(early.contains("위에 없는 개인사는 지어내지 않는다"))
+    }
+
+    @Test
+    fun `중간 층위와 심층 층위는 서로 다른 섹션에 넣는다`() {
+        // 층위가 섞이면 캐릭터가 오래 걸려 여는 이야기에 무게를 실을 수 없다. (스펙 v1.1 Q-3)
+        val deepening = render(RelationshipStage.DEEPENING)
+        assertTrue(deepening.contains("## 가까워지면서 말하게 된 것"))
+        assertFalse(deepening.contains("## 오래 알고 나서야 말한 것"), "mid만 열렸는데 심층 섹션이 나왔다")
+
+        val close = render(RelationshipStage.CLOSE, DisclosureLevel.DEEPEST)
+        val midSection = close.substringAfter("## 가까워지면서 말하게 된 것")
+            .substringBefore("## 오래 알고 나서야 말한 것")
+        val deepSection = close.substringAfter("## 오래 알고 나서야 말한 것").substringBefore("위에 없는 개인사")
+
+        assertTrue(midSection.contains("편집자 이야기"))
+        assertFalse(midSection.contains("교체 경험"), "심층 항목이 중간 층위 목록에 섞였다")
+        assertTrue(deepSection.contains("교체 경험"))
+        assertTrue(deepSection.contains("자기 가치에 대한 공포"))
+    }
+
+    @Test
+    fun `상처와 같은 사건을 되풀이하는 개방 항목은 빠지고 상처는 남는다`() {
+        // 생성 단계가 1차, 이것은 조립 단계 백스톱이다. 겹쳤을 때 남기는 쪽은 상처다. (스펙 v1.1 Q-3)
+        val instruction = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V6,
+            character(
+                lieWound = "첫 연재에서 편집자가 원고를 반려하고 다른 작가로 교체했다",
+                deepDisclosureText = "그 연재에서 편집자가 원고를 반려한 뒤로 마감을 앞당겼다",
+            ),
+            options(RelationshipStage.CLOSE),
+        )
+
+        assertFalse(instruction.contains("마감을 앞당겼다"), "상처와 같은 사건을 말하는 deep 항목이 남았다")
+        assertTrue(instruction.contains("## 잘 꺼내지 않는 과거"))
+        assertTrue(instruction.contains("다른 작가로 교체했다"))
+    }
+
+    @Test
+    fun `상처 가드는 한 번에 다 말하지 말라는 문장까지 포함한다`() {
+        // wound는 한 문장으로 압축되어 있어 열리는 순간 통째로 발화되기 쉽다. (스펙 v1.1 Q-2)
+        val close = render(RelationshipStage.CLOSE)
+
+        assertTrue(close.contains("이 일을 먼저 꺼내지 않는다. 깊이 물어올 때만 조금씩 드러낸다."))
+        assertTrue(close.contains("한 번에 전부 말하지 않는다."))
     }
 
     @Test
@@ -217,6 +261,21 @@ class CharacterRuntimeInstructionRendererTests {
     }
 
     @Test
+    fun `열린 심층 항목이 없으면 부재 인물과 상처 섹션이 함께 빠진다`() {
+        // 두 섹션의 출력 조건은 개방 층위가 아니라 실제로 열린 deep 항목이다. (스펙 v1.1 Q-1, Q-2)
+        val instruction = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V6,
+            character(withDeepDisclosure = false),
+            options(RelationshipStage.CLOSE, DisclosureLevel.DEEPEST),
+        )
+
+        assertFalse(instruction.contains("## 지금은 만나지 않는 사람"))
+        assertFalse(instruction.contains("민호 — 전 편집자"))
+        assertFalse(instruction.contains("## 잘 꺼내지 않는 과거"))
+        assertFalse(instruction.contains("첫 연재에서 교체됐다"))
+    }
+
+    @Test
     fun `주변 사람은 다섯 명을 넘기지 않는다`() {
         val instruction = render(RelationshipStage.EARLY)
 
@@ -250,7 +309,7 @@ class CharacterRuntimeInstructionRendererTests {
     @Test
     fun `개방된 항목이 없으면 섹션 자체가 사라진다`() {
         val instruction = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V5,
+            L0_RUNTIME_INSTRUCTION_V6,
             character(openedDisclosureRuntimeIncluded = false),
             options(RelationshipStage.EARLY),
         )
@@ -367,7 +426,7 @@ class CharacterRuntimeInstructionRendererTests {
     fun `직업의 핵심 명사구가 일상 서술에 이미 있으면 일상 줄을 빼다`() {
         // 같은 말이 두 줄에 걸쳐 반복되면 모델이 그 소재만 붙들고 이야기한다. (스펙 3-1)
         val repeated = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V5,
+            L0_RUNTIME_INSTRUCTION_V6,
             character(occupation = "생활 다큐멘터리 사진가", dailyLife = "생활 다큐멘터리 촬영과 암실 작업을 오간다"),
             options(RelationshipStage.EARLY),
         )
@@ -384,7 +443,7 @@ class CharacterRuntimeInstructionRendererTests {
     fun `내용이 없는 섹션은 제목과 가드까지 사라진다`() {
         // 제목만 남으면 모델이 그 자리를 채우려 한다. (스펙 1-5)
         val instruction = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V5,
+            L0_RUNTIME_INSTRUCTION_V6,
             character(withOptionalCollections = false),
             options(RelationshipStage.EARLY),
         )
@@ -411,16 +470,36 @@ class CharacterRuntimeInstructionRendererTests {
     }
 
     @Test
-    fun `개방된 항목은 다섯 개를 넘기지 않는다`() {
-        // 공개 범위 구간만 개방 층위가 깊어질수록 누적돼 길이 예산을 넘길 수 있다. (스펙 4-2)
+    fun `공개 범위 항목 수는 관계 단계별 예산을 넘기지 않는다`() {
+        // 단계가 올라갈수록 개방 항목이 쌓이므로 상한도 단계별로 다르다. (스펙 v1.1 Q-4)
+        assertEquals(12, disclosureItemCount(RelationshipStage.DEEPENING, DisclosureLevel.MID))
+        assertEquals(16, disclosureItemCount(RelationshipStage.CLOSE, DisclosureLevel.DEEPEST))
+    }
+
+    @Test
+    fun `예산이 모자라도 처음 만난 사람에게 할 이야기는 남긴다`() {
+        // surface를 통째로 비우면 "꺼낼 수 있는 개인사가 없다"가 나온다. 예산 때문에 이번에 빼는 것과 뜻이 다르다.
         val instruction = renderer.render(
-            L0_RUNTIME_INSTRUCTION_V5,
-            character(extraMidDisclosureCount = 8),
+            L0_RUNTIME_INSTRUCTION_V6,
+            character(extraMidDisclosureCount = 20),
             options(RelationshipStage.CLOSE, DisclosureLevel.DEEPEST),
         )
-        val opened = instruction.substringAfter("## 가까워지면서 말하게 된 것").substringBefore("위에 없는 개인사")
 
-        assertEquals(5, opened.lines().count { it.startsWith("- ") })
+        assertTrue(instruction.contains("마감 습관"))
+        assertFalse(instruction.contains("꺼낼 수 있는 개인사가 없다"))
+    }
+
+    /** 공개 범위 세 섹션에 실제로 들어간 항목 수. 예산은 제목과 가드가 아니라 항목 줄만 센다. */
+    private fun disclosureItemCount(stage: RelationshipStage, openedLevel: DisclosureLevel): Int {
+        val instruction = renderer.render(
+            L0_RUNTIME_INSTRUCTION_V6,
+            character(extraMidDisclosureCount = 20),
+            options(stage, openedLevel),
+        )
+        return instruction.substringAfter("## 말할 수 있는 것")
+            .substringBefore("위에 없는 개인사")
+            .lines()
+            .count { it.startsWith("- ") }
     }
 
     /** 개방 층위를 주지 않으면 운영 기본값과 같게 단계에서 파생한다. */
@@ -431,7 +510,7 @@ class CharacterRuntimeInstructionRendererTests {
         includeVoiceSamples: Boolean = true,
         situationNote: String? = null,
     ): String = renderer.render(
-        L0_RUNTIME_INSTRUCTION_V5,
+        L0_RUNTIME_INSTRUCTION_V6,
         character(),
         options(stage, openedDisclosureLevel, closedTopicMode, includeVoiceSamples, situationNote),
     )
@@ -454,6 +533,7 @@ class CharacterRuntimeInstructionRendererTests {
      * @param withOptionalCollections false면 비어도 되는 컬렉션을 모두 비운다.
      *   내용이 없는 섹션이 제목까지 사라지는지 보기 위한 것이다.
      * @param extraMidDisclosureCount 개방 항목 상한을 넘기기 위해 더 넣는 mid 항목 수.
+     * @param withDeepDisclosure false면 deep 항목을 비운다. 부재 인물과 상처 섹션의 출력 조건을 보기 위한 것이다.
      */
     private fun character(
         sentencePatternRuntimeIncluded: Boolean = true,
@@ -462,6 +542,9 @@ class CharacterRuntimeInstructionRendererTests {
         dailyLife: String = "밤에만 작업한다",
         withOptionalCollections: Boolean = true,
         extraMidDisclosureCount: Int = 0,
+        withDeepDisclosure: Boolean = true,
+        lieWound: String = "첫 연재에서 교체됐다",
+        deepDisclosureText: String = "교체 경험",
     ): Character = Character(
         generationExecute = mock(L0GenerationExecute::class.java),
         name = "서윤",
@@ -472,7 +555,7 @@ class CharacterRuntimeInstructionRendererTests {
         oneLine = MARKER_ONE_LINE,
         lieType = "대체 가능성 공포형",
         lieStatement = MARKER_LIE_STATEMENT,
-        lieWound = "첫 연재에서 교체됐다",
+        lieWound = lieWound,
         want = "자기 방식의 작품을 남긴다",
         need = MARKER_NEED,
         wantNeedConflict = MARKER_WANT_NEED_CONFLICT,
@@ -565,15 +648,10 @@ class CharacterRuntimeInstructionRendererTests {
             CharacterDisclosureItemEntity(DisclosureLevel.SURFACE, "마감 습관", runtimeIncluded = true),
             CharacterDisclosureItemEntity(DisclosureLevel.MID, "편집자 이야기", openedDisclosureRuntimeIncluded),
             CharacterDisclosureItemEntity(DisclosureLevel.MID, "편집자와 틀어진 일", openedDisclosureRuntimeIncluded),
-            CharacterDisclosureItemEntity(DisclosureLevel.DEEP, "교체 경험", openedDisclosureRuntimeIncluded),
-            CharacterDisclosureItemEntity(
-                DisclosureLevel.DEEPEST,
-                "자기 가치에 대한 공포",
-                openedDisclosureRuntimeIncluded,
-            ),
-        ) + (1..extraMidDisclosureCount).map {
-            CharacterDisclosureItemEntity(DisclosureLevel.MID, "추가 중간 항목$it", runtimeIncluded = true)
-        },
+        ) + deepDisclosureItems(withDeepDisclosure, deepDisclosureText, openedDisclosureRuntimeIncluded) +
+            (1..extraMidDisclosureCount).map {
+                CharacterDisclosureItemEntity(DisclosureLevel.MID, "추가 중간 항목$it", runtimeIncluded = true)
+            },
         voiceSamples = if (!withOptionalCollections) emptyList() else listOf(
             CharacterVoiceSampleEntity(
                 situation = "의견에 반대했을 때",
@@ -582,6 +660,18 @@ class CharacterRuntimeInstructionRendererTests {
             ),
         ),
     )
+
+    private fun deepDisclosureItems(
+        withDeepDisclosure: Boolean,
+        deepDisclosureText: String,
+        runtimeIncluded: Boolean,
+    ): List<CharacterDisclosureItemEntity> {
+        if (!withDeepDisclosure) return emptyList()
+        return listOf(
+            CharacterDisclosureItemEntity(DisclosureLevel.DEEP, deepDisclosureText, runtimeIncluded),
+            CharacterDisclosureItemEntity(DisclosureLevel.DEEPEST, "자기 가치에 대한 공포", runtimeIncluded),
+        )
+    }
 
     private fun relationshipStage(
         stage: RelationshipStage,

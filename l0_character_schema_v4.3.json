@@ -1,0 +1,546 @@
+{
+  "name": "l0_character",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "identity",
+      "core",
+      "relationship_stages",
+      "relationship_events",
+      "behavior",
+      "voice",
+      "relations",
+      "disclosure_ladder",
+      "voice_samples",
+      "design_note"
+    ],
+    "properties": {
+      "identity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "age",
+          "gender",
+          "occupation",
+          "daily_life",
+          "one_line",
+          "concrete_details"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "[대화 · 설계] 입력으로 주어진 이름을 그대로 쓴다."
+          },
+          "age": {
+            "type": "integer",
+            "description": "[대화 · 설계] 입력으로 주어진 나이."
+          },
+          "gender": {
+            "type": "string",
+            "description": "[대화 · 설계] 입력으로 주어진 성별."
+          },
+          "occupation": {
+            "type": "string",
+            "description": "[대화 · 설계] 무엇을 하는 사람인지 짧게. 20자 내외. 소속 단체의 고유명이나 현재 직함은 시간에 따라 바뀌므로 넣지 않는다."
+          },
+          "daily_life": {
+            "type": "string",
+            "description": "[대화 · 설계] 평소 하루가 어떻게 흘러가는지 한 문장. 생계 수단을 포함해도 좋다."
+          },
+          "one_line": {
+            "type": "string",
+            "description": "[검토] 운영자가 이 인물을 한눈에 파악하기 위한 한 문장. 대화에는 쓰이지 않는다. 성격 형용사를 나열하지 말고, 서로 다른 두 상황에서의 행동으로 보여준다."
+          },
+          "concrete_details": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 5,
+            "items": {
+              "type": "string"
+            },
+            "description": "[대화 일부 · 설계] 이 인물을 알아보게 하는 신변 디테일. 각 1문장. 일상 사건을 만드는 재료로도 쓰이므로 구체적일수록 좋다. 사물과 숫자만이 아니라 사람을 대하는 버릇, 감정이 나타나는 순간, 반복하는 충동도 여기에 들어갈 수 있다. 성향과 어긋나지 않아야 한다. disclosure_ladder의 어느 층위와도 같은 소재를 쓰지 마라. 같은 물건이나 습관을 두 곳에 적으면 이 인물은 그 얘기만 하게 된다."
+          }
+        }
+      },
+      "core": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "lie",
+          "want",
+          "need",
+          "want_need_conflict",
+          "contradiction",
+          "non_negotiables",
+          "forbidden_behaviors"
+        ],
+        "properties": {
+          "lie": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "statement",
+              "behavioral_rule",
+              "wound"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "[설계] 입력으로 주어진 Lie 유형."
+              },
+              "statement": {
+                "type": "string",
+                "description": "[설계 전용] 이 인물이 참이라고 믿고 있는 잘못된 명제 한 문장. 본인은 이것을 의심하지 않으며, 이것이 거짓이라는 것도 모른다. 대화에는 절대 들어가지 않으므로 설계 정보로서 명확하게 쓴다. 주어진 유형의 일반 명제를 그대로 옮기지 말고 이 인물의 경험을 통과한 형태로 쓴다."
+              },
+              "behavioral_rule": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 3,
+                "items": {
+                  "type": "string"
+                },
+                "description": "[대화] Lie가 평상시에 만들어내는 행동. 대화 프롬프트에 그대로 들어가는 규칙이므로 '어떤 상황이 되면 무엇을 한다' 형태의 조건문으로 쓴다. 각 한 문장. 믿음이나 이유를 적지 말고 관찰 가능한 행동만 적는다. 특별한 마찰이 없는 평범한 상황에서도 작동하는 것이어야 하며, 굽히지 않는 것이나 하지 않는 행동과 내용이 겹치면 안 된다. 성향에서 자연스럽게 나오는 습관을 적지 마라. 꼼꼼한 사람이 확인을 반복하는 것, 새로운 것을 좋아하는 사람이 시도해 보는 것은 성향이지 Lie가 아니다. 이 인물이 두려워하는 일이 벌어질까 봐 하는 행동, 또는 그 두려움을 확인하지 않으려고 피하는 행동을 적어라. 각 항목에 대해 이것이 Lie와 어떻게 연결되는지 스스로 답할 수 없다면 다시 써라."
+              },
+              "wound": {
+                "type": "string",
+                "description": "[조건부 대화 · 설계] 이 믿음이 생겨난 과거 한 문장. 관계가 충분히 깊어졌을 때만 공개되므로, 캐릭터가 실제로 말할 수 있는 내용의 요지로 쓴다. 주어진 상처 조건(시기·장소·상처를 준 사람·형태·지속 시간)을 그대로 지킨다. 지속 시간이 길게 지정된 경우 단일 사건이 아니라 반복되며 쌓인 경험으로 쓴다."
+              }
+            }
+          },
+          "want": {
+            "type": "string",
+            "description": "[대화 · 설계] 이 인물이 지금 쫓고 있는 것. 여러 사건을 통과하면서도 계속 살아 있을 수 있는 지향이어야 한다. 마감 시점, 달성 수량, 특정 프로젝트는 이후 단계에서 정해지므로 여기에 넣지 않는다. 주어진 성향에 따라 형태가 달라져야 한다."
+          },
+          "need": {
+            "type": "string",
+            "description": "[설계 전용] 실제로 채워야 하는 내적 과제. 본인은 이것을 원하는 줄도 모른다. 대화에는 절대 들어가지 않으며, 앞으로의 사건이 이것을 향해 움직이도록 설계하는 데만 쓰인다. 특정 시점에 종속되지 않는다."
+          },
+          "want_need_conflict": {
+            "type": "string",
+            "description": "[설계 전용] 지금 방식대로 Want를 쫓으면 Need가 어떻게 좌절되는지 한 문장. 앞으로 만들어질 사건의 긴장이 여기서 나온다."
+          },
+          "contradiction": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "trait_a",
+              "trait_b",
+              "shared_root"
+            ],
+            "properties": {
+              "trait_a": {
+                "type": "string",
+                "description": "[대화] 관찰 가능한 행동. 어떤 상황에서 나타나는지 포함한다. 한 문장."
+              },
+              "trait_b": {
+                "type": "string",
+                "description": "[대화] trait_a와 양립하기 어려운 다른 행동. 다른 상황에서 나타난다. 한 문장."
+              },
+              "shared_root": {
+                "type": "string",
+                "description": "[설계 · 검토] 두 행동이 Lie라는 같은 뿌리에서 갈라져 나오는 경로. 내면과 외면을 대비시키는 요약이 아니라, 조건이 달라지면 다른 행동이 나오는 이유를 쓴다."
+              }
+            },
+            "description": "두 행동은 서로 충돌해야 한다. 한쪽을 하면 다른 쪽을 하기 어려워야 하고, 같은 상황에 놓였을 때 이 인물이 어느 쪽을 택할지 고민하게 되어야 한다. 서로 다른 상황에서 각각 나타나는 두 가지 특징은 모순이 아니다. 모순은 대개 아래 구조 중 하나를 가진다. 이 목록은 구조를 알려주는 것이며 여기 적힌 표현을 이 인물의 행동으로 옮겨 쓰지 마라. (1) 같은 기준이 대상에 따라 뒤집힌다 (2) 원하던 것이 손에 들어오는 순간 밀어낸다 (3) 한 가지를 얻으려는 두 행동이 서로를 무너뜨린다 (4) 사람들 앞에서와 혼자일 때가 정반대다 (5) 시작할 때와 끝낼 때의 태도가 다르다 (6) 가까워질수록 하지 못하게 되는 것이 있다 (7) 남에게 요구하는 것과 자신에게 적용하는 것이 어긋난다"
+          },
+          "non_negotiables": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "domain",
+                "statement",
+                "tie_to_lie",
+                "user_facing"
+              ],
+              "properties": {
+                "domain": {
+                  "type": "string",
+                  "enum": [
+                    "관계를 다루는 방식",
+                    "세계를 보는 눈",
+                    "일을 대하는 기준"
+                  ],
+                  "description": "세 항목은 서로 다른 영역에서 나와야 한다."
+                },
+                "statement": {
+                  "type": "string",
+                  "description": "[대화] 굽히지 않는 것. 대화 프롬프트에 그대로 들어가므로 한 문장의 행동 기준으로 쓴다. 상대가 반대해도 이 인물이 지키는 선이다."
+                },
+                "tie_to_lie": {
+                  "type": "string",
+                  "description": "[설계 · 검토] Lie가 이것을 왜 지키게 만드는가."
+                },
+                "user_facing": {
+                  "type": "boolean",
+                  "description": "사용자가 반대 의견을 냈을 때 실제로 마찰이 생기는 항목인가. 최소 1개는 true여야 한다."
+                }
+              }
+            }
+          },
+          "forbidden_behaviors": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "behavior",
+                "tie_to_lie"
+              ],
+              "properties": {
+                "behavior": {
+                  "type": "string",
+                  "description": "[대화] 이 인물이 하지 않는 행동. 대화 프롬프트에 금지 규칙으로 들어가므로 한 문장으로 명확하게 쓴다. 최소 하나는 감정 표현에 관한 것이어야 한다."
+                },
+                "tie_to_lie": {
+                  "type": "string",
+                  "description": "[설계 · 검토] Lie가 이것을 왜 금지하는가."
+                }
+              }
+            }
+          }
+        }
+      },
+      "relationship_stages": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "early",
+          "deepening",
+          "close"
+        ],
+        "description": "[대화 · 단계별] 관계가 깊어지는 정도에 따른 변화. 서버가 현재 관계 깊이에 해당하는 단계만 대화 프롬프트에 주입한다. 세 단계가 서로 뚜렷하게 달라야 하며, 비슷하면 이 축은 아무것도 결정하지 못한 것이다. 관계에 따라 변하는 것은 개방의 범위와 거리 조절이지 이 인물의 규칙이 아니다. 네 필드 모두 정도가 아니라 행동으로 쓴다. 이 단계가 다른 단계와 어떻게 다른지를 설명하는 문장이 아니라, 이 단계에서 이 인물이 무엇을 하는지를 쓴 문장이어야 한다. 세 단계를 나란히 놓고 읽었을 때 서로 다른 장면이 떠올라야 한다.",
+        "properties": {
+          "early": {
+            "$ref": "#/$defs/stage"
+          },
+          "deepening": {
+            "$ref": "#/$defs/stage"
+          },
+          "close": {
+            "$ref": "#/$defs/stage"
+          }
+        }
+      },
+      "relationship_events": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "on_rejection",
+          "on_conflict",
+          "on_absence",
+          "on_over_approach"
+        ],
+        "description": "[대화] 관계에서 특정한 일이 벌어졌을 때의 반응. 관계 단계와 무관하게 언제든 일어날 수 있으므로 항상 대화 프롬프트에 들어간다. 각 항목은 두 문장 이내의 행동 지시문으로 쓰되, 필요하면 '얕을 때는 이렇고 가까워진 뒤에는 이렇다'를 한 문장 안에 담아도 좋다. 네 항목이 서로 구별되어야 한다.",
+        "properties": {
+          "on_rejection": {
+            "type": "string",
+            "description": "[대화] 도움이나 제안이 거절당했을 때. 물러나는가, 다시 시도하는가, 다른 형태로 남기는가."
+          },
+          "on_conflict": {
+            "type": "string",
+            "description": "[대화] 사용자와 의견이 부딪혔을 때. 굽히지 않는 것이 걸린 상황에서 어떻게 반응하는가."
+          },
+          "on_absence": {
+            "type": "string",
+            "description": "[대화] 오래 연락이 없다가 사용자가 돌아왔을 때. 서운함을 표현하는지, 반갑게 맞는지, 없었던 일처럼 이어가는지."
+          },
+          "on_over_approach": {
+            "type": "string",
+            "description": "[대화] 사용자가 관계 단계를 건너뛰어 빠르게 다가오려 할 때. 받아들이는지, 속도를 늦추는지, 물러나는지."
+          }
+        }
+      },
+      "behavior": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "emotional_expression_note",
+          "avoidance_note"
+        ],
+        "properties": {
+          "emotional_expression_note": {
+            "type": "string",
+            "description": "[대화] 주어진 정서 표출 방식이 이 인물에게서 어떻게 나타나는가. 기쁨·분노·불안이 각각 어떤 형태로 나오는지, 그리고 감정이 격해졌을 때 말과 행동이 어떻게 변하는지를 함께 쓴다. 네 문장 이내. 주어진 방식이 감정을 절제하는 쪽이 아니라면 절제된 인물로 만들지 마라. 감정에 관한 서술은 이 필드에만 쓴다. 다른 필드에 같은 내용을 나눠 적지 마라."
+          },
+          "avoidance_note": {
+            "type": "string",
+            "description": "[대화] 주어진 회피 방식이 이 인물에게서 어떻게 나타나는가. 말하고 싶지 않은 정보를 요구받았을 때의 반응이며, 감정 처리와는 다른 축이다. 두 문장 이내. 불균형이 지정된 경우 그 설명이 여기에도 반영되어야 한다."
+          }
+        }
+      },
+      "voice": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "speech_archetype_note",
+          "sentence_pattern",
+          "verbal_tics",
+          "banned_words"
+        ],
+        "properties": {
+          "speech_archetype_note": {
+            "type": "string",
+            "description": "[검토] 주어진 말투 원형이 이 인물에게 어떤 환경에서 몸에 뱄는지, 그래서 같은 원형의 다른 인물과 어떻게 다른지 1~2문장. 운영자가 읽는 배경 설명이며 대화에는 들어가지 않는다. 불균형이 지정된 경우 그 경로가 여기에 드러나야 한다."
+          },
+          "sentence_pattern": {
+            "type": "string",
+            "description": "[대화] 평상시 문장 길이와 구조의 경향. 형용사가 아니라 관찰 가능한 형태로. 두 문장 이내. 감정 상태에 따른 변화는 여기 적지 않는다. 그것은 감정 표출 필드가 담당한다."
+          },
+          "verbal_tics": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "[대화] 앞의 세 개는 프롬프트에서 지정된 상황에 대해, 네 번째는 이 인물에게 특히 중요한 상황을 스스로 정해 만든다.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "situation",
+                "description"
+              ],
+              "properties": {
+                "situation": {
+                  "type": "string",
+                  "description": "이 말버릇이 나타나는 상황. 네 번째 항목을 스스로 정할 때, 상처와 관련된 상황을 고르는 것은 좋지만 상처의 내용을 상황 서술에 담지 마라. '상처와 연결된 화제가 나왔을 때'처럼 지칭만 한다."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "그 상황에서 이 인물이 말하는 방식. 발화 예시를 그대로 적으면 그 문장만 반복되므로, '어떻게 말한다'는 서술로 쓴다. 한 문장. 이 필드는 관계가 얕은 사용자와의 대화에도 그대로 들어가므로, 아직 공개되지 않아야 할 정보를 담으면 안 된다. 상처가 무엇에 관한 것인지, 과거에 누가 있었는지, 어떤 관계에서 생긴 일인지를 적지 마라. 회피하는 방식만 적는다."
+                }
+              }
+            }
+          },
+          "banned_words": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "from_lie",
+              "from_background"
+            ],
+            "description": "[대화] 이 인물이 쓰지 않는 실제 단어나 표현.",
+            "properties": {
+              "from_lie": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 3,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Lie 때문에 쓸 수 없는 표현."
+              },
+              "from_background": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 4,
+                "items": {
+                  "type": "string"
+                },
+                "description": "이 인물의 일, 자란 환경, 말투가 몸에 밴 자리에서만 나올 법한 표현. 다른 캐릭터와 겹치면 안 된다. 일반적인 과장 표현을 여기에 넣지 마라."
+              }
+            }
+          }
+        }
+      },
+      "relations": {
+        "type": "array",
+        "minItems": 5,
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "name",
+            "relation",
+            "description",
+            "presence",
+            "tie_to_lie"
+          ],
+          "properties": {
+            "slot": {
+              "type": "string",
+              "enum": [
+                "조력자",
+                "마찰자",
+                "거울",
+                "권위",
+                "과거"
+              ]
+            },
+            "name": {
+              "type": "string",
+              "description": "[대화 · 설계] 이름."
+            },
+            "relation": {
+              "type": "string",
+              "description": "[대화 · 설계] 이 인물과의 관계. 짧게."
+            },
+            "description": {
+              "type": "string",
+              "description": "[설계] 한두 문장. 이 사람이 캐릭터의 어떤 면을 드러내는가. 앞으로의 사건에 등장시킬 때의 재료가 된다."
+            },
+            "presence": {
+              "type": "string",
+              "enum": [
+                "현존",
+                "부재"
+              ],
+              "description": "'과거' 슬롯은 원칙적으로 '부재'. 나머지 슬롯도 전부 현존일 필요는 없다."
+            },
+            "tie_to_lie": {
+              "type": "string",
+              "description": "[검토 · 설계] 이 인물이 Lie와 어떻게 연결되는가. '과거' 슬롯은 상처가 일어난 자리에 있던 사람이며, 상처를 준 사람이 '특정인 없음'으로 지정된 경우 가해자가 아니라 그 자리에 함께 있었던 사람으로 채운다."
+            }
+          }
+        }
+      },
+      "disclosure_ladder": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "서버가 관계 깊이와 상황을 판정해 열린 층위만 대화에 주입한다. 각 항목은 캐릭터가 실제로 발화할 수 있는 내용의 요지로 쓴다.",
+        "required": [
+          "surface",
+          "mid",
+          "deep",
+          "deepest"
+        ],
+        "properties": {
+          "surface": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 5,
+            "items": {
+              "type": "string"
+            },
+            "description": "[대화] 처음 만난 사람에게도 말하는 것. 항상 열려 있다. 최소 두 개는 일이나 직업과 무관한 것이어야 한다. 먹는 것, 자는 시간, 자주 가는 곳, 사소한 취향, 몸에 밴 습관처럼 처음 만난 사람과도 가볍게 주고받을 수 있는 것을 포함하라. 전부 일 이야기면 관계가 얕은 동안 나눌 대화가 없어진다."
+          },
+          "mid": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 4,
+            "items": {
+              "type": "string"
+            },
+            "description": "[조건부 대화] 몇 번 대화한 사람에게 말하는 것. surface와 같은 형식의 사실 서술로 쓴다. '~라고 말한다'처럼 발화 행위를 적지 말고 내용만 적는다. identity.concrete_details나 surface에 이미 적은 것을 여기 다시 적지 마라. 그러면 개방의 의미가 없어진다."
+          },
+          "deep": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 3,
+            "items": {
+              "type": "string"
+            },
+            "description": "[조건부 대화] 조건이 갖춰져야 말하는 것. 상처와 직접 연결된 과거. surface, mid와 같은 형식의 사실 서술로 쓴다. 앞 층위에 적은 것을 반복하지 마라. lie.wound에 적은 사건 자체를 여기 다시 적지 마라. wound는 별도로 주입되므로 같은 내용이 두 번 나온다. 이 층위에는 그 사건의 주변, 그 사건 이후에 생긴 습관, 그 사건과 연결되지만 사건 자체는 아닌 것을 적는다."
+          },
+          "deepest": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "string"
+            },
+            "description": "[조건부 대화] 아직 누구에게도 말한 적 없는 단 하나. 앞 층위에서 공개된 사실을 뒤집거나 다시 보게 만드는 것이면 가장 좋다. 같은 형식의 사실 서술로 쓴다."
+          }
+        }
+      },
+      "voice_samples": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "description": "[검토] 운영자가 이 캐릭터를 판단하는 근거이자, 나중에 말투가 흔들리지 않았는지 확인하는 기준선. 대화 프롬프트에는 들어가지 않는다.",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "situation",
+            "line",
+            "demonstrates"
+          ],
+          "properties": {
+            "situation": {
+              "type": "string",
+              "description": "프롬프트에서 지정된 세 상황 중 하나를 그대로 옮긴다. 모두 관계가 얕은 사용자를 전제한다."
+            },
+            "line": {
+              "type": "string",
+              "description": "실제 발화 1~2문장. 세 샘플의 길이와 톤이 서로 달라야 한다. 주어진 정서 표출 방식이 절제형이 아니라면 절제된 발화를 만들지 마라."
+            },
+            "demonstrates": {
+              "type": "string",
+              "description": "이 발화가 위에 정의한 어떤 규칙이 작동하는 장면인지 한 문장. 규칙과 어긋나면 발화를 고쳐라."
+            }
+          }
+        }
+      },
+      "design_note": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "[검토] 운영자 전용. 대화에도 사건 설계에도 들어가지 않는다.",
+        "required": [
+          "recognizability",
+          "long_term_viability",
+          "imbalance_note",
+          "trait_reflection"
+        ],
+        "properties": {
+          "recognizability": {
+            "type": "string",
+            "description": "같은 Lie 유형·같은 분야·비슷한 성향의 인물 수십 명 중에서 이 사람을 알아볼 수 있게 하는 지점 1~2문장. 주어진 축에서 자동으로 도출되는 것을 적으면 안 된다."
+          },
+          "long_term_viability": {
+            "type": "string",
+            "description": "수년간 여러 사건을 겪은 뒤에도 이 코어가 계속 유효한 이유 1~2문장."
+          },
+          "imbalance_note": {
+            "type": "string",
+            "description": "불균형 조합이 지정된 경우, 왜 이 인물에게서 두 축이 함께 나타나는지의 설명. 같은 행동이라도 목적이 다를 수 있다는 점을 활용한다. 이 설명은 voice.speech_archetype_note와 behavior의 해당 필드에도 반영되어야 한다. 지정되지 않았으면 '없음'이라고 적는다."
+          },
+          "trait_reflection": {
+            "type": "string",
+            "description": "주어진 성향이 Want의 형태와 두려움에 대응하는 방식에 어떤 제약을 주었는지 2~3문장. 반드시 '이 성향이 반대쪽이었다면 무엇이 달라졌을지'를 한 문장 포함한다. 운영자가 성향 반영 여부를 판단하는 근거이며 대화에는 들어가지 않는다."
+          }
+        }
+      }
+    },
+    "$defs": {
+      "stage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attachment",
+          "address",
+          "emotional_range",
+          "avoidance"
+        ],
+        "properties": {
+          "attachment": {
+            "type": "string",
+            "description": "[대화] 이 단계에서 이 인물이 실제로 하는 행동. 두 문장 이내. 관계의 정도를 설명하지 말고, 이 단계이기 때문에 하게 되는 행동과 하지 않게 되는 행동을 각각 하나씩 쓴다. '허용한다', '요구한다', '가져온다' 같은 서술어로 끝내면 무엇을 하는지 알 수 없다. 무엇을 언제 어떻게 하는지가 문장에 들어 있어야 한다."
+          },
+          "address": {
+            "type": "string",
+            "description": "[대화] 이 단계에서 사용자를 부르는 방식과 존댓말/반말. 한 문장. 이 단계에서 실제로 쓰는 하나를 확정해서 쓴다. '~했을 때는 이렇게, 아니면 저렇게' 같은 조건문을 쓰지 마라. 조건을 판정할 주체가 없으므로 매번 다르게 나온다."
+          },
+          "emotional_range": {
+            "type": "string",
+            "description": "[대화] 이 단계에서 감정이 실제로 어떤 말이나 행동으로 나오는가. 두 문장 이내. 어떤 감정을 어디까지 보이는지 나열하지 마라. 감정의 이름을 나열하는 대신, 이 단계에서만 나오는 감정 표현 하나를 골라 그것이 어떤 상황에서 어떤 행동으로 나타나는지 쓴다. 정서 표출 방식 자체는 단계와 무관하게 같으며, 이 필드는 그 방식이 이 단계에서 어떤 장면으로 나타나는지를 담는다."
+          },
+          "avoidance": {
+            "type": "string",
+            "description": "[대화] 이 단계에서 말하고 싶지 않은 것을 요구받으면 실제로 무엇을 하는가. 두 문장 이내. '얼마나 흐리는지', '어디까지 내놓는지' 같은 정도를 쓰지 마라. 이 단계에서 어떤 질문에 어떻게 반응하는지를 행동으로 쓴다. 회피 방식 자체는 단계와 무관하게 같으며, 이 필드는 그 방식이 이 단계에서 어떤 장면으로 나타나는지를 담는다."
+          }
+        }
+      }
+    }
+  }
+}

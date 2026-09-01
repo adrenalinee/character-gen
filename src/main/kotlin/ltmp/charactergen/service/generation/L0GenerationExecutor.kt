@@ -11,6 +11,7 @@ class L0GenerationExecutor(
     private val llmClient: L0CharacterLlmClient,
     private val duplicateSelector: RuntimeDuplicateSelector,
     private val countValidator: L0CharacterCountValidator,
+    private val wordingValidator: L0CharacterWordingValidator,
 ) {
     fun execute(generationId: Long) {
         val startedAt = System.nanoTime()
@@ -27,8 +28,11 @@ class L0GenerationExecutor(
                 response = result.character,
                 rawJson = result.rawJson,
                 runtimeInclusion = runtimeInclusion,
-                // 개수 규정 미달과 하한 때문에 남긴 겹침을 한 곳에 모아 실행 기록에 남긴다.
-                warnings = countValidator.validate(result.character) + runtimeInclusion.warnings,
+                // 개수 규정 미달, 정도 서술과 wound 반복, 하한 때문에 남긴 겹침을
+                // 한 곳에 모아 실행 기록에 남긴다.
+                warnings = countValidator.validate(result.character) +
+                    wordingValidator.validate(result.character) +
+                    runtimeInclusion.warnings,
                 elapsedMillis = elapsedSince(startedAt),
             )
         } catch (failure: Exception) {

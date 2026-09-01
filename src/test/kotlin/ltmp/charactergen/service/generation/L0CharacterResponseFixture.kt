@@ -34,6 +34,10 @@ fun l0CharacterResponse(
     nonNegotiableCount: Int = 3,
     forbiddenBehaviorCount: Int = 3,
     verbalTicCount: Int = 4,
+    wound: String = "상처",
+    deep: List<String> = listOf("deep1"),
+    stageEmotionalRange: String? = null,
+    stageAvoidance: String? = null,
 ): L0CharacterResponse = L0CharacterResponse(
     identity = CharacterIdentity(
         name = "서윤",
@@ -49,7 +53,7 @@ fun l0CharacterResponse(
             type = "대체 가능성 공포형",
             statement = "믿음",
             behavioralRule = behavioralRules,
-            wound = "상처",
+            wound = wound,
         ),
         want = "쫓는 것",
         need = "필요한 것",
@@ -63,9 +67,9 @@ fun l0CharacterResponse(
         },
     ),
     relationshipStages = RelationshipStages(
-        early = stageNote("관계 단계 애착"),
-        deepening = stageNote("깊어질 때 애착"),
-        close = stageNote("가까울 때 애착"),
+        early = stageNote("관계 단계 애착", stageEmotionalRange, stageAvoidance),
+        deepening = stageNote("깊어질 때 애착", stageEmotionalRange, stageAvoidance),
+        close = stageNote("가까울 때 애착", stageEmotionalRange, stageAvoidance),
     ),
     relationshipEvents = RelationshipEvents(
         onRejection = "거절당했을 때",
@@ -89,16 +93,20 @@ fun l0CharacterResponse(
     disclosureLadder = DisclosureLadder(
         surface = surface,
         mid = listOf("mid1", "mid2"),
-        deep = listOf("deep1"),
+        deep = deep,
         deepest = emptyList(),
     ),
     voiceSamples = listOf(VoiceSample("상황", "발화", "무엇을 보여주는가")),
     designNote = DesignNote("판별", "장기", "없음", "성향 반영"),
 )
 
-private fun stageNote(attachment: String) = RelationshipStageNote(
+private fun stageNote(
+    attachment: String,
+    emotionalRange: String?,
+    avoidance: String?,
+) = RelationshipStageNote(
     attachment = attachment,
     address = "$attachment 호칭",
-    emotionalRange = "$attachment 감정",
-    avoidance = "$attachment 회피",
+    emotionalRange = emotionalRange ?: "$attachment 감정",
+    avoidance = avoidance ?: "$attachment 회피",
 )

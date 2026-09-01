@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import io.swagger.v3.oas.annotations.media.ArraySchema
 
 /**
- * L0 캐릭터 생성 LLM의 구조화 출력 스키마. (L0 캐릭터 생성 프롬프트 v4.2)
+ * L0 캐릭터 생성 LLM의 구조화 출력 스키마. (L0 캐릭터 생성 프롬프트 v4.3)
  *
  * 각 필드 설명 앞의 대괄호는 그 값이 어디에서 소비되는지를 뜻한다.
  * `[대화]`는 런타임 대화 프롬프트에 그대로 들어가고, `[설계]`는 이후 L1 단계의 입력이며,
@@ -19,7 +19,10 @@ data class L0CharacterResponse(
         "[대화 · 단계별] 관계가 깊어지는 정도에 따른 변화. early는 관계가 얕을 때, deepening은 가까워지는 과정, " +
             "close는 충분히 가까워진 뒤다. 서버가 현재 관계 깊이에 해당하는 단계만 대화 프롬프트에 주입한다. " +
             "세 단계가 서로 뚜렷하게 달라야 하며, 비슷하면 이 축은 아무것도 결정하지 못한 것이다. " +
-            "관계에 따라 변하는 것은 개방의 범위와 거리 조절이지 이 인물의 규칙이 아니다.",
+            "관계에 따라 변하는 것은 개방의 범위와 거리 조절이지 이 인물의 규칙이 아니다. " +
+            "네 필드 모두 정도가 아니라 행동으로 쓴다. " +
+            "이 단계가 다른 단계와 어떻게 다른지를 설명하는 문장이 아니라, 이 단계에서 이 인물이 무엇을 하는지를 쓴 문장이어야 한다. " +
+            "세 단계를 나란히 놓고 읽었을 때 서로 다른 장면이 떠올라야 한다.",
     )
     @get:JsonProperty("relationship_stages")
     val relationshipStages: RelationshipStages,
@@ -164,14 +167,33 @@ data class RelationshipStages(
 )
 
 data class RelationshipStageNote(
-    @get:JsonPropertyDescription("[대화] 이 단계에서 사람과의 거리를 어떻게 다루는가. 두 문장 이내의 행동 지시문. 주어진 관계 태도의 곡선 위에서 이 시점이 어디인지가 드러나야 한다.")
+    @get:JsonPropertyDescription(
+        "[대화] 이 단계에서 이 인물이 실제로 하는 행동. 두 문장 이내. " +
+            "관계의 정도를 설명하지 말고, 이 단계이기 때문에 하게 되는 행동과 하지 않게 되는 행동을 각각 하나씩 쓴다. " +
+            "'허용한다', '요구한다', '가져온다' 같은 서술어로 끝내면 무엇을 하는지 알 수 없다. " +
+            "무엇을 언제 어떻게 하는지가 문장에 들어 있어야 한다.",
+    )
     val attachment: String,
-    @get:JsonPropertyDescription("[대화] 이 단계에서 사용자를 부르는 방식과 존댓말/반말. 한 문장.")
+    @get:JsonPropertyDescription(
+        "[대화] 이 단계에서 사용자를 부르는 방식과 존댓말/반말. 한 문장. 이 단계에서 실제로 쓰는 하나를 확정해서 쓴다. " +
+            "'~했을 때는 이렇게, 아니면 저렇게' 같은 조건문을 쓰지 마라. " +
+            "조건을 판정할 주체가 없으므로 매번 다르게 나온다.",
+    )
     val address: String,
-    @get:JsonPropertyDescription("[대화] 이 단계에서 어디까지 감정을 보이는가. 정서 표출 방식 자체는 단계와 무관하게 같으며, 드러내는 범위만 달라진다. 한 문장.")
+    @get:JsonPropertyDescription(
+        "[대화] 이 단계에서 감정이 실제로 어떤 말이나 행동으로 나오는가. 두 문장 이내. " +
+            "어떤 감정을 어디까지 보이는지 나열하지 마라. " +
+            "감정의 이름을 나열하는 대신, 이 단계에서만 나오는 감정 표현 하나를 골라 그것이 어떤 상황에서 어떤 행동으로 나타나는지 쓴다. " +
+            "정서 표출 방식 자체는 단계와 무관하게 같으며, 이 필드는 그 방식이 이 단계에서 어떤 장면으로 나타나는지를 담는다.",
+    )
     @get:JsonProperty("emotional_range")
     val emotionalRange: String,
-    @get:JsonPropertyDescription("[대화] 이 단계에서 회피가 얼마나 강하게 작동하는가. 회피 방식 자체는 단계와 무관하게 같으며, 강도와 적용 범위만 달라진다. 한 문장.")
+    @get:JsonPropertyDescription(
+        "[대화] 이 단계에서 말하고 싶지 않은 것을 요구받으면 실제로 무엇을 하는가. 두 문장 이내. " +
+            "'얼마나 흐리는지', '어디까지 내놓는지' 같은 정도를 쓰지 마라. " +
+            "이 단계에서 어떤 질문에 어떻게 반응하는지를 행동으로 쓴다. " +
+            "회피 방식 자체는 단계와 무관하게 같으며, 이 필드는 그 방식이 이 단계에서 어떤 장면으로 나타나는지를 담는다.",
+    )
     val avoidance: String,
 )
 
@@ -194,7 +216,7 @@ data class CharacterBehavior(
     @get:JsonPropertyDescription(
         "[대화] 주어진 정서 표출 방식이 이 인물에게서 어떻게 나타나는가. " +
             "기쁨·분노·불안이 각각 어떤 형태로 나오는지, 그리고 감정이 격해졌을 때 말과 행동이 어떻게 변하는지를 함께 쓴다. " +
-            "세 문장 이내. 주어진 방식이 감정을 절제하는 쪽이 아니라면 절제된 인물로 만들지 마라. " +
+            "네 문장 이내. 주어진 방식이 감정을 절제하는 쪽이 아니라면 절제된 인물로 만들지 마라. " +
             "감정에 관한 서술은 이 필드에만 쓴다. 다른 필드에 같은 내용을 나눠 적지 마라.",
     )
     @get:JsonProperty("emotional_expression_note")
@@ -293,7 +315,9 @@ data class DisclosureLadder(
     val mid: List<String>,
     @get:JsonPropertyDescription(
         "[조건부 대화] 조건이 갖춰져야 말하는 것. 상처와 직접 연결된 과거. " +
-            "surface, mid와 같은 형식의 사실 서술로 쓴다. 앞 층위에 적은 것을 반복하지 마라.",
+            "surface, mid와 같은 형식의 사실 서술로 쓴다. 앞 층위에 적은 것을 반복하지 마라. " +
+            "lie.wound에 적은 사건 자체를 여기 다시 적지 마라. wound는 별도로 주입되므로 같은 내용이 두 번 나온다. " +
+            "이 층위에는 그 사건의 주변, 그 사건 이후에 생긴 습관, 그 사건과 연결되지만 사건 자체는 아닌 것을 적는다.",
     )
     @get:ArraySchema(minItems = 2, maxItems = 3)
     val deep: List<String>,
