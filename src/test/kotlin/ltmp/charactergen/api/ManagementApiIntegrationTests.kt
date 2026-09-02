@@ -154,6 +154,15 @@ class ManagementApiIntegrationTests(
             jsonPath("$.paths['/api/v1/l0-characters'].get.parameters[?(@.name == 'size')]") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/{characterId}'].get") { exists() }
             jsonPath("$.paths['/api/v1/l0-characters/{characterId}'].delete") { exists() }
+            jsonPath("$.paths['/api/v1/l0-characters/{characterId}/runtime-instructions'].post") { exists() }
+            jsonPath("$.paths['/api/v1/character-chat/runtime-instructions']") { doesNotExist() }
+            jsonPath("$.components.schemas.CreateCharacterRuntimeInstructionRequest.required") {
+                value(org.hamcrest.Matchers.contains("relationshipStage"))
+            }
+            jsonPath("$.components.schemas.CreateCharacterRuntimeInstructionRequest.properties.relationshipStage") { exists() }
+            jsonPath("$.components.schemas.CreateCharacterRuntimeInstructionRequest.properties.characterId") { doesNotExist() }
+            jsonPath("$.components.schemas.CreateCharacterRuntimeInstructionRequest.properties.model") { doesNotExist() }
+            jsonPath("$.components.schemas.CharacterRuntimeInstructionDto.properties.instructions") { exists() }
             jsonPath("$.components.schemas.CharacterSimpleDto") { exists() }
             jsonPath("$.components.schemas.CharacterSimpleDto.properties.identity") { doesNotExist() }
             jsonPath("$.components.schemas.CharacterDto") { exists() }

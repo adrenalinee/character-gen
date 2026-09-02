@@ -81,13 +81,13 @@ class CharacterChatIntegrationTests(
     }
 
     @Test
-    fun `런타임 인스트럭션 조회는 세션을 만들지 않고 세션 생성과 같은 전문을 돌려준다`() {
+    fun `캐릭터 런타임 인스트럭션 조립은 세션을 만들지 않고 기본 세션 생성과 같은 전문을 돌려준다`() {
         val characterId = persistCharacter()
 
         val preview = objectMapper.readTree(
-            mockMvc.post("/api/v1/character-chat/runtime-instructions") {
+            mockMvc.post("/api/v1/l0-characters/$characterId/runtime-instructions") {
                 contentType = org.springframework.http.MediaType.APPLICATION_JSON
-                content = """{"characterId":$characterId,"relationshipStage":"EARLY"}"""
+                content = """{"relationshipStage":"EARLY"}"""
             }.andExpect {
                 status { isOk() }
             }.andReturn().response.contentAsString,
